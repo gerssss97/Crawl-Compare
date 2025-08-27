@@ -5,7 +5,7 @@ from models.hotel import *
 
 EXCLUSIONES = [
     "season rates", "(per room)", "closing agreement",
-    "rates includes", "promotion", "not included"
+    "rates includes", "promotion", "not included", "high speed"
 ]
 
 def cargar_excel(path_excel, max_row=200) -> DatosExcel:
@@ -46,13 +46,13 @@ def cargar_excel(path_excel, max_row=200) -> DatosExcel:
 
         # 🔹 Habitaciones (con o sin tipo)
         col_precio = row[2]
-        precio_raw = None
+        precio = None
         if col_precio is not None and str(col_precio).strip() != "":
-            precio_raw = str(col_precio)
+            precio = str(col_precio)
             
         habitacion = HabitacionExcel(
             nombre=nombre_raw,
-            precio_raw=precio_raw,
+            precio=precio,
             row_idx=i
         )
 
