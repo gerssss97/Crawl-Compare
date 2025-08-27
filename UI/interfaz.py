@@ -59,12 +59,7 @@ class InterfazApp:
         
         self.encabezado_frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
         ttk.Label(self.encabezado_frame, text="Selección hotel: ").grid(row=0, column=0, sticky='w', padx=4, pady=2)
-        self.hotel_cb = ttk.Combobox(
-            self.encabezado_frame,
-            textvariable=self.seleccion_hotel,
-            values=["Hotel A", "Hotel B"],
-            state="readonly",
-        )
+        self.hotel_cb = ttk.Combobox(self.encabezado_frame, textvariable=self.seleccion_hotel, state="readonly")
         self.hotel_cb.grid(row=0, column=1, sticky='ew', padx=4, pady=2)
         self.hotel_cb.bind("<<ComboboxSelected>>", self.on_hotel_cambiado)
         self.crear_campos_estaticos(1)
@@ -85,16 +80,15 @@ class InterfazApp:
         self.root.grid_columnconfigure(2, weight=1)
     
     def mostrar_email_btn(self):
-        self.boton_ejecutar = ttk.Button(self.precio_frame, text="Envio de email")
+        self.boton_ejecutar = ttk.Button(self.precio_frame, text="Envio de email", command=self.crear_pantalla_mail)
         self.boton_ejecutar.grid(row=2, column=0, sticky="ew")
-        pass
+        
     
     def crear_campos_estaticos(self, desde=1, incluir_edificio=False):
         
         # Si el frame ya existe, lo destruimos para recrearlo
         if hasattr(self, 'campos_frame'):
-            # self.campos_frame.destroy()
-            self.campos_frame.pack_forget()
+            self.campos_frame.grid_forget()
 
         self.campos_frame = ttk.Frame(self.root)
         self.campos_frame.columnconfigure(1,weight=2, uniform='col')
@@ -159,8 +153,84 @@ class InterfazApp:
         self.resultado.grid(row=i, column=0, columnspan=2, sticky='nsew', padx=4, pady=2)
 
         # self.campos_frame.rowconfigure(i, weight=1)
+    def crear_pantalla_mail(self):
+        self.geometria_anterior = self.root.geometry()
+        
+        self.campos_frame.grid_forget()
+        self.encabezado_frame.grid_forget()
+        self.precio_frame.grid_forget()
+        
+        self.mail_frame = ttk.Frame(self.root)
+        self.mail_frame.grid(row=0, column=0, columnspan=3, sticky="nsew")
+        self.mail_frame.columnconfigure(1, weight=2, uniform='col')
+        self.root.geometry(self.geometria_anterior)
+
+        lbl_email = ttk.Label(self.mail_frame, text="Contenido del Email:")
+        lbl_email.grid(row=0, column=0, padx=10, pady=10, sticky="w")
     
+        self.email_textbox = tk.Text(self.mail_frame, wrap="word", height=15, width=50)
+        self.email_textbox.grid(row=1, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
+        texto_predeterminado = (
+            "Estimado equipo de reservas,\n\n"
+            "He notado una discrepancia en los precios de las habitaciones entre el archivo Excel y la página web del hotel "f"{self.seleccion_hotel.get()}" ".\n\n"
+            "Detalles de la comparación:\n"
+            f"- Habitación Excel: {self.seleccion_habitacion_excel.get()}\n"
+            f"- Precio en Excel: {self.precio_var.get()}\n"
+            f"- Precio en Web: (obtenido tras la comparación)"f"{self.habitacion_web.combos[0].precio}"" \n\n"
+            "Agradecería si pudieran revisar esta diferencia y proporcionarme una explicación o corrección si es necesario.\n\n"
+            "Gracias por su atención.\n\n"
+            "Saludos cordiales,\n"
+            "[Tu Nombre]"
+        )
+        self.email_textbox.insert(tk.END, texto_predeterminado)
+
+        enviar_btn = ttk.Button(self.mail_frame, text="Enviar Email", command=self.enviar_email)
+        enviar_btn.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
+
+    def enviar_email(self):
+        texto_mensaje = self.email_textbox.get("1.0", tk.END).strip()
+        remitente ="gerlucero1997@gmail.com"
+        destinatario = "gerlucero1977@gmail.com"
+        clave="nmng oflh cucv xrqr"
+        asunto = f"Discrepancia de precios - {self.seleccion_hotel.get()}"
+        enviar_correo(remitente,clave,destinatario,asunto,texto_mensaje)
+        
+    def cargar_hoteles_excel(self):
+        self.hoteles_excel = dar_hoteles_excel()
+        hoteles = [hoteles_excel.nombre for hoteles_excel in self.hoteles_excel]
+        for i in range(len(hoteles)):
+            hoteles[i]= hoteles[i].replace("(A)","").strip()
+        self.hotel_cb['values'] = hoteles
+        if self.hoteles_excel:
+            self.seleccion_hotel.set(hoteles[0])
+            self.on_hotel_cambiado(None)
+        else:
+            self.seleccion_hotel.set("")
     
+    def cargar_edificios_excel(self, hotel):
+        edificios = []
+        for hotel_excel in self.hoteles_excel:
+            if hotel_excel.nombre.lower() == hotel:
+                edificios = [tipo.nombre for tipo in hotel_excel.tipos]
+        self.var_edificio_cb['values'] = edificios
+        self.seleccion_edificio.set("")
+
+    def cargar_habitaciones_excel(self, hotel, tipo=None):
+        if tipo is None:
+            for hotelExcel in self.hoteles_excel:
+                if hotelExcel.nombre.lower() == hotel:
+                    self.habitaciones_excel = hotelExcel.habitaciones_directas
+        else:
+            for hotelExcel in self.hoteles_excel:
+                if hotelExcel.nombre.lower() == hotel:
+                    for tipos in hotelExcel.tipos:
+                        if tipos.nombre == tipo:
+                            self.habitaciones_excel = tipos.habitaciones
+        self.habit_excel_cb['values'] = [HabitacionExcel.nombre for HabitacionExcel in self.habitaciones_excel]
+        self.seleccion_habitacion_excel.set("")
+        if self.habitaciones_excel:
+            self.on_habitacion_excel_cambiada(None)
+
     def on_hotel_cambiado(self, event):
         hotel = self.seleccion_hotel.get().lower()
         hotel = hotel + " (a)"
@@ -181,59 +251,19 @@ class InterfazApp:
         hotel = hotel + " (a)"
         self.cargar_habitaciones_excel(hotel, edificio)
     
-    def cargar_edificios_excel(self, hotel):
-        edificios = []
-        for hotel_excel in self.hoteles_excel:
-            if hotel_excel.nombre.lower() == hotel:
-                edificios = [tipo.nombre for tipo in hotel_excel.tipos]
-        self.var_edificio_cb['values'] = edificios
-        if edificios:
-            self.seleccion_edificio.set(edificios[0])
-        else:
-            self.seleccion_edificio.set("")
-
-    def cargar_hoteles_excel(self):
-        self.hoteles_excel = dar_hoteles_excel()
-        hoteles = [hoteles_excel.nombre for hoteles_excel in self.hoteles_excel]
-        for i in range(len(hoteles)):
-            hoteles[i]= hoteles[i].replace("(A)","").strip()
-        self.hotel_cb['values'] = hoteles
-        if self.hoteles_excel:
-            self.seleccion_hotel.set(hoteles[0])
-            self.on_hotel_cambiado(None)
-        else:
-            self.seleccion_hotel.set("")
-
-    def cargar_habitaciones_excel(self, hotel, tipo=None):
-        print("cargar habitaciones excel")
-        print("hotel", hotel)
-        print("tipo", tipo)
-        if tipo is None:
-            for hotelExcel in self.hoteles_excel:
-                if hotelExcel.nombre.lower() == hotel:
-                    self.habitaciones_excel = hotelExcel.habitaciones_directas
-        else:
-            for hotelExcel in self.hoteles_excel:
-                if hotelExcel.nombre.lower() == hotel:
-                    for tipos in hotelExcel.tipos:
-                        if tipos.nombre == tipo:
-                            self.habitaciones_excel = tipos.habitaciones
-        print("habitaciones " , self.habitaciones_excel)
-        self.habit_excel_cb['values'] = [HabitacionExcel.nombre for HabitacionExcel in self.habitaciones_excel]
-        self.seleccion_habitacion_excel.set("")
-        if self.habitaciones_excel:
-            self.on_habitacion_excel_cambiada(None)
-
     def on_habitacion_excel_cambiada(self, event):
         seleccionado = self.seleccion_habitacion_excel.get()
+    
         try:
             idx = self.habit_excel_cb['values'].index(seleccionado)
+            print(idx)
             habitacion = self.habitaciones_excel[idx]
             self.precio_var.set(f"${habitacion.precio:.2f}")
             print(habitacion.row_idx, habitacion.precio)
         except ValueError:
-            # no encontrado
-            pass
+            self.precio_var.set("") # Limpia el campo de precio
+            print(f"Error: La selección '{seleccionado}' no es válida.")
+            
  
     def ejecutar_comparacion_wrapper(self):
         threading.Thread(target=self.run_async, daemon= True).start()
@@ -259,18 +289,19 @@ class InterfazApp:
         # )
         # self.resultado.insert(tk.END, f"Ejecutando scraping con: {datos}\n")
         
-        hotel_web = await dar_habitacion_web(self.fecha_entrada.get(),self.fecha_salida.get(),self.adultos.get(),self.niños.get())
-        imprimir_hotel(hotel_web)
-
-        coincide = comparar_habitaciones(self.seleccion_habitacion_excel.get(),self.precio_var.get())
-        habitacion_web =  dar_habitacion_web()
+        hotel_web = await dar_hotel_web(self.fecha_entrada.get(),self.fecha_salida.get(),self.adultos.get(),self.niños.get())
+        # imprimir_hotel(hotel_web)
+        precio= normalizar_precio_str(self.precio_var.get())
+        coincide = comparar_habitaciones(self.seleccion_habitacion_excel.get(),precio)
+        self.habitacion_web =  dar_habitacion_web()
         
         
-        if not coincide: 
+        if  coincide: 
             self.mostrar_email_btn()
         else:
             self.resultado.insert(tk.END, "Las habitaciones coinciden en precio y nombre.\n")
-            self.resultado.insert(tk.END, f"Habitacion web: {habitacion_web.detalles}\n") ##cambiar por la impresion de habitacion web
+            texto_habitacion = imprimir_habitacion_web(self.habitacion_web)
+            self.resultado.insert(tk.END, f"Habitacion web:\n {texto_habitacion}\n") 
    
 
 if __name__ == "__main__":
