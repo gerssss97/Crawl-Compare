@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, field_validator, ValidationInfo, computed_field
 from typing import List, Optional
 from datetime import date
 import string
@@ -24,7 +24,7 @@ class ParametrosBusqueda(BaseModel):
     adultos: int
     ninos: int
 
-def imprimir_hotel(hotel):
+def imprimir_hotel_web(hotel):
     print(f"\n🏨 Hotel: {hotel.detalles}")
     print("=" * (8 + len(hotel.detalles)))
 
@@ -42,8 +42,8 @@ def imprimir_hotel(hotel):
         else:
             print("   ❌ Sin promociones registradas.")   
             
-def imprimir_habitacion(habitacion):
-    print(f"\n🛏️ Habitación COINCIDENTE: {habitacion.nombre}")
+def print_habitacion_web(habitacion):
+    print(f"🛏️ Habitación COINCIDENTE: {habitacion.nombre}")
     if habitacion.detalles:
         print(f"   📋 Detalles: {habitacion.detalles}")
     
@@ -56,6 +56,26 @@ def imprimir_habitacion(habitacion):
     else:
         print("   ❌ Sin promociones registradas.")   
 
+def imprimir_habitacion_web(habitacion):
+    # Usamos una lista para construir las líneas y luego las unimos
+    lineas = []
+    lineas.append(f"🛏️ Habitación COINCIDENTE: {habitacion.nombre}")
+
+    if habitacion.detalles:
+        lineas.append(f"  📋 Detalles: {habitacion.detalles}")
+    
+    if habitacion.combos:
+        lineas.append("  💼 Combos:")
+        for combo in habitacion.combos:
+            lineas.append(f"    🔹 {combo.titulo}")
+            lineas.append(f"      📃 {combo.descripcion}")
+            lineas.append(f"      💵 ${combo.precio:.2f}")
+    else:
+        lineas.append("  ❌ Sin promociones registradas.")
+    
+    # Unimos todas las líneas en una única cadena de texto con saltos de línea
+    return "\n".join(lineas)        
+
 #######################################################
 
 
@@ -66,20 +86,13 @@ def normalizar_precio_str(s: str) -> Optional[float]:
     except Exception:
         return None
 
-
-
-
-# class DatosExcel(BaseModel):
-#     tipos_habitacion_excel: List[str]
-#     habitaciones: List[HabitacionExcel]
-
 class HabitacionExcel(BaseModel):
     nombre: str
-    precio_raw: Optional[str] = None
     precio: Optional[float] = None
     row_idx: int
 
-    @validator("nombre", pre=True)
+    @field_validator("nombre", mode="before")
+    @classmethod
     def limpiar_nombre(cls, v):
         if v is None:
             raise ValueError("nombre no puede ser None")
@@ -87,21 +100,15 @@ class HabitacionExcel(BaseModel):
         nombre = nombre.rstrip(string.punctuation + " ").strip()
         return nombre
 
-    @validator("precio_raw", pre=True, always=True)
+    @field_validator("precio", mode="before")
+    @classmethod
     def normalizar_raw(cls, v):
         if v is None:
             return None
         s = str(v).strip()
+        s = normalizar_precio_str(s)
         return s if s != "" else None
 
-    @validator("precio", pre=True, always=True)
-    def set_precio(cls, v, values):
-        if v is not None:
-            return v
-        raw = values.get("precio_raw")
-        if raw is None:
-            return None
-        return normalizar_precio_str(raw)
 
 class TipoHabitacionExcel(BaseModel):
     nombre: str

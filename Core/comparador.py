@@ -40,10 +40,29 @@ def normalizar(texto):
 def calcular_ratio_similitud(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
+def contiene_breakfast(texto, umbral=75):
+    texto_norm = texto.lower()
+    patrones_relacionados = [
+        "w/breakfast", "with breakfast", "includes breakfast",
+        "breakfast inclusive", "breakfast included"
+    ]
+
+    # primero chequeo directo rápido
+    for patron in patrones_relacionados:
+        if patron in texto_norm:
+            return True
+
+    # luego fuzzy partial (subcadena)
+    for patron in patrones_relacionados:
+        ratio = fuzz.partial_ratio(texto_norm, patron)
+        if ratio >= umbral:
+            return True
+
+    return False
+
 def obtener_mejor_match_con_breakfast(combo_elegido, hab_web):
     # Normalizar combo_elegido
     tiene_breakfast = contiene_breakfast(combo_elegido)
-    print(tiene_breakfast)
     # Extraer nombres de habitaciones web
     nombres_web = [habitacion.nombre for habitacion in hab_web]
 
@@ -61,73 +80,15 @@ def obtener_mejor_match_con_breakfast(combo_elegido, hab_web):
                     if contiene_breakfast(combo.titulo)
                 ]
                 if combos_filtrados:
-                    # Retorna la misma habitación, pero con los combos filtrados
-                    return Habitacion(
+                    habitacion = Habitacion(
                         nombre=habitacion.nombre,
                         detalles=habitacion.detalles,
                         combos=combos_filtrados
                     )
+                    # Retorna la misma habitación, pero con los combos filtrados
+                    return habitacion
                 else:
                     return None  # No hay combos que coincidan con breakfast
             else:
                 return habitacion  # No requiere filtrado
     return None
-
-def contiene_breakfast(texto, umbral=75):
-    texto_norm = texto.lower()
-    patrones_relacionados = [
-        "w/breakfast", "with breakfast", "includes breakfast",
-        "breakfast inclusive", "breakfast included"
-    ]
-    print(f"[DEBUG entrada] contiene_breakfast con texto_norm={texto_norm!r}")
-
-    # primero chequeo directo rápido
-    for patron in patrones_relacionados:
-        if patron in texto_norm:
-            return True
-
-    # luego fuzzy partial (subcadena)
-    for patron in patrones_relacionados:
-        ratio = fuzz.partial_ratio(texto_norm, patron)
-        print(f"[DEBUG fuzzy] '{patron}' vs texto -> partial_ratio = {ratio}")
-        if ratio >= umbral:
-            return True
-
-    return False
-
-
-
-##################### DE MOMENTO SIN UTILIDAD #########################
-##### utilizada por encontrar mejor match, no tiene en cuenta combos#####
-def obtener_mejor_match(combo_elegido,hab_web):
-   
-    # Obtener el nombre del combo de Excel
-     # o combo_elegido["nombre"] si es un dict
-
-    # Extraer los nombres de habitaciones web
-    nombres_web = [habitacion.nombre for habitacion in hab_web]
-
-    # Obtener el mejor nombre match y su score
-    mejor_nombre, _ = encontrar_mejor_match(combo_elegido, nombres_web)
-
-    # Buscar el objeto habitación web correspondiente a ese nombre
-    for habitacion in hab_web:
-        if habitacion.nombre == mejor_nombre:
-            return habitacion
-
-    return None  
-
-def contiene_breakfast_exp_reg(texto):
-    texto_norm = texto.lower()
-    patrones = [
-        r"w/?breakfast",           # w/breakfast o wbreakfast
-        r"with breakfast",
-        r"includes breakfast",
-        r"breakfast inclusive",
-        r"breakfast included",     # variante útil
-    ]
-    for pat in patrones:
-        if re.search(pat, texto_norm):
-            return True
-    return False
-###############################################
