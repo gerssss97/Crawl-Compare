@@ -36,68 +36,36 @@ class GestorDatos:
                 pickle.dump(self.__hotel_web, f)
                 # imprimir_hotel(self.__hotel_web)
                 self.__habitaciones_web = self.__hotel_web.habitacion
-        return self.__hotel_web
+        return self.__hotel_web    
     
-    @property
-    def hoteles_excel_get(self)-> List[HotelExcel]:
-        return self.__datos_excel.hoteles
-    
-    @property
     def tipos_habitaciones_excel_get(self,hotelExcel)-> List[TipoHabitacionExcel] | None:
         for hotel in self.__datos_excel.hoteles:
             if hotel.nombre == hotelExcel:
                 return hotel.tipos
-            else:
-                return "no se encontro el hotel"
+        return None
     
-    @property
     def habitaciones_excel_get(self,hotelExcel,tipo = None)-> List[HabitacionExcel] | None:
         if tipo is None:
             for hotel in self.__datos_excel.hoteles:
                 if hotel.nombre == hotelExcel:
                     return hotel.habitaciones_directas
-                else:
-                    print("no se encontro el hotel")
         else:
             for hotel in self.__datos_excel.hoteles:
                 if hotel.nombre == hotelExcel:
                     for tipos in hotel.tipos:
                         if tipos.nombre == tipo:
                             return tipos.habitaciones
-                else:
-                    print("no se encontro el tipo del hotel")
         return None
         
-    
-    # @property
-    # def precio_combo_elegido_get(self)-> float:
-    #     return self.__precio_combo_elegido
+    @property
+    def hoteles_excel_get(self)-> List[HotelExcel]:
+        return self.__datos_excel.hoteles
 
     @property
     def mejor_habitacion_web_get(self)-> Habitacion | None:
         return self.mejor_habitacion_web    
 
-################## IMPRESIONES ###############
-# def imprimir_hotel(hotel):
-#     print(f"\n🏨 Hotel: {hotel.detalles}")
-#     print("=" * (8 + len(hotel.detalles)))
 
-#     for i, habitacion in enumerate(hotel.habitacion, start=1):
-#         print(f"\n🛏️ Habitación {i}: {habitacion.nombre}")
-#         if habitacion.detalles:
-#             print(f"   📋 Detalles: {habitacion.detalles}")
-        
-#         if habitacion.combos:
-#             print("   💼 Combos:")
-#             for combo in habitacion.combos:
-#                 print(f"     🔹 {combo.titulo}")
-#                 print(f"        📃 {combo.descripcion}")
-#                 print(f"        💵 ${combo.precio:.2f}")
-#         else:
-#             print("   ❌ Sin promociones registradas.")   
-
-
-## ORDEN
-# obtener hotel web 
-# coincidir excel web
-# luego comparar precios
+    # @property
+    # def precio_combo_elegido_get(self)-> float:
+    #     return self.__precio_combo_elegido
