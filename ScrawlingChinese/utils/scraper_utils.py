@@ -2,6 +2,8 @@ import json
 import os
 from typing import List, Set, Tuple
 from urllib.parse import urlencode
+import asyncio
+from typing import Optional
 
 from crawl4ai import (
     AsyncWebCrawler,
@@ -25,7 +27,7 @@ def get_browser_config() -> BrowserConfig:
     # https://docs.crawl4ai.com/core/browser-crawler-config/
     return BrowserConfig(
         browser_type="chromium",  # Type of browser to simulate
-        headless=True,  # Whether to run in headless mode (no GUI)
+        headless=False,  # Whether to run in headless mode (no GUI)
         verbose=True,  # Enable verbose logging
     )
 
@@ -65,23 +67,53 @@ def fechas_validas(fecha_entrada: date, fecha_salida: date) -> bool:
 
 async def procesar_resultado_scraping(result):
     if not (result.success and result.extracted_content):
+        print(f"Error: No hay contenido extraído o extracción no exitosa")
+        print(f"Success: {result.success}")
+        print(f"Content: {result.extracted_content}")
         print(f"Error en la obtención: {result.error_message}")
         return None
 
-    hotel_data = json.loads(result.extracted_content)
+ 
+    try:
+        print("Contenido extraído:", result.extracted_content)  
+        hotel_data = json.loads(result.extracted_content)
 
-    # Verifico si LLM devolvió habitaciones
-    if not hotel_data.get("habitacion"):
-        print(" No se encontraron habitaciones disponibles según extracción LLM.")
-        # Complemento con chequeo en HTML crudo
-        if "no availability" in result.cleaned_html.lower() or "no rooms available" in result.cleaned_html.lower():
-            print("Confirmado: no hay disponibilidad según contenido HTML.")
+        if not hotel_data:
+            print("Error: hotel_data está vacío después de parsear JSON")
+            return None
+            
+        # Verificar si es una lista de habitaciones
+        if isinstance(hotel_data, list):
+            print(f"Procesando {len(hotel_data)} habitaciones")
+            habitaciones = []
+            for h in hotel_data:
+                try:
+                    habitacion = Habitacion(**h)
+                    habitaciones.append(habitacion)
+                except Exception as e:
+                    print(f"Error procesando habitación: {e}")
+                    continue
+            
+            if not habitaciones:
+                print("Error: No se pudo procesar ninguna habitación válida")
+                return None
+                
+            hotel = Hotel(
+                detalles="Alvear Palace Hotel",
+                habitacion=habitaciones
+            )
+            return hotel
         else:
-            print("Atención: no hay habitaciones extraídas, pero no se detectó mensaje explícito de no disponibilidad en HTML.")
+            print(f"Error: Formato inesperado de datos. Se esperaba lista, se recibió: {type(hotel_data)}")
+            return None
+    except json.JSONDecodeError as e:
+        print(f"Error decodificando JSON: {e}")
+        print(f"Contenido raw: {result.extracted_content}")
         return None
-
-    # Si hay habitaciones, devolver objeto Hotel o procesar más
-    return Hotel(**hotel_data)
+    except Exception as e:
+        print(f"Error inesperado procesando datos: {e}")
+        return None
+    
 
 
 
@@ -92,74 +124,45 @@ async def fetch_and_process_page(
     css_selector: str,
     llm_strategy: LLMExtractionStrategy,
     session_id: str,
-    nombre_hotel: str = "Alvear Palace Hotel"
+    nombre_hotel: str = "Alvear Palace Hotel",
+    max_retries: int = 3,
+    delay_between_retries: int = 5
 ) -> Optional[Hotel]:
     
     url_completa = f"{base_url}?{urlencode(params)}"
     print(f"Loading hotel page: {url_completa}...")
 
-    #ejecuta el crawl
-    result = await crawler.arun(
-        url=url_completa,
-        config=CrawlerRunConfig(
-            cache_mode=CacheMode.BYPASS,
-            extraction_strategy=llm_strategy,
-            css_selector=css_selector,
-            session_id=session_id,
-        ),
-    )
- 
-    if not (result.success and result.extracted_content):
-        print(f"Error fetching hotel page: {result.error_message}")
-        return None
-
-##aca tendriamos que chequear validez de datos
-
-    try:
-        
-        habitaciones_data = json.loads(result.extracted_content)
-    except json.JSONDecodeError as e:
-        print(f"Error parsing JSON: {e}")
-        return None
-
-    if not habitaciones_data:
-        print("No se encontraron habitaciones.")
-        return None
-
-    ### Si hubo habitaciones
-    print(f"Se extrajeron {len(habitaciones_data)} habitaciones.")
     
-    habitaciones = []
-    for h in habitaciones_data:
+    for intento in range(max_retries):
         try:
-            habitacion = Habitacion(**h)
-            habitaciones.append(habitacion)
+        #ejecuta el crawl
+            result = await crawler.arun(
+                url=url_completa,
+                config=CrawlerRunConfig(
+                    cache_mode=CacheMode.BYPASS,
+                    extraction_strategy=llm_strategy,
+                    # html_content=html_habitaciones, ##nuevo
+                    css_selector=css_selector,
+                    session_id=session_id,
+                    page_timeout=30000,  # 30 segundos de timeout
+                    wait_until="networkidle"  # espera hasta que no haya actividad de red
+                ),
+            )
+            # Verifica si los datos están completos
+            if result.success and result.extracted_content:
+                habitaciones_data = json.loads(result.extracted_content)
+                if habitaciones_data and len(habitaciones_data) > 0:
+                    print(f"Datos extraídos exitosamente en el intento {intento + 1}")
+                    return await procesar_resultado_scraping(result)
+            
+            print(f"Intento {intento + 1} falló o datos incompletos. Esperando {delay_between_retries} segundos...")
+            await asyncio.sleep(delay_between_retries)
+
         except Exception as e:
-            print(f"Error procesando una habitación: {e}")
-            continue
-    
-    hotel = Hotel(
-        detalles=nombre_hotel,
-        habitacion=habitaciones
-    )
-    #imprimir_hotel(hotel)
+            print(f"Error en intento {intento + 1}: {str(e)}")
+            if intento < max_retries - 1:
+                await asyncio.sleep(delay_between_retries)
+            else:
+                raise Exception(f"Fallaron todos los intentos de extracción: {str(e)}")
 
-    return hotel
-
-def imprimir_hotel(hotel: Hotel):
-    print(f"\n🏨 Hotel: {hotel.detalles}")
-    print("=" * (8 + len(hotel.detalles)))
-
-    for i, habitacion in enumerate(hotel.habitacion, start=1):
-        print(f"\n🛏️ Habitación {i}: {habitacion.nombre}")
-        if habitacion.detalles:
-            print(f"   📋 Detalles: {habitacion.detalles}")
-        
-        if habitacion.combos:
-            print("   💼 Combos:")
-            for combo in habitacion.combos:
-                print(f"     🔹 {combo.titulo}")
-                print(f"        📃 {combo.descripcion}")
-                print(f"        💵 ${combo.precio:.2f}")
-        else:
-            print("   ❌ Sin promociones registradas.")
+    raise Exception("No se pudieron obtener datos completos después de todos los reintentos")

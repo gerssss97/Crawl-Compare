@@ -61,5 +61,5 @@ def cargar_excel(path_excel, max_row=200) -> DatosExcel:
                 tipo_actual.habitaciones.append(habitacion)
             else:
                 hotel_actual.habitaciones_directas.append(habitacion)
-
+    
     return DatosExcel(hoteles=hoteles)

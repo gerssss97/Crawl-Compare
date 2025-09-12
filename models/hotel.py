@@ -97,7 +97,6 @@ class HabitacionExcel(BaseModel):
         if v is None:
             raise ValueError("nombre no puede ser None")
         nombre = str(v).strip().lower()
-        nombre = nombre.rstrip(string.punctuation + " ").strip()
         return nombre
 
     @field_validator("precio", mode="before")

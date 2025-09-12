@@ -191,7 +191,7 @@ class InterfazApp:
         texto_mensaje = self.email_textbox.get("1.0", tk.END).strip()
         remitente ="gerlucero1997@gmail.com"
         destinatario = "gerlucero1977@gmail.com"
-        clave="nmng oflh cucv xrqr"
+        clave=os.getenv("GMTP_KEY")
         asunto = f"Discrepancia de precios - {self.seleccion_hotel.get()}"
         enviar_correo(remitente,clave,destinatario,asunto,texto_mensaje)
         
@@ -273,45 +273,50 @@ class InterfazApp:
         asyncio.run(self.ejecutar_comparacion())
         
     async def ejecutar_comparacion(self):
-        # if not self.validar_fecha():
-        #     return
+        try:
+        # Validaciones iniciales
+            if not self.validar_fecha() or not self.validar_orden_fechas():
+                return
+            datos = (
+                self.fecha_entrada.get(), 
+                self.fecha_salida.get(),
+                self.adultos.get(),
+                self.niños.get(),
+                self.seleccion_habitacion_excel.get(),
+                self.precio_var.get()
+            )
+            self.resultado.insert(tk.END, f"Ejecutando scraping con: {datos}\n")
+            
+            hotel_web = await dar_hotel_web(self.fecha_entrada.get(),self.fecha_salida.get(),self.adultos.get(),self.niños.get())
+            if not hotel_web or not hotel_web.habitacion:
+                self.resultado.insert(tk.END, "Error: No se pudieron obtener datos del hotel web\n")
+                return
         
-        # if not self.validar_orden_fechas():
-        #     return
-    
-        # datos = (
-        #     self.fecha_entrada.get(), 
-        #     self.fecha_salida.get(),
-        #     self.adultos.get(),
-        #     self.niños.get(),
-        #     self.seleccion_habitacion_excel.get(),
-        #     self.precio_var.get()
-        # )
-        # self.resultado.insert(tk.END, f"Ejecutando scraping con: {datos}\n")
-        
-        hotel_web = await dar_hotel_web(self.fecha_entrada.get(),self.fecha_salida.get(),self.adultos.get(),self.niños.get())
-        # imprimir_hotel(hotel_web)
-        precio= normalizar_precio_str(self.precio_var.get())
-        coincide = comparar_habitaciones(self.seleccion_habitacion_excel.get(),precio)
-        self.habitacion_web =  dar_habitacion_web()
-        
-        
-        if  coincide: 
-            self.mostrar_email_btn()
-        else:
-            self.resultado.insert(tk.END, "Las habitaciones coinciden en precio y nombre.\n")
-            texto_habitacion = imprimir_habitacion_web(self.habitacion_web)
-            self.resultado.insert(tk.END, f"Habitacion web:\n {texto_habitacion}\n") 
-   
+            precio = normalizar_precio_str(self.precio_var.get())
+            coincide = await comparar_habitaciones(self.seleccion_habitacion_excel.get(),precio)
+            self.habitacion_web =  dar_habitacion_web()
+            
+            
+            if  coincide: 
+                self.resultado.insert(tk.END, "Se encontraron diferencias de precio.\n")
+                self.mostrar_email_btn()
+            else:
+                self.resultado.insert(tk.END, "Las habitaciones coinciden en precio y nombre.\n")
+                texto_habitacion = imprimir_habitacion_web(self.habitacion_web)
+                self.resultado.insert(tk.END, f"Habitacion web:\n {texto_habitacion}\n") 
+        except ValueError as ve:
+            self.resultado.insert(tk.END, f"Error de validación: {str(ve)}\n")
+        except Exception as e:
+            self.resultado.insert(tk.END, f"Error inesperado: {str(e)}\n")
 
-if __name__ == "__main__":
+
+def run_interfaz():
     root = tk.Tk()
     app = InterfazApp(root)
     root.mainloop()
 
-
-
-
+if __name__ == "__main__":
+    run_interfaz()
         #PARA VER EN DISTINTOS COLORES 
         # for col in range(2):
         #     color = 'lightblue' if col == 0 else 'lightgreen'
