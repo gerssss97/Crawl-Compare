@@ -16,8 +16,8 @@ def dar_tipos_habitacion_excel(HotelExcel):
     return gestor.tipos_habitaciones_excel_get(HotelExcel)
 
 ## devuelve true si la diferencia es mayor o igual a 1
-def comparar_habitaciones(habitacion_excel,precio_hab_excel):
-    gestor.coincidir_excel_web(habitacion_excel) #busca la mejor coincidencia con hab web
+async def comparar_habitaciones(habitacion_excel,precio_hab_excel):
+    await gestor.coincidir_excel_web(habitacion_excel) #busca la mejor coincidencia con hab web
 
     precio_web = gestor.mejor_habitacion_web_get.combos[0].precio  # type: ignore
     ##precio_web = gestor.mejor_habitacion_web.combos[0].precio # type: ignore
@@ -36,9 +36,10 @@ def dar_habitacion_web():
     return gestor.mejor_habitacion_web_get
 
 async def dar_hotel_web(fecha_ingreso,fecha_egreso,adultos,niños):
-
     hotel = await gestor.obtener_hotel_web( fecha_ingreso,fecha_egreso,adultos,niños)
-
+    
+    if hotel is None or not hotel.habitacion:
+        raise ValueError("No se pudieron obtener datos válidos del hotel web")
     return hotel
 
 

@@ -4,41 +4,50 @@ from models.hotel import *
 from rapidfuzz import fuzz
 
 def encontrar_mejor_match(nombre_excel, nombres_web):
-    nombre_excel_n = normalizar(nombre_excel)
-    mejor_match = None
-    mejor_score = 0.0
+    nombre_excel_limpio = limpiar_nombre_excel(nombre_excel)
+    mejores_scores = []
 
     for nombre_web in nombres_web:
-        nombre_web_n = normalizar(nombre_web)
+        # Usamos varias métricas de RapidFuzz
+        score_ratio = fuzz.ratio(nombre_excel_limpio, nombre_web) / 100
+        score_partial = fuzz.partial_ratio(nombre_excel_limpio, nombre_web) / 100
+        score_token_sort = fuzz.token_sort_ratio(nombre_excel_limpio, nombre_web) / 100
+        score_token_set = fuzz.token_set_ratio(nombre_excel_limpio, nombre_web) / 100
 
-        # Score por Levenshtein/SequenceMatcher
-        ratio = calcular_ratio_similitud(nombre_excel_n, nombre_web_n)
+        # Score combinado (ajustá pesos según tu caso)
+        score_total = (
+            0.2 * score_ratio +
+            0.3 * score_partial +
+            0.25 * score_token_sort +
+            0.25 * score_token_set
+        )
+        mejores_scores.append((nombre_web, score_total))
+        # print(f"{nombre_web}': Score ratio {score_ratio:.4f}")
+        # print(f"{nombre_web}': Score partial {score_partial:.4f}")
+        # print(f"{nombre_web}': Score toke sort {score_token_sort:.4f}")
+        # print(f"{nombre_web}': Score token set {score_token_set:.4f}")
+        # print(f"{nombre_web}': Score total {score_total:.4f}")
+        
 
-        # Score por palabras en común (Jaccard)
-        palabras_excel = set(nombre_excel_n.split())
-        palabras_web = set(nombre_web_n.split())
-        interseccion = len(palabras_excel & palabras_web)
-        union = len(palabras_excel | palabras_web)
-        jaccard_score = interseccion / union if union else 0
+    mejor_nombre_web, mejor_score = max(mejores_scores, key=lambda x: x[1])
+    print(f"Mejor match para '{nombre_excel}' es '{mejor_nombre_web}' con score {mejor_score:.4f}")
+    return mejor_nombre_web, mejor_score
 
-        # Score combinado
-        score_total = (ratio + jaccard_score) / 2
+def limpiar_nombre_excel(nombre):
+    # Pasar todo a minúsculas
+    nombre = nombre.lower()
+    # Quitar cosas entre paréntesis
+    nombre = re.sub(r"\(.*?\)", "", nombre)
+    # Quitar abreviaturas típicas sgl/dbl/tpl, w/, ad, ch
+    nombre = re.sub(r"\b(sgl|dbl|tpl|w|ad|ch)\b", "", nombre)
+    # Quitar palabras comunes irrelevantes
+    nombre = re.sub(r"\b(w/breakfast|restaurant|breakfast|served)\b", "", nombre)
+    # Quitar números y caracteres especiales
+    nombre = re.sub(r"[^a-z\s]", "", nombre)
+    # Compactar espacios
+    nombre = re.sub(r"\s+", " ", nombre).strip()
+    return nombre
 
-        if score_total > mejor_score:
-            mejor_score = score_total
-            mejor_match = nombre_web
-
-    return mejor_match, mejor_score
-
-def normalizar(texto):
-    texto = texto.lower()
-    texto = re.sub(r'[^\w\s]', '', texto)  # eliminar puntuación
-    palabras = texto.split()
-    palabras.sort()  # ordenar alfabéticamente
-    return ' '.join(palabras)
-
-def calcular_ratio_similitud(a, b):
-    return SequenceMatcher(None, a, b).ratio()
 
 def contiene_breakfast(texto, umbral=75):
     texto_norm = texto.lower()
@@ -72,8 +81,10 @@ def obtener_mejor_match_con_breakfast(combo_elegido, hab_web):
     print("COMBO ELEGIDO",combo_elegido)
     for habitacion in hab_web:
         if habitacion.nombre == mejor_nombre:
-            
+            print("HABITACION ENCONTRADA",habitacion.nombre)
             if tiene_breakfast:
+                print("FILTRANDO POR BREAKFAST")
+                print_habitacion_web(habitacion)
                 # Filtrar combos que tengan algún indicio de breakfast en el título
                 combos_filtrados = [
                     combo for combo in habitacion.combos
@@ -85,10 +96,13 @@ def obtener_mejor_match_con_breakfast(combo_elegido, hab_web):
                         detalles=habitacion.detalles,
                         combos=combos_filtrados
                     )
+                    print("devolvi habitacion con breakfast")
                     # Retorna la misma habitación, pero con los combos filtrados
                     return habitacion
                 else:
-                    return None  # No hay combos que coincidan con breakfast
+                    raise ValueError(f"[ERROR] No se encontraron combos con breakfast a pesar de en el excel incluir breakfast")
             else:
+                print("devolvi habitacion")
                 return habitacion  # No requiere filtrado
+    print("NO COINCIDENTES CON",mejor_nombre)
     return None

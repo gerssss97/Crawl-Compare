@@ -13,11 +13,7 @@ from .utils.scraper_utils import (
 load_dotenv()
 
 
-async def crawl_venues(fecha_ingreso,fecha_egreso,adultos,niños) -> Optional[Hotel] :
-    """
-    Main function to crawl venue data from the website.
-    """
-    # Initialize configurations
+async def crawl_alvear(fecha_ingreso,fecha_egreso,adultos,niños) -> Optional[Hotel] :
     browser_config = get_browser_config()
     llm_strategy = get_llm_strategy()
     session_id = "venue_crawl_session"
@@ -51,19 +47,9 @@ async def crawl_venues(fecha_ingreso,fecha_egreso,adultos,niños) -> Optional[Ho
             llm_strategy,
             session_id,
         )
-        
+        #llm_strategy.show_usage()
     return hotel
 
-
-    # Display usage statistics for the LLM strategy
-    #llm_strategy.show_usage()
-
-
-async def crawl_alvear(fecha_ingreso,fecha_egreso,adultos,niños) -> Optional[Hotel] :
-    """
-    Entry point of the script.
-    """
-    return await crawl_venues(fecha_ingreso,fecha_egreso,adultos,niños)
 
 
 
