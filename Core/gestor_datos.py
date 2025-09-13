@@ -18,11 +18,12 @@ class GestorDatos:
         self.__last_fecha_egreso = None
         self.__last_adultos = None
         self.__last_niños = None
+        self.mensaje_match = None
     
     async def coincidir_excel_web (self, habitacion_excel):
         if not self.__habitaciones_web:
             raise ValueError("No hay datos de habitaciones web cargados al momento de COINCIDIR con el excel")
-        self.mejor_habitacion_web = obtener_mejor_match_con_breakfast(habitacion_excel, self.__habitaciones_web)
+        self.mejor_habitacion_web, self.mensaje_match = obtener_mejor_match_con_breakfast(habitacion_excel, self.__habitaciones_web)
         print("MEJOR HABITACION WEB ",self.mejor_habitacion_web)
         if self.mejor_habitacion_web is None:
             raise ValueError(f"[ERROR] No se encontró una coincidencia para el combo", habitacion_excel)
@@ -81,8 +82,12 @@ class GestorDatos:
 
     @property
     def mejor_habitacion_web_get(self)-> Habitacion | None:
-        return self.mejor_habitacion_web    
-
+        return self.mejor_habitacion_web   
+    
+    @property
+    def mensaje_get(self)-> str | None:
+        return self.mensaje_match
+      
 
     # @property
     # def precio_combo_elegido_get(self)-> float:

@@ -56,20 +56,28 @@ def print_habitacion_web(habitacion):
     else:
         print("   ❌ Sin promociones registradas.")   
 
+def generar_blanco(texto):
+    longitud = len(texto)
+    return f"{'':<{longitud}}"
+
 def imprimir_habitacion_web(habitacion):
     # Usamos una lista para construir las líneas y luego las unimos
     lineas = []
-    lineas.append(f"🛏️ Habitación COINCIDENTE: {habitacion.nombre}")
+    lineas.append(f"🏠 Habitación: {habitacion.nombre}")
 
     if habitacion.detalles:
-        lineas.append(f"  📋 Detalles: {habitacion.detalles}")
+        lineas.append(f"📋 Detalles:")
+        espacio_blanco = generar_blanco("📋 Detalles:")
+        for linea in habitacion.detalles.splitlines():
+            lineas.append(f"{espacio_blanco} {linea}")  
     
     if habitacion.combos:
         lineas.append("  💼 Combos:")
+        espacio_blanco = generar_blanco("  💼 Combos:")
         for combo in habitacion.combos:
-            lineas.append(f"    🔹 {combo.titulo}")
-            lineas.append(f"      📃 {combo.descripcion}")
-            lineas.append(f"      💵 ${combo.precio:.2f}")
+            lineas.append(f"{espacio_blanco} 🟦 {combo.titulo.upper()} 🟦")
+            lineas.append(f"{espacio_blanco} 📃 {combo.descripcion}")
+            lineas.append(f"{espacio_blanco} 💵 ${combo.precio:.2f}")
     else:
         lineas.append("  ❌ Sin promociones registradas.")
     

@@ -20,20 +20,19 @@ async def comparar_habitaciones(habitacion_excel,precio_hab_excel):
     await gestor.coincidir_excel_web(habitacion_excel) #busca la mejor coincidencia con hab web
 
     precio_web = gestor.mejor_habitacion_web_get.combos[0].precio  # type: ignore
-    ##precio_web = gestor.mejor_habitacion_web.combos[0].precio # type: ignore
-    ##precio_combo_elegido = precio_hab_excel # type: ignore
     diferencia = abs(float(precio_hab_excel) - precio_web) # type: ignore
     print(f"Precio Excel: {precio_hab_excel} - Precio Web: {precio_web} - Diferencia: {diferencia}")
     if diferencia>=1:
-        print("true")   
         return True
-    else:
-        print("False") 
+    else: 
         return False
     
 
 def dar_habitacion_web():
     return gestor.mejor_habitacion_web_get
+
+def dar_mensaje():
+    return gestor.mensaje_get
 
 async def dar_hotel_web(fecha_ingreso,fecha_egreso,adultos,niños):
     hotel = await gestor.obtener_hotel_web( fecha_ingreso,fecha_egreso,adultos,niños)
@@ -42,7 +41,30 @@ async def dar_hotel_web(fecha_ingreso,fecha_egreso,adultos,niños):
         raise ValueError("No se pudieron obtener datos válidos del hotel web")
     return hotel
 
+def generar_texto_email(hotel, habitacion_excel, precio_excel, precio_web):
+    return (
+        "Estimado equipo de reservas,\n\n"
+        f"He notado una discrepancia en los precios de las habitaciones entre el archivo Excel y la página web del hotel {hotel}.\n\n"
+        "Detalles de la comparación:\n"
+        f"- Habitación Excel: {habitacion_excel}\n"
+        f"- Precio en Excel: {precio_excel}\n"
+        f"- Precio en Web: {precio_web}\n\n"
+        "Agradecería si pudieran revisar esta diferencia y proporcionarme una explicación o corrección si es necesario.\n\n"
+        "Gracias por su atención.\n\n"
+        "Saludos cordiales,\n"
+        "[Tu Nombre]"
+    )
 
+def enviar_email_discrepancia(hotel, habitacion_excel, precio_excel, precio_web, remitente, destinatario, texto_override=None):
+    clave = os.getenv("GMTP_KEY")  # carga la clave desde env
+    asunto = f"Discrepancia de precios - {hotel}"
+
+    if texto_override:
+        texto_mensaje = texto_override
+    else:
+        texto_mensaje = generar_texto_email(hotel, habitacion_excel, precio_excel, precio_web)
+
+    return enviar_correo(remitente, clave, destinatario, asunto, texto_mensaje)
 
 def enviar_correo(remitente, clave, destinatario, asunto, cuerpo_mensaje):
     # Configurar el servidor SMTP de Gmail
