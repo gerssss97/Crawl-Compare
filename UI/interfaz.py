@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, font
 from datetime import datetime
 import re
 import threading
@@ -36,9 +36,11 @@ class InterfazApp:
 
 
     def __init__(self, root):
+
+
         self.root = root
         self.root.title("Comparador de precios - Alvear Hotel")
-
+        self.root.geometry("900x600")
         # Campos de entrada
         self.seleccion_hotel = tk.StringVar()
         self.seleccion_edificio = tk.StringVar()
@@ -48,6 +50,11 @@ class InterfazApp:
         self.adultos = tk.IntVar(value=1)
         self.niños = tk.IntVar()
         self.precio_var = tk.StringVar(value="(ninguna seleccionada)")
+
+        self.fuente_normal = font.Font(family="Helvetica", size=10)
+        self.fuente_negrita = font.Font(family="Helvetica", size=10, weight="bold")
+        self.fuente_grande_negrita = font.Font(family="Helvetica", size=14, weight="bold")
+        self.fuente_resultado = font.Font(family="Helvetica", size=10, weight="normal")
 
         vcmd = (root.register(self.validar_caracter), '%P')
         self.vcmd = vcmd
@@ -115,6 +122,38 @@ class InterfazApp:
         self.habit_excel_cb.grid(row=i, column=1, sticky='ew', padx=4, pady=2)
         i += 1
 
+
+        def actualizar_fecha(*args):
+            # Concatenamos los valores solo si los campos tienen valores válidos
+            dia = self.fecha_dia_entrada.get().zfill(2)  # rellenar con 0 si es necesario
+            mes = fecha_mes.get().zfill(2)
+            ano = fecha_ano.get()
+            if dia and mes and ano:
+                fecha_completa.set(f"{dia}-{mes}-{ano}")
+            else:
+                fecha_completa.set("")
+
+        self.fecha_dia_entrada.trace_add("write", actualizar_fecha)
+        self.fecha_mes_entrada.trace_add("write", actualizar_fecha)
+        self.fecha_ano_entrada.trace_add("write", actualizar_fecha)
+        #Frame de fechas
+        self.fechas_frame = ttk.Frame(self.campos_frame)             
+        self.fechas_frame.grid(row=i, column=0, columnspan=5, rowspan=2, sticky="nsew")        
+        # Entrys separados para día, mes y año
+        self.entry_dia_entrada = ttk.Entry(self.fechas_frame, width=3, textvariable=self.fecha_dia)
+        self.entry_mes_entrada= ttk.Entry(self.campos_frame, width=3, textvariable=self.fecha_mes_entrada)
+        self.entry_ano_entrada = ttk.Entry(self.campos_frame, width=5, textvariable=self.fecha_ano)
+
+        self.entry_dia.grid(row=i, column=1)
+        ttk.Label(self.campos_frame, text="-").grid(row=i, column=2)
+        self.entry_mes.grid(row=i, column=3)
+        ttk.Label(self.campos_frame, text="-").grid(row=i, column=4)
+        self.entry_ano.grid(row=i, column=5)
+
+        # Entry oculto o de solo lectura que representa la fecha completa
+        entry_completa = ttk.Entry(self.campos_frame, textvariable=self.fecha_completa, state='readonly', width=12)
+        entry_completa.grid(row=i, column=6, padx=(10,0))
+
         # Fecha entrada
         self.label_fecha_entrada = ttk.Label(self.campos_frame, text="Fecha de entrada (DD-MM-AAAA):")
         self.entry_fecha_entrada = ttk.Entry(self.campos_frame, textvariable=self.fecha_entrada, validate='key', validatecommand=self.vcmd)
@@ -141,6 +180,7 @@ class InterfazApp:
         self.entry_niños = ttk.Entry(self.campos_frame, textvariable=self.niños)
         self.label_niños.grid(row=i, column=0, sticky='w', padx=4, pady=2)
         self.entry_niños.grid(row=i, column=1, sticky='ew', padx=4, pady=2)
+        self.entry_niños.bind("<Return>", lambda event: self.ejecutar_comparacion_wrapper())
         i += 1
 
         # Botón ejecutar comparacion
@@ -148,9 +188,30 @@ class InterfazApp:
         self.boton_ejecutar.grid(row=i, column=0, columnspan=2, sticky='ew', padx=4, pady=6)
         i += 1
 
-        # Resultado
-        self.resultado = tk.Text(self.campos_frame, height=15, width=80)
-        self.resultado.grid(row=i, column=0, columnspan=2, sticky='nsew', padx=4, pady=2)
+        frame_resultado = ttk.Frame(self.campos_frame)
+        frame_resultado.grid(row=i, column=0, columnspan=2, sticky='sew', padx=4, pady=2)
+
+        frame_resultado.rowconfigure(0, weight=1)
+        frame_resultado.columnconfigure(0, weight=1)
+
+        self.resultado = tk.Text(frame_resultado, height=20, width=80, font=self.fuente_resultado, wrap="word")
+        self.resultado.grid(row=0, column=0, sticky="nsew")
+
+        # Scrollbar vertical
+        scrollbar = ttk.Scrollbar(frame_resultado, orient="vertical", command=self.resultado.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
+        # Vincular Text con Scrollbar
+        self.resultado.configure(yscrollcommand=scrollbar.set)
+        # # Resultado
+        # self.resultado = tk.Text(self.campos_frame, height=15, width=80, font=self.fuente_resultado)
+        # self.resultado.grid(row=i, column=0, columnspan=2, sticky='nsew', padx=4, pady=2)
+        
+        # Configurar tags
+        self.resultado.tag_configure("bold", font=self.fuente_negrita)
+        self.resultado.tag_configure("grande y negra", font=self.fuente_grande_negrita)  
+
+        
 
         # self.campos_frame.rowconfigure(i, weight=1)
     def crear_pantalla_mail(self):
@@ -168,19 +229,14 @@ class InterfazApp:
         lbl_email = ttk.Label(self.mail_frame, text="Contenido del Email:")
         lbl_email.grid(row=0, column=0, padx=10, pady=10, sticky="w")
     
-        self.email_textbox = tk.Text(self.mail_frame, wrap="word", height=15, width=50)
+        self.email_textbox = tk.Text(self.mail_frame, wrap="word", height=15, width=50, font= self.fuente_resultado)
         self.email_textbox.grid(row=1, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
-        texto_predeterminado = (
-            "Estimado equipo de reservas,\n\n"
-            "He notado una discrepancia en los precios de las habitaciones entre el archivo Excel y la página web del hotel "f"{self.seleccion_hotel.get()}" ".\n\n"
-            "Detalles de la comparación:\n"
-            f"- Habitación Excel: {self.seleccion_habitacion_excel.get()}\n"
-            f"- Precio en Excel: {self.precio_var.get()}\n"
-            f"- Precio en Web: (obtenido tras la comparación)"f"{self.habitacion_web.combos[0].precio}"" \n\n"
-            "Agradecería si pudieran revisar esta diferencia y proporcionarme una explicación o corrección si es necesario.\n\n"
-            "Gracias por su atención.\n\n"
-            "Saludos cordiales,\n"
-            "[Tu Nombre]"
+        
+        texto_predeterminado = generar_texto_email(
+            self.seleccion_hotel.get(),
+            self.seleccion_habitacion_excel.get(),
+            self.precio_var.get(),
+            self.habitacion_web.combos[0].precio
         )
         self.email_textbox.insert(tk.END, texto_predeterminado)
 
@@ -188,12 +244,32 @@ class InterfazApp:
         enviar_btn.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
 
     def enviar_email(self):
-        texto_mensaje = self.email_textbox.get("1.0", tk.END).strip()
-        remitente ="gerlucero1997@gmail.com"
+        remitente = "gerlucero1997@gmail.com"
         destinatario = "gerlucero1977@gmail.com"
-        clave=os.getenv("GMTP_KEY")
-        asunto = f"Discrepancia de precios - {self.seleccion_hotel.get()}"
-        enviar_correo(remitente,clave,destinatario,asunto,texto_mensaje)
+        texto_final = self.email_textbox.get("1.0", tk.END).strip()
+
+        if not texto_final:
+            messagebox.showerror("Error", "El contenido del email no puede estar vacío.")
+            return
+
+        enviar_email_discrepancia(
+            hotel=self.seleccion_hotel.get(),
+            habitacion_excel=self.seleccion_habitacion_excel.get(),
+            precio_excel=self.precio_var.get(),
+            precio_web=self.habitacion_web.combos[0].precio,
+            remitente=remitente,
+            destinatario=destinatario,
+            texto_override=texto_final 
+        )
+        messagebox.showinfo("Éxito", "El correo se envió correctamente.")
+    
+    # def enviar_email(self):
+    #     texto_mensaje = self.email_textbox.get("1.0", tk.END).strip()
+    #     remitente ="gerlucero1997@gmail.com"
+    #     destinatario = "gerlucero1977@gmail.com"
+    #     clave=os.getenv("GMTP_KEY")
+    #     asunto = f"Discrepancia de precios - {self.seleccion_hotel.get()}"
+    #     enviar_correo(remitente,clave,destinatario,asunto,texto_mensaje)
         
     def cargar_hoteles_excel(self):
         self.hoteles_excel = dar_hoteles_excel()
@@ -275,8 +351,8 @@ class InterfazApp:
     async def ejecutar_comparacion(self):
         try:
         # Validaciones iniciales
-            if not self.validar_fecha() or not self.validar_orden_fechas():
-                return
+            # if not self.validar_fecha() or not self.validar_orden_fechas():
+            #     return
             datos = (
                 self.fecha_entrada.get(), 
                 self.fecha_salida.get(),
@@ -285,7 +361,7 @@ class InterfazApp:
                 self.seleccion_habitacion_excel.get(),
                 self.precio_var.get()
             )
-            self.resultado.insert(tk.END, f"Ejecutando scraping con: {datos}\n")
+            self.resultado.insert(tk.END, f"Ejecutando scraping con:\n {datos}\n")
             
             hotel_web = await dar_hotel_web(self.fecha_entrada.get(),self.fecha_salida.get(),self.adultos.get(),self.niños.get())
             if not hotel_web or not hotel_web.habitacion:
@@ -295,19 +371,28 @@ class InterfazApp:
             precio = normalizar_precio_str(self.precio_var.get())
             coincide = await comparar_habitaciones(self.seleccion_habitacion_excel.get(),precio)
             self.habitacion_web =  dar_habitacion_web()
+            mensaje_match = dar_mensaje()
+            ##informar habitacion web de mayor coincidencia con el excel
+            ##informar si encontro combo para breakfast, sino dar todos igual
             
-            
+            texto_habitacion = imprimir_habitacion_web(self.habitacion_web)
+            self.resultado.insert(tk.END, f"Habitacion web ", ("bold",)) 
+            self.resultado.insert(tk.END, f"de mayor coincidencia:\n {texto_habitacion}\n") 
+            if mensaje_match:
+                self.resultado.insert(tk.END, f"{mensaje_match}\n", ("bold",))
+
             if  coincide: 
-                self.resultado.insert(tk.END, "Se encontraron diferencias de precio.\n")
+                self.resultado.insert(tk.END, "Se encontro diferencia de precio.\n")
                 self.mostrar_email_btn()
             else:
                 self.resultado.insert(tk.END, "Las habitaciones coinciden en precio y nombre.\n")
-                texto_habitacion = imprimir_habitacion_web(self.habitacion_web)
-                self.resultado.insert(tk.END, f"Habitacion web:\n {texto_habitacion}\n") 
+        
         except ValueError as ve:
-            self.resultado.insert(tk.END, f"Error de validación: {str(ve)}\n")
+            self.resultado.insert(tk.END, f"Error de validación: ", ("bold",))
+            self.resultado.insert(tk.END, f"{str(ve)}\n")
         except Exception as e:
-            self.resultado.insert(tk.END, f"Error inesperado: {str(e)}\n")
+            self.resultado.insert(tk.END, f"Error inesperado: ", ("bold",))
+            self.resultado.insert(tk.END, f"{str(e)}\n")
 
 
 def run_interfaz():

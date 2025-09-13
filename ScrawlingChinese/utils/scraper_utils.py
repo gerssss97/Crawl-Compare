@@ -40,7 +40,7 @@ def get_llm_strategy() -> LLMExtractionStrategy:
         LLMExtractionStrategy: The settings for how to extract data using LLM.
     """
     # https://docs.crawl4ai.com/api/strategies/#llmextractionstrategy
-   
+    print("API Key cargada:", os.getenv("GROQ_API_KEY"))
     return LLMExtractionStrategy(
         provider="groq/deepseek-r1-distill-llama-70b",  # Name of the LLM provider
         api_token=os.getenv("GROQ_API_KEY"),  # API token for authentication

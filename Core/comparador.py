@@ -98,11 +98,11 @@ def obtener_mejor_match_con_breakfast(combo_elegido, hab_web):
                     )
                     print("devolvi habitacion con breakfast")
                     # Retorna la misma habitación, pero con los combos filtrados
-                    return habitacion
+                    return habitacion, "Se encontró un combo con 'breakfast'. Se muestran solo ese combo."
                 else:
-                    raise ValueError(f"[ERROR] No se encontraron combos con breakfast a pesar de en el excel incluir breakfast")
+                    return habitacion, "Se buscó un combo con 'breakfast', pero no se encontró ninguno con dicho detalle en la web."
             else:
                 print("devolvi habitacion")
-                return habitacion  # No requiere filtrado
+                return habitacion, "Habitacion completa"  # No requiere filtrado
     print("NO COINCIDENTES CON",mejor_nombre)
-    return None
+    return None, "No se encontró ninguna habitación que coincida con el nombre proporcionado."
