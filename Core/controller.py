@@ -52,7 +52,7 @@ def generar_texto_email(hotel, habitacion_excel, precio_excel, precio_web):
         "Agradecería si pudieran revisar esta diferencia y proporcionarme una explicación o corrección si es necesario.\n\n"
         "Gracias por su atención.\n\n"
         "Saludos cordiales,\n"
-        "[Tu Nombre]"
+        "Germán Lucero"
     )
 
 def enviar_email_discrepancia(hotel, habitacion_excel, precio_excel, precio_web, remitente, destinatario, texto_override=None):

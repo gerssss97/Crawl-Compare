@@ -9,44 +9,98 @@ from Core.controller import *
 
 
 class InterfazApp:
-    ##valida que sean de cero a dies digitos, solo separados por guiones
-    def validar_caracter(self, valor):
-            return re.fullmatch(r"[\d\-]{0,10}", valor) is not None
 
+    def validar_dia(self, valor):
+        if valor == "":
+            return True
+        if valor.isdigit():
+            n = int(valor)
+            return 1 <= n <= 31
+        return False
+       
+    def validar_mes(self, valor):
+        if valor == "":
+            return True 
+        if valor.isdigit():
+            n = int(valor)
+            return 1 <= n <= 12
+
+    def validar_ano(self, valor):
+        if valor == "":
+            return True
+        if valor.isdigit():
+            return  1 <= len(valor) <= 4
+    
     def validar_fecha(self):
-        campos = [("entrada", self.fecha_entrada.get()), ("salida", self.fecha_salida.get())]
+    #Valida que las fechas completas sean correctas y existan en el calendario
+        campos = [
+            ("entrada", self.fecha_entrada_completa.get()), 
+            ("salida", self.fecha_salida_completa.get())
+        ]
         for nombre, fecha in campos:
             try:
-                datetime.strptime(fecha, "%d-%m-%Y")
+                fecha_dt = datetime.strptime(fecha, "%d-%m-%Y")
+                fecha_actual = datetime.now()
+                if fecha_actual > fecha_dt:
+                    messagebox.showerror("Error", f"La fecha de {nombre} debe ser mayor o igual al actual.")
+                    return False  
             except ValueError:
                 messagebox.showerror("Error", f"La fecha de {nombre} debe tener el formato DD-MM-AAAA y ser válida.")
                 return False
         return True
-    
-    def validar_orden_fechas(self):
-        fecha_entrada = datetime.strptime(self.fecha_entrada.get(), "%d-%m-%Y")
-        fecha_salida = datetime.strptime(self.fecha_salida.get(), "%d-%m-%Y")
 
+    def validar_orden_fechas(self):
+        #Valida que la fecha de salida sea posterior a la fecha de entrada
+        try:
+            fecha_entrada = datetime.strptime(self.fecha_entrada_completa.get(), "%d-%m-%Y")
+            fecha_salida = datetime.strptime(self.fecha_salida_completa.get(), "%d-%m-%Y")
+        except ValueError:
+            return False 
         if fecha_salida <= fecha_entrada:
             messagebox.showerror("Error", "La fecha de salida debe ser posterior a la fecha de entrada.")
-            print("false")
             return False
         return True
-            
 
+    def actualizar_fecha_entrada(self, *args):
+            # Concatenamos los valores solo si los campos tienen valores válidos
+            dia = self.fecha_dia_entrada.get().zfill(2)  # rellenar con 0 si es necesario
+            mes = self.fecha_mes_entrada.get().zfill(2)
+            ano = self.fecha_ano_entrada.get()
+            if dia and mes and ano:
+                self.fecha_entrada_completa.set(f"{dia}-{mes}-{ano}")
+            else:
+                self.fecha_entrada_completa.set("")
+
+    def actualizar_fecha_salida(self, *args):
+            # Concatenamos los valores solo si los campos tienen valores válidos
+            dia = self.fecha_dia_salida.get().zfill(2)  # rellenar con 0 si es necesario
+            mes = self.fecha_mes_salida.get().zfill(2)
+            ano = self.fecha_ano_salida.get()
+            if dia and mes and ano:
+                self.fecha_salida_completa.set(f"{dia}-{mes}-{ano}")
+            else:
+                self.fecha_salida_completa.set("")
 
     def __init__(self, root):
 
-
         self.root = root
-        self.root.title("Comparador de precios - Alvear Hotel")
+        self.root.title("Comparador de precios ")
         self.root.geometry("900x600")
         # Campos de entrada
         self.seleccion_hotel = tk.StringVar()
         self.seleccion_edificio = tk.StringVar()
         self.seleccion_habitacion_excel = tk.StringVar()
-        self.fecha_entrada = tk.StringVar()
-        self.fecha_salida = tk.StringVar()
+        
+        self.fecha_dia_entrada = tk.StringVar()
+        self.fecha_mes_entrada = tk.StringVar()
+        self.fecha_ano_entrada = tk.StringVar()
+        self.fecha_entrada_completa = tk.StringVar()
+        
+        self.fecha_dia_salida = tk.StringVar()
+        self.fecha_mes_salida = tk.StringVar()
+        self.fecha_ano_salida = tk.StringVar()
+        self.fecha_salida_completa = tk.StringVar()
+
         self.adultos = tk.IntVar(value=1)
         self.niños = tk.IntVar()
         self.precio_var = tk.StringVar(value="(ninguna seleccionada)")
@@ -56,8 +110,10 @@ class InterfazApp:
         self.fuente_grande_negrita = font.Font(family="Helvetica", size=14, weight="bold")
         self.fuente_resultado = font.Font(family="Helvetica", size=10, weight="normal")
 
-        vcmd = (root.register(self.validar_caracter), '%P')
-        self.vcmd = vcmd
+
+        self.vcmd_dia = (self.root.register(self.validar_dia), "%P")
+        self.vcmd_mes = (self.root.register(self.validar_mes), "%P")
+        self.vcmd_ano = (self.root.register(self.validar_ano), "%P")
         
         # FRAME Encabezado
         self.encabezado_frame = ttk.Frame(self.root)
@@ -122,50 +178,68 @@ class InterfazApp:
         self.habit_excel_cb.grid(row=i, column=1, sticky='ew', padx=4, pady=2)
         i += 1
 
+        self.label_fecha_entrada = ttk.Label(self.campos_frame, text="Fecha de entrada (DD-MM-AAAA):")
+        self.label_fecha_entrada.grid(row=i, column=0, sticky='w', padx=4, pady=2)
+        
+        #Fecha entrada
+        self.fecha_dia_entrada.trace_add("write", self.actualizar_fecha_entrada)
+        self.fecha_mes_entrada.trace_add("write", self.actualizar_fecha_entrada)
+        self.fecha_ano_entrada.trace_add("write", self.actualizar_fecha_entrada)
 
-        def actualizar_fecha(*args):
-            # Concatenamos los valores solo si los campos tienen valores válidos
-            dia = self.fecha_dia_entrada.get().zfill(2)  # rellenar con 0 si es necesario
-            mes = fecha_mes.get().zfill(2)
-            ano = fecha_ano.get()
-            if dia and mes and ano:
-                fecha_completa.set(f"{dia}-{mes}-{ano}")
-            else:
-                fecha_completa.set("")
+        self.fechas_entrada_frame = ttk.Frame(self.campos_frame)             
+        self.fechas_entrada_frame.grid(row=i, column=1, columnspan=6, rowspan=1, sticky="ew")  
 
-        self.fecha_dia_entrada.trace_add("write", actualizar_fecha)
-        self.fecha_mes_entrada.trace_add("write", actualizar_fecha)
-        self.fecha_ano_entrada.trace_add("write", actualizar_fecha)
-        #Frame de fechas
-        self.fechas_frame = ttk.Frame(self.campos_frame)             
-        self.fechas_frame.grid(row=i, column=0, columnspan=5, rowspan=2, sticky="nsew")        
-        # Entrys separados para día, mes y año
-        self.entry_dia_entrada = ttk.Entry(self.fechas_frame, width=3, textvariable=self.fecha_dia)
-        self.entry_mes_entrada= ttk.Entry(self.campos_frame, width=3, textvariable=self.fecha_mes_entrada)
-        self.entry_ano_entrada = ttk.Entry(self.campos_frame, width=5, textvariable=self.fecha_ano)
+        self.entry_dia_entrada = ttk.Entry(self.fechas_entrada_frame, width=3, textvariable=self.fecha_dia_entrada, validatecommand=self.vcmd_dia, validate='key')
+        self.entry_mes_entrada= ttk.Entry(self.fechas_entrada_frame, width=3, textvariable=self.fecha_mes_entrada, validatecommand=self.vcmd_mes, validate='key')
+        self.entry_ano_entrada = ttk.Entry(self.fechas_entrada_frame, width=5, textvariable=self.fecha_ano_entrada, validatecommand=self.vcmd_ano, validate='key')
+        
+        self.entry_dia_entrada.grid(row=i, column=1,sticky='ew', padx=4, pady=2)
+        ttk.Label(self.fechas_entrada_frame, text="-").grid(row=i, column=2)
+        self.entry_mes_entrada.grid(row=i, column=3)
+        ttk.Label(self.fechas_entrada_frame, text="-").grid(row=i, column=4)
+        self.entry_ano_entrada.grid(row=i, column=5)
 
-        self.entry_dia.grid(row=i, column=1)
-        ttk.Label(self.campos_frame, text="-").grid(row=i, column=2)
-        self.entry_mes.grid(row=i, column=3)
-        ttk.Label(self.campos_frame, text="-").grid(row=i, column=4)
-        self.entry_ano.grid(row=i, column=5)
-
-        # Entry oculto o de solo lectura que representa la fecha completa
-        entry_completa = ttk.Entry(self.campos_frame, textvariable=self.fecha_completa, state='readonly', width=12)
+        # Entry de solo lectura que representa la fecha completa
+        entry_completa = ttk.Entry(self.fechas_entrada_frame, textvariable=self.fecha_entrada_completa, state='readonly', width=12)
         entry_completa.grid(row=i, column=6, padx=(10,0))
 
-        # Fecha entrada
-        self.label_fecha_entrada = ttk.Label(self.campos_frame, text="Fecha de entrada (DD-MM-AAAA):")
-        self.entry_fecha_entrada = ttk.Entry(self.campos_frame, textvariable=self.fecha_entrada, validate='key', validatecommand=self.vcmd)
-        self.label_fecha_entrada.grid(row=i, column=0, sticky='w', padx=4, pady=2)
-        self.entry_fecha_entrada.grid(row=i, column=1, sticky='ew', padx=4, pady=2)
+        # Fecha entrada VIEJA unificado todo en un campo
+        # self.label_fecha_entrada = ttk.Label(self.campos_frame, text="Fecha de entrada (DD-MM-AAAA):")
+        # self.entry_fecha_entrada = ttk.Entry(self.campos_frame, textvariable=self.fecha_entrada, validate='key', validatecommand=self.vcmd)
+        # self.label_fecha_entrada.grid(row=i, column=0, sticky='w', padx=4, pady=2)
+        # self.entry_fecha_entrada.grid(row=i, column=1, sticky='ew', padx=4, pady=2)
         i += 1
 
-        # Fecha salida
         self.label_fecha_salida = ttk.Label(self.campos_frame, text="Fecha de salida (DD-MM-AAAA):")
-        self.entry_fecha_salida = ttk.Entry(self.campos_frame, textvariable=self.fecha_salida, validate='key', validatecommand=self.vcmd)
         self.label_fecha_salida.grid(row=i, column=0, sticky='w', padx=4, pady=2)
-        self.entry_fecha_salida.grid(row=i, column=1, sticky='ew', padx=4, pady=2)
+
+        self.fecha_dia_salida.trace_add("write", self.actualizar_fecha_salida)
+        self.fecha_mes_salida.trace_add("write", self.actualizar_fecha_salida)
+        self.fecha_ano_salida.trace_add("write", self.actualizar_fecha_salida)
+
+        #Frame de fechas
+        self.fechas_salida_frame = ttk.Frame(self.campos_frame)             
+        self.fechas_salida_frame.grid(row=i, column=1, columnspan=6, rowspan=1, sticky="ew")  
+
+        # Entrys separados para día, mes y año
+        self.entry_dia_salida = ttk.Entry(self.fechas_salida_frame, width=3, textvariable=self.fecha_dia_salida,validatecommand=self.vcmd_dia, validate='key')
+        self.entry_mes_salida= ttk.Entry(self.fechas_salida_frame, width=3, textvariable=self.fecha_mes_salida,validatecommand=self.vcmd_mes, validate='key')
+        self.entry_ano_salida = ttk.Entry(self.fechas_salida_frame, width=5, textvariable=self.fecha_ano_salida,validatecommand=self.vcmd_ano, validate='key')
+        
+        self.entry_dia_salida.grid(row=i, column=1,sticky='ew', padx=4, pady=2)
+        ttk.Label(self.fechas_salida_frame, text="-").grid(row=i, column=2)
+        self.entry_mes_salida.grid(row=i, column=3)
+        ttk.Label(self.fechas_salida_frame, text="-").grid(row=i, column=4)
+        self.entry_ano_salida.grid(row=i, column=5)
+        
+        entry_completa = ttk.Entry(self.fechas_salida_frame, textvariable=self.fecha_salida_completa, state='readonly', width=12)
+        entry_completa.grid(row=i, column=6, padx=(10,0))
+       
+        # Fecha salida
+        # self.label_fecha_salida = ttk.Label(self.campos_frame, text="Fecha de salida (DD-MM-AAAA):")
+        # self.entry_fecha_salida = ttk.Entry(self.campos_frame, textvariable=self.fecha_salida, validate='key', validatecommand=self.vcmd)
+        # self.label_fecha_salida.grid(row=i, column=0, sticky='w', padx=4, pady=2)
+        # self.entry_fecha_salida.grid(row=i, column=1, sticky='ew', padx=4, pady=2)
         i += 1
 
         # Adultos
@@ -262,14 +336,6 @@ class InterfazApp:
             texto_override=texto_final 
         )
         messagebox.showinfo("Éxito", "El correo se envió correctamente.")
-    
-    # def enviar_email(self):
-    #     texto_mensaje = self.email_textbox.get("1.0", tk.END).strip()
-    #     remitente ="gerlucero1997@gmail.com"
-    #     destinatario = "gerlucero1977@gmail.com"
-    #     clave=os.getenv("GMTP_KEY")
-    #     asunto = f"Discrepancia de precios - {self.seleccion_hotel.get()}"
-    #     enviar_correo(remitente,clave,destinatario,asunto,texto_mensaje)
         
     def cargar_hoteles_excel(self):
         self.hoteles_excel = dar_hoteles_excel()
@@ -351,19 +417,48 @@ class InterfazApp:
     async def ejecutar_comparacion(self):
         try:
         # Validaciones iniciales
-            # if not self.validar_fecha() or not self.validar_orden_fechas():
-            #     return
-            datos = (
-                self.fecha_entrada.get(), 
-                self.fecha_salida.get(),
-                self.adultos.get(),
-                self.niños.get(),
-                self.seleccion_habitacion_excel.get(),
-                self.precio_var.get()
-            )
-            self.resultado.insert(tk.END, f"Ejecutando scraping con:\n {datos}\n")
+            if not self.validar_fecha() or not self.validar_orden_fechas():
+                print("no paso validaciones")
+                return
+            # datos = (
+            #     self.fecha_entrada_completa.get(), 
+            #     self.fecha_salida_completa.get(),
+            #     self.adultos.get(),
+            #     self.niños.get(),
+            #     self.seleccion_habitacion_excel.get(),
+            #     self.precio_var.get()
+            # )
+            # print("Ejecutando con datos:", datos)
+            # for i, campo in enumerate(datos, start=1):
+            #     if campo in ("", None):
+            #         messagebox.showerror(f"Error, uno de los campos esta vacio",{campo})
+            #         print(f"El campo {i} está vacío o None: {campo}")
             
-            hotel_web = await dar_hotel_web(self.fecha_entrada.get(),self.fecha_salida.get(),self.adultos.get(),self.niños.get())
+
+            campos_a_validar = {
+                "Fecha de entrada": self.fecha_entrada_completa.get(),
+                "Fecha de salida": self.fecha_salida_completa.get(),
+                "Número de adultos": self.adultos.get(),
+                "Número de niños": self.niños.get(),
+                "Habitacion Excel": self.seleccion_habitacion_excel.get(),
+                "Precio": self.precio_var.get()
+            }
+            for nombre_campo, valor_campo in campos_a_validar.items():
+                if valor_campo in ("", None):
+                    messagebox.showerror("Error",f"El campo '{nombre_campo}' no puede estar vacío. Por favor, revísalo.")
+                    print(f"El campo '{nombre_campo}' está vacío o es None.")
+                    return # Detiene la ejecución una vez que encuentra el primer error
+                if nombre_campo in ["Número de adultos"]:
+                    if valor_campo <= 0:
+                        messagebox.showerror("Error",f"El campo '{nombre_campo}' debe ser un número entero no negativo.")
+                        return # Detiene la ejecución una vez que encuentra el primer error            
+            print("todo bien")
+
+            self.resultado.insert(tk.END, f"Ejecutando scraping con:\n")
+            for nombre, valor in campos_a_validar.items():
+                self.resultado.insert(tk.END, f"  - {nombre}: {valor}\n")
+
+            hotel_web = await dar_hotel_web(self.fecha_entrada_completa.get(),self.fecha_salida_completa.get(),self.adultos.get(),self.niños.get())
             if not hotel_web or not hotel_web.habitacion:
                 self.resultado.insert(tk.END, "Error: No se pudieron obtener datos del hotel web\n")
                 return
@@ -372,8 +467,8 @@ class InterfazApp:
             coincide = await comparar_habitaciones(self.seleccion_habitacion_excel.get(),precio)
             self.habitacion_web =  dar_habitacion_web()
             mensaje_match = dar_mensaje()
-            ##informar habitacion web de mayor coincidencia con el excel
-            ##informar si encontro combo para breakfast, sino dar todos igual
+            #informar habitacion web de mayor coincidencia con el excel
+            #informar si encontro combo para breakfast, sino dar todos igual
             
             texto_habitacion = imprimir_habitacion_web(self.habitacion_web)
             self.resultado.insert(tk.END, f"Habitacion web ", ("bold",)) 
