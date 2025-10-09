@@ -403,7 +403,7 @@ class InterfazApp:
             self.precio_var.set(f"${habitacion.precio:.2f}")
             print(habitacion.row_idx, habitacion.precio)
         except ValueError:
-            self.precio_var.set("") # Limpia el campo de precio
+            self.precio_var.set("") 
             print(f"Error: La selección '{seleccionado}' no es válida.")
             
  
@@ -419,21 +419,7 @@ class InterfazApp:
         # Validaciones iniciales
             if not self.validar_fecha() or not self.validar_orden_fechas():
                 print("no paso validaciones")
-                return
-            # datos = (
-            #     self.fecha_entrada_completa.get(), 
-            #     self.fecha_salida_completa.get(),
-            #     self.adultos.get(),
-            #     self.niños.get(),
-            #     self.seleccion_habitacion_excel.get(),
-            #     self.precio_var.get()
-            # )
-            # print("Ejecutando con datos:", datos)
-            # for i, campo in enumerate(datos, start=1):
-            #     if campo in ("", None):
-            #         messagebox.showerror(f"Error, uno de los campos esta vacio",{campo})
-            #         print(f"El campo {i} está vacío o None: {campo}")
-            
+                return         
 
             campos_a_validar = {
                 "Fecha de entrada": self.fecha_entrada_completa.get(),
@@ -444,15 +430,14 @@ class InterfazApp:
                 "Precio": self.precio_var.get()
             }
             for nombre_campo, valor_campo in campos_a_validar.items():
-                if valor_campo in ("", None):
+                if valor_campo in ("", None,""):
                     messagebox.showerror("Error",f"El campo '{nombre_campo}' no puede estar vacío. Por favor, revísalo.")
                     print(f"El campo '{nombre_campo}' está vacío o es None.")
                     return # Detiene la ejecución una vez que encuentra el primer error
                 if nombre_campo in ["Número de adultos"]:
                     if valor_campo <= 0:
                         messagebox.showerror("Error",f"El campo '{nombre_campo}' debe ser un número entero no negativo.")
-                        return # Detiene la ejecución una vez que encuentra el primer error            
-            print("todo bien")
+                        return          
 
             self.resultado.insert(tk.END, f"Ejecutando scraping con:\n")
             for nombre, valor in campos_a_validar.items():
@@ -467,8 +452,6 @@ class InterfazApp:
             coincide = await comparar_habitaciones(self.seleccion_habitacion_excel.get(),precio)
             self.habitacion_web =  dar_habitacion_web()
             mensaje_match = dar_mensaje()
-            #informar habitacion web de mayor coincidencia con el excel
-            #informar si encontro combo para breakfast, sino dar todos igual
             
             texto_habitacion = imprimir_habitacion_web(self.habitacion_web)
             self.resultado.insert(tk.END, f"Habitacion web ", ("bold",)) 

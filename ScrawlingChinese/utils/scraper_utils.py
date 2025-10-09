@@ -47,7 +47,7 @@ def get_llm_strategy() -> LLMExtractionStrategy:
         schema=Habitacion.model_json_schema(),  # JSON schema of the data model
         extraction_type="schema",  # Type of extraction to perform
         instruction=(
-        "Extrae una habitación con su nombre, su detalle, "
+        "Extrae todas las habitaciones con su nombre, su detalle, "
         "y una lista de promociones con su titulo (ejemplo 'desayuno incluido', 'cancelación gratuita', etc.),"
         "descripcion y precio por noche "
         ),  # Instructions for the LLM
@@ -139,9 +139,9 @@ async def fetch_and_process_page(
             result = await crawler.arun(
                 url=url_completa,
                 config=CrawlerRunConfig(
+                    scan_full_page=True,
                     cache_mode=CacheMode.BYPASS,
                     extraction_strategy=llm_strategy,
-                    # html_content=html_habitaciones, ##nuevo
                     css_selector=css_selector,
                     session_id=session_id,
                     page_timeout=30000,  # 30 segundos de timeout
