@@ -17,17 +17,15 @@ def cargar_excel(path_excel, max_row=200) -> DatosExcel:
     hotel_actual: HotelExcel | None = None
     tipo_actual: TipoHabitacionExcel | None = None
     
-    
+    nombre_periodo = ""
+    fila_nombre_periodo = -1
+
     for i, row in enumerate(ws.iter_rows(values_only=True, max_row=max_row)):  # type: ignore
         if not any(row):
             continue  # fila vacía
-
-        if row[0] is None:
-            continue  # sin nombre
         
         ## Logica para extraer periodos
         periodo_raw = row[1]
-        nombre_periodo = ""
         if periodo_raw is not None:
             periodo_raw = str(periodo_raw)
             # Ignorar URLs y otros formatos no válidos
@@ -38,7 +36,8 @@ def cargar_excel(path_excel, max_row=200) -> DatosExcel:
             ## Se intentan detectar nombres de periodos tipo "low season", "high season", etc
             if contiene_season(periodo_raw):
                 nombre_periodo = str(periodo_raw).strip()
-                print(f"[DEBUG] Fila {i}: Periodo detectado: {nombre_periodo}")
+                fila_nombre_periodo = i
+                print(f"[DEBUG] Fila {i}: Periodo detectado: {nombre_periodo}, fila_nombre_periodo: {fila_nombre_periodo}")
             ## Si no hay nombre de periodo, se intenta extraer fechas 
             else:
                 try:
@@ -48,9 +47,14 @@ def cargar_excel(path_excel, max_row=200) -> DatosExcel:
                     print(f"[DEBUG] Fila {i}: Fechas con paréntesis encontradas: {fechas_con_parentesis}")
                     if fechas_con_parentesis:
                         for fecha_inicio, fecha_fin in fechas_con_parentesis:
-                            if nombre_periodo == "": nombre_periodo = "hardoceado con parentesis"
-                            print(f"[DEBUG] Fila {i}: fecha extraida {periodo_raw}")
-                            periodo = construir_periodo(fecha_inicio, fecha_fin, nombre_periodo)
+                            ## el nombre del periodo se determina por la distancia respecto a la fila donde se encontro una leyenda con "season"
+                            print(f"fila nombre periodo: {fila_nombre_periodo}, fila actual: {i}, diferencia: {i - fila_nombre_periodo}")
+                            if fila_nombre_periodo != -1 and i - fila_nombre_periodo <= 3:
+                                nombre_periodo_a_usar = nombre_periodo 
+                            else:
+                                nombre_periodo_a_usar = "hardoceado con parentesis"
+                            print(f"[DEBUG] Fila {i}: fecha extraida {periodo_raw} con {nombre_periodo_a_usar}")
+                            periodo = construir_periodo(fecha_inicio, fecha_fin, nombre_periodo_a_usar)
                             hotel_actual.periodos.append(periodo)
                     else:
                         ## Sino, intentamos extraer fechas del tipo "New Year: 26Dec25 - 3Jan26" "Easter: 2-5Apr26"
@@ -61,16 +65,19 @@ def cargar_excel(path_excel, max_row=200) -> DatosExcel:
                             print(f"[DEBUG] Fila {i}: No se encontraron fechas en: {periodo_raw}")
                             continue
                     
-                        nombre_periodo, fechas_sin_parentesis = resultado
+                        nombre_periodo_extraido, fechas_sin_parentesis = resultado
                         if not fechas_sin_parentesis:
                             print(f"[DEBUG] Fila {i}: No se encontraron fechas válidas en: {periodo_raw}")
                             continue
                         
                         ## se construye el periodo y se lo agrega al hotel actual
-                        print(f"[DEBUG] Fila {i}: Fechas sin paréntesis encontradas: {fechas_con_parentesis}")
-                        if fechas_sin_parentesis[1] : fecha_inicio, fecha_fin = fechas_sin_parentesis[1]
-                        if nombre_periodo == "": nombre_periodo ="hardoceado sin parentesis"
-                        periodo = construir_periodo(fecha_inicio, fecha_fin, nombre_periodo)
+                        print(f"[DEBUG] Fila {i}: Fechas sin paréntesis encontradas: {fechas_sin_parentesis}")
+                        fecha_inicio, fecha_fin = fechas_sin_parentesis
+                        if not nombre_periodo_extraido:
+                            nombre_periodo_a_usar ="hardoceado sin parentesis" 
+                        else:
+                            nombre_periodo_a_usar = nombre_periodo_extraido
+                        periodo = construir_periodo(fecha_inicio, fecha_fin, nombre_periodo_a_usar)
                         hotel_actual.periodos.append(periodo)
                 except Exception as e:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -87,6 +94,9 @@ def cargar_excel(path_excel, max_row=200) -> DatosExcel:
                         if line:
                             print(f"    Código: {line}")
                     print("  -------------------")
+
+        if row[0] is None:
+            continue  # sin nombre
 
         nombre_raw = str(row[0]).strip()
         nombre_norm = nombre_raw.lower()
