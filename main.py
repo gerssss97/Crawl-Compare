@@ -4,7 +4,7 @@ from Core.gestor_datos import *
 if __name__ == "__main__":
     
      # Test de extracción
-    path_excel = "./Data/Extracto.xlsx"  # ajusta la ruta según tu estructura
+    path_excel = "./Data/Extracto2.xlsx"  # ajusta la ruta según tu estructura
     datos = cargar_excel(path_excel)
     
     print("\n=== 📊 DATOS EXTRAÍDOS DEL EXCEL ===\n")
