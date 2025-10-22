@@ -107,6 +107,13 @@ class Periodo(BaseModel):
         if v < info.data["fecha_inicio"]:
             raise ValueError("fecha_fin debe ser igual o posterior a fecha_inicio")
         return v
+    @classmethod
+    def crear(cls, fecha_inicio: date, fecha_fin: date, nombre: str) -> 'Periodo':
+        return cls(
+            nombre=nombre,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin
+        )
 
 
 def normalizar_precio_str(s: str) -> Optional[float]:
