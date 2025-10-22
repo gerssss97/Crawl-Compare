@@ -4,7 +4,11 @@ import re
 from typing import Optional
 from models.hotel import Periodo
 
+
+
 def contiene_season(text: str) -> bool:
+    if not isinstance(text, str):
+        return False 
     return 'season' in text.lower()
 
 mes_a_numero = {}
@@ -87,7 +91,7 @@ def extraer_fechas_con_parentesis(text: str) -> list[tuple[date, date]]:
         # separar por guion/ndash/emdash/to (solo el primer guion, en caso de que haya más)
         # permitimos '-' '–' '—' y la palabra 'to'
         # obtenemos fecha inicio y fecha fin separadas
-        split = re.split(r'\s*(?:-|–|—|to)\s*', part, maxsplit=1, flags=re.IGNORECASE)
+        split = re.split(r'\s*(?:-|–|—|to|\/)\s*', part, maxsplit=1, flags=re.IGNORECASE)
 
         if len(split) == 2:
             parte_izq, parte_der = split[0].strip(), split[1].strip()
@@ -127,24 +131,29 @@ def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
     Devuelve una lista de tuplas (fecha_inicio: date, fecha_fin: date).
     Si no se puede parsear alguna fecha, se omite el rango completo.
     """
+    print(f"[DEBUG] Procesando texto: {text}")
     if not text:
         return []
 
     # Dividir la cadena en nombre y rango de fechas
     partes = text.split(":", 1)
+    print(f"[DEBUG] Partes después del split: {partes}")
     if len(partes) != 2:
         return []  
 
     nombre = partes[0].strip()
     rango_fechas = partes[1].strip()
-
+    print(f"[DEBUG] Nombre: {nombre}")
+    print(f"[DEBUG] Rango de fechas: {rango_fechas}")
     # Separar las fechas
-    split = re.split(r'\s*(?:-|–|—|to)\s*', rango_fechas, maxsplit=1, flags=re.IGNORECASE)
+    split = re.split(r'\s*(?:-|–|—|to|\/)\s*', rango_fechas, maxsplit=1, flags=re.IGNORECASE)
+    print(f"[DEBUG] Split de fechas: {split}")
     if len(split) != 2:
         return []  # No hay separador de fechas
 
     parte_izq, parte_der = split[0].strip(), split[1].strip()
-
+    print(f"[DEBUG] Fecha izquierda: {parte_izq}")
+    print(f"[DEBUG] Fecha derecha: {parte_der}")
     # Parsear las fechas
     fecha_izq = parsear_string_a_fecha(parte_izq)
     fecha_der = parsear_string_a_fecha(parte_der)
@@ -152,6 +161,7 @@ def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
     if fecha_izq and fecha_der:
         return [nombre,(fecha_izq, fecha_der)]
     else:
+        print(f"[WARNING] No se pudieron parsear las fechas para {nombre}")
         return [nombre]  # No se pudieron parsear las fechas pero devolvemos el nombre
 
 def construir_periodo(fecha_inicio : date, fecha_fin : date, nombre_periodo: str ) -> Periodo:

@@ -29,6 +29,7 @@ def cargar_excel(path_excel, max_row=200) -> DatosExcel:
         periodo_raw = row[1]
         nombre_periodo = ""
         if periodo_raw is not None:
+            periodo_raw = str(periodo_raw)
             # Ignorar URLs y otros formatos no válidos
             if isinstance(periodo_raw, str) and ("http" in periodo_raw.lower() or "https" in periodo_raw.lower()):
                 print(f"[INFO] Fila {i}: Ignorando URL en columna de períodos: {periodo_raw[:50]}...")
@@ -55,7 +56,7 @@ def cargar_excel(path_excel, max_row=200) -> DatosExcel:
                         ## Sino, intentamos extraer fechas del tipo "New Year: 26Dec25 - 3Jan26" "Easter: 2-5Apr26"
                         ## luego mejorar la logica y hacer el chequeo previo para decidir cual metodo usar
                         print(f"[DEBUG] Fila {i}: Intentando extraer fechas sin paréntesis")
-                        resultado = extraer_fechas_sin_parentesis(str(periodo_raw))
+                        resultado = extraer_fechas_sin_parentesis(periodo_raw)
                         if not resultado:
                             print(f"[DEBUG] Fila {i}: No se encontraron fechas en: {periodo_raw}")
                             continue
@@ -66,8 +67,8 @@ def cargar_excel(path_excel, max_row=200) -> DatosExcel:
                             continue
                         
                         ## se construye el periodo y se lo agrega al hotel actual
-                        print(f"[DEBUG] Fila {i}: Fechas con paréntesis encontradas: {fechas_con_parentesis}")
-                        fecha_inicio, fecha_fin = fechas_sin_parentesis[1]
+                        print(f"[DEBUG] Fila {i}: Fechas sin paréntesis encontradas: {fechas_con_parentesis}")
+                        if fechas_sin_parentesis[1] : fecha_inicio, fecha_fin = fechas_sin_parentesis[1]
                         if nombre_periodo == "": nombre_periodo ="hardoceado sin parentesis"
                         periodo = construir_periodo(fecha_inicio, fecha_fin, nombre_periodo)
                         hotel_actual.periodos.append(periodo)
