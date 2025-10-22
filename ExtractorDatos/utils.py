@@ -2,15 +2,16 @@ import calendar
 from datetime import date
 import re
 from typing import Optional
+from models.hotel import Periodo
 
 def contiene_season(text: str) -> bool:
     return 'season' in text.lower()
 
-_month_name_to_num = {}
+mes_a_numero = {}
 # populate mapping with english month names and abbreviations (case-insensitive)
 for i in range(1, 13):
-    _month_name_to_num[calendar.month_name[i].lower()] = i
-    _month_name_to_num[calendar.month_abbr[i].lower()] = i
+    mes_a_numero[calendar.month_name[i].lower()] = i
+    mes_a_numero[calendar.month_abbr[i].lower()] = i
 
 def parsear_string_a_fecha(token: str) -> Optional[date]:
     """
@@ -25,23 +26,23 @@ def parsear_string_a_fecha(token: str) -> Optional[date]:
     # (?P<d>...) — define un grupo de captura con nombre. En este caso, el nombre del grupo es "d".
     s = re.sub(r'(?P<d>\d+)(?:st|nd|rd|th)\b', r'\g<d>', s, flags=re.IGNORECASE)
 
-    # Try to extract day, month, year with regex
+    # Intenta extraer dia, mes, año con regex
     m = re.match(r'^\s*(\d{1,2})\s*([A-Za-z]{3,})\.?\s*(\d{2,4})?\s*$', s)
     if not m:
         # tambien se aceptan expresiones del tipo mes - dia - año 'May 1 25' or 'May 1,25'
         m2 = re.match(r'^\s*([A-Za-z]{3,})\.?\s*(\d{1,2})(?:[,\s]+(\d{2,4}))?\s*$', s)
         if m2:
-            month_str = m2.group(1).lower()
-            day = int(m2.group(2))
+            mes_str = m2.group(1).lower()
+            dia = int(m2.group(2))
             year_token = m2.group(3)
         else:
             return None
     else:
-        day = int(m.group(1))
-        month_str = m.group(2).lower()
+        dia = int(m.group(1))
+        mes_str = m.group(2).lower()
         year_token = m.group(3)
 
-    month = _month_name_to_num.get(month_str)
+    month = mes_a_numero.get(mes_str)
     if not month:
         return None
 
@@ -52,7 +53,7 @@ def parsear_string_a_fecha(token: str) -> Optional[date]:
             y = 2000 + y
 
     try:
-        return date(y, month, day)
+        return date(y, month, dia)
     except Exception:
         return None
 
@@ -89,7 +90,7 @@ def extraer_fechas_con_parentesis(text: str) -> list[tuple[date, date]]:
         split = re.split(r'\s*(?:-|–|—|to)\s*', part, maxsplit=1, flags=re.IGNORECASE)
 
         if len(split) == 2:
-            left_token, right_token = split[0].strip(), split[1].strip()
+            parte_izq, parte_der = split[0].strip(), split[1].strip()
 
             def _extract_year(tok: str) -> Optional[int]:
                 m = re.search(r'(\d{2,4})\b', tok)
@@ -98,10 +99,10 @@ def extraer_fechas_con_parentesis(text: str) -> list[tuple[date, date]]:
                 y = int(m.group(1))
                 return 2000 + y if y < 100 else y
             
-            left_dt = parsear_string_a_fecha(left_token)
-            right_dt = parsear_string_a_fecha(right_token)
-            if left_dt and right_dt:
-                results.append((left_dt, right_dt))
+            fecha_izq = parsear_string_a_fecha(parte_izq)
+            fecha_der = parsear_string_a_fecha(parte_der)
+            if fecha_izq and fecha_der:
+                results.append((fecha_izq, fecha_der))
             else:
                 raise ValueError(f"No se pudo parsear alguna de las fechas en el rango: {part}")  
         else:
@@ -109,12 +110,12 @@ def extraer_fechas_con_parentesis(text: str) -> list[tuple[date, date]]:
             token = split[0].strip()
             # If token contains a dash inside (but splitting failed because of weird chars), try generic split
             if re.search(r'[-–—]', token) and len(re.split(r'\s*(?:-|–|—)\s*', token, maxsplit=1)) == 2:
-                left_token, right_token = re.split(r'\s*(?:-|–|—)\s*', token, maxsplit=1)
-                left_dt = parsear_string_a_fecha(left_token)
-                right_dt = parsear_string_a_fecha(right_token)
-                if left_dt and right_dt:
-                    results.append((left_dt, right_dt))
-                    
+                parte_izq, parte_der = re.split(r'\s*(?:-|–|—)\s*', token, maxsplit=1)
+                fecha_izq = parsear_string_a_fecha(parte_izq)
+                fecha_der = parsear_string_a_fecha(parte_der)
+                if fecha_izq and fecha_der:
+                    results.append((fecha_izq, fecha_der))
+                
     return results
 
 def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
@@ -132,7 +133,7 @@ def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
     # Dividir la cadena en nombre y rango de fechas
     partes = text.split(":", 1)
     if len(partes) != 2:
-        return []  # No hay separador ":"
+        return []  
 
     nombre = partes[0].strip()
     rango_fechas = partes[1].strip()
@@ -142,16 +143,17 @@ def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
     if len(split) != 2:
         return []  # No hay separador de fechas
 
-    left_token, right_token = split[0].strip(), split[1].strip()
+    parte_izq, parte_der = split[0].strip(), split[1].strip()
 
     # Parsear las fechas
-    left_dt = parsear_string_a_fecha(left_token)
-    right_dt = parsear_string_a_fecha(right_token)
+    fecha_izq = parsear_string_a_fecha(parte_izq)
+    fecha_der = parsear_string_a_fecha(parte_der)
 
-    if left_dt and right_dt:
-        return [nombre,(left_dt, right_dt)]
+    if fecha_izq and fecha_der:
+        return [nombre,(fecha_izq, fecha_der)]
     else:
         return [nombre]  # No se pudieron parsear las fechas pero devolvemos el nombre
 
-def construir_periodo(fecha):
-    pass
+def construir_periodo(fecha_inicio : date, fecha_fin : date, nombre_periodo: str ) -> Periodo:
+    periodo = Periodo.crear(fecha_inicio, fecha_fin, nombre_periodo)
+    return periodo
