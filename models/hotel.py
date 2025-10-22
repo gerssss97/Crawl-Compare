@@ -1,21 +1,25 @@
-from pydantic import BaseModel, field_validator, ValidationInfo, computed_field
+from pydantic import BaseModel, field_validator, Field
+from uuid import uuid4, UUID
 from typing import List, Optional
 from datetime import date
-import string
+
 
 class ComboPrecio(BaseModel):
     titulo: str
-    descripcion: str  
-    precio: float     
+    descripcion: str
+    precio: float
+
 
 class Habitacion(BaseModel):
     nombre: str
     detalles: Optional[str]
     combos: List[ComboPrecio]
 
+
 class Hotel(BaseModel):
     habitacion: List[Habitacion]
     detalles: str
+
 
 
 class ParametrosBusqueda(BaseModel):
@@ -23,6 +27,7 @@ class ParametrosBusqueda(BaseModel):
     fecha_salida: date
     adultos: int
     ninos: int
+
 
 def imprimir_hotel_web(hotel):
     print(f"\n🏨 Hotel: {hotel.detalles}")
@@ -40,8 +45,9 @@ def imprimir_hotel_web(hotel):
                 print(f"        📃 {combo.descripcion}")
                 print(f"        💵 ${combo.precio:.2f}")
         else:
-            print("   ❌ Sin promociones registradas.")   
-            
+            print("   ❌ Sin promociones registradas.")
+
+
 def print_habitacion_web(habitacion):
     print(f"🛏️ Habitación COINCIDENTE: {habitacion.nombre}")
     if habitacion.detalles:
@@ -54,11 +60,13 @@ def print_habitacion_web(habitacion):
             print(f"        📃 {combo.descripcion}")
             print(f"        💵 ${combo.precio:.2f}")
     else:
-        print("   ❌ Sin promociones registradas.")   
+        print("   ❌ Sin promociones registradas.")
+
 
 def generar_blanco(texto):
     longitud = len(texto)
     return f"{'':<{longitud}}"
+
 
 def imprimir_habitacion_web(habitacion):
     # Usamos una lista para construir las líneas y luego las unimos
@@ -69,7 +77,7 @@ def imprimir_habitacion_web(habitacion):
         lineas.append(f"📋 Detalles:")
         espacio_blanco = generar_blanco("📋 Detalles:")
         for linea in habitacion.detalles.splitlines():
-            lineas.append(f"{espacio_blanco} {linea}")  
+            lineas.append(f"{espacio_blanco} {linea}")
     
     if habitacion.combos:
         lineas.append("  💼 Combos:")
@@ -82,9 +90,23 @@ def imprimir_habitacion_web(habitacion):
         lineas.append("  ❌ Sin promociones registradas.")
     
     # Unimos todas las líneas en una única cadena de texto con saltos de línea
-    return "\n".join(lineas)        
+    return "\n".join(lineas)
 
 #######################################################
+
+
+class Periodo(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    nombre: str
+    fecha_inicio: date
+    fecha_fin: date
+
+    @field_validator("fecha_fin")
+    @classmethod
+    def validar_fechas(cls, v, info):
+        if v < info.data["fecha_inicio"]:
+            raise ValueError("fecha_fin debe ser igual o posterior a fecha_inicio")
+        return v
 
 
 def normalizar_precio_str(s: str) -> Optional[float]:
@@ -94,10 +116,12 @@ def normalizar_precio_str(s: str) -> Optional[float]:
     except Exception:
         return None
 
+
 class HabitacionExcel(BaseModel):
     nombre: str
     precio: Optional[float] = None
     row_idx: int
+    periodo_ids: List[UUID] = Field(default_factory=list)
 
     @field_validator("nombre", mode="before")
     @classmethod
@@ -119,14 +143,21 @@ class HabitacionExcel(BaseModel):
 
 class TipoHabitacionExcel(BaseModel):
     nombre: str
-    habitaciones: list[HabitacionExcel] = []
+    habitaciones: List[HabitacionExcel] = Field(default_factory=list)
 
 
 class HotelExcel(BaseModel):
     nombre: str
-    tipos: list[TipoHabitacionExcel] = []
-    habitaciones_directas: list[HabitacionExcel] = []  
+    tipos: List[TipoHabitacionExcel] = Field(default_factory=list)
+    habitaciones_directas: List[HabitacionExcel] = Field(default_factory=list)
+    periodos: List[Periodo] = Field(default_factory=list)
+
+    def periodo_por_id(self, pid: UUID) -> Optional[Periodo]:
+        for p in self.periodos:
+            if p.id == pid:
+                return p
+        return None
 
 
 class DatosExcel(BaseModel):
-    hoteles: list[HotelExcel]
+    hoteles: List[HotelExcel]
