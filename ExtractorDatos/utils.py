@@ -154,6 +154,18 @@ def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
     parte_izq, parte_der = split[0].strip(), split[1].strip()
     print(f"[DEBUG] Fecha izquierda: {parte_izq}")
     print(f"[DEBUG] Fecha derecha: {parte_der}")
+
+    ## chequeo especial: si la parte izquierda no tiene año, intentar extraerlo de la parte derecha
+    if len(parte_izq) <= 2:
+        match = re.search(r'^\s*(?:(\d{1,2}))\s*([A-Za-z]{3,})\.?\s*(\d{2,4})?\s*', parte_der)
+        if match:
+            mes = match.group(2) if match.group(2) else ""
+            anio = match.group(3) if match.group(3) else ""
+            parte_izq += mes + anio
+            print(f"[DEBUG] Fecha izquierda modificada (añadido año): {parte_izq}")
+        else:
+            print(f"[DEBUG] No se encontró patrón para extraer mes y año de la parte derecha")
+        
     # Parsear las fechas
     fecha_izq = parsear_string_a_fecha(parte_izq)
     fecha_der = parsear_string_a_fecha(parte_der)
