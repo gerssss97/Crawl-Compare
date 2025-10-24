@@ -2,7 +2,8 @@ import calendar
 from datetime import date
 import re
 from typing import Optional
-from models.hotel import Periodo
+from models.hotel import Periodo, HotelExcel
+from openpyxl.utils import range_boundaries
 
 
 
@@ -179,3 +180,26 @@ def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
 def construir_periodo(fecha_inicio : date, fecha_fin : date, nombre_periodo: str ) -> Periodo:
     periodo = Periodo.crear(fecha_inicio, fecha_fin, nombre_periodo)
     return periodo
+
+def agregar_periodos_a_habitaciones(hotel : HotelExcel):
+    if not hotel.tipos :
+        for habitacion in hotel.habitaciones_directas:
+            for periodo in hotel.periodos:
+                habitacion.periodo_ids.append(periodo.id)    
+    else:
+        for tipo in hotel.tipos:
+            for habitacion in tipo.habitaciones:
+                for periodo in hotel.periodos:
+                    habitacion.periodo_ids.append(periodo.id)
+    return
+
+def obtener_valor_real(ws, fila, col):
+    """Devuelve el valor real de una celda, incluso si pertenece a un merge."""
+    cell = ws.cell(row=fila + 1, column=col + 1)  # +1 porque enumerate empieza en 0
+    for merged_range in ws.merged_cells.ranges:
+        min_col, min_row, max_col, max_row = range_boundaries(str(merged_range))
+        if min_row <= cell.row <= max_row and min_col <= cell.column <= max_col:
+            # La celda pertenece a un merge → usar la principal (superior izquierda)
+            top_left = ws.cell(row=min_row, column=min_col)
+            return top_left.value
+    return cell.value
