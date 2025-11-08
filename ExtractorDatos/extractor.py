@@ -7,7 +7,8 @@ import sys
 
 EXCLUSIONES = [
     "season rates", "(per room)", "closing agreement",
-    "rates includes", "promotion", "not included", "high speed"
+    "rates includes", "promotion", "not included", "high speed", "minimum stay",
+    "other benefits"
 ]
 
 LEYENDAS_AGREEMENT = ["closing agreement"]
@@ -60,11 +61,11 @@ def cargar_excel(path_excel, max_row=300) -> DatosExcel:
                             hotel_actual.periodos.append(periodo)
                     else:
                         ## Sino, intentamos extraer fechas del tipo "New Year: 26Dec25 - 3Jan26" "Easter: 2-5Apr26"
-                        ## luego mejorar la logica y hacer el chequeo previo para decidir cual metodo usar
+##################### luego mejorar la logica y hacer el chequeo previo para decidir cual metodo usar
                         resultado = extraer_fechas_sin_parentesis(periodo_raw)
                         ## Si no se pudo extraer nada, se salta
                         if not resultado:
-                            continue
+                            continue##PROBLEMA AQUI
                     
                         nombre_periodo_extraido, fechas_sin_parentesis = resultado
                         ## Imposible extraer fechas
@@ -120,6 +121,7 @@ def cargar_excel(path_excel, max_row=300) -> DatosExcel:
 
         ## Detectar TIPO de habitación (mayúsculas + sin precio en la fila)
         if nombre_raw.isupper() and row[2] is None:
+            nombre_raw = nombre_raw.replace(":", "").strip()
             tipo_actual = TipoHabitacionExcel(nombre=nombre_raw, habitaciones=[])
             if hotel_actual:
                 hotel_actual.tipos.append(tipo_actual)
@@ -127,40 +129,63 @@ def cargar_excel(path_excel, max_row=300) -> DatosExcel:
         
         ## Logica de los PRECIOS de las habitaciones
         col_precio = obtener_valor_real(ws, i, 2)  # columna 2 = índice C en Excel
-        precio = None
-        
         valor_str = str(col_precio).strip().lower() if col_precio is not None else ""
-        ## Lógica para detectar "closing agreement" o similares, omitiendo "habitaciones" cuyas leyendas NO esten en la lista
-        if valor_str in LEYENDAS_AGREEMENT:
-            precio_str = valor_str
-        elif valor_str and not valor_str.replace(".", "").replace(",", "").isdigit():
-            # Ejemplo: "closing" o "price TBD" → ignorar la habitación
-            continue
-        elif valor_str.replace(".", "").replace(",", "").isdigit():
-            precio_str = None
         
-        if valor_str:
+        es_leyenda_agreement = valor_str in LEYENDAS_AGREEMENT
+        es_numerico = valor_str.replace(".", "").replace(",", "").isdigit()
+        es_texto_no_leyenda = valor_str and not es_numerico and not es_leyenda_agreement
+        ## Lógica para detectar "closing agreement" o similares, omitiendo "habitaciones" cuyas leyendas NO esten en la lista
+        ## ademas de reiniciar el precio_str
+        
+        if es_texto_no_leyenda:
+            continue # Ejemplo: "closing"  → ignorar la habitación
+        
+        precio = None
+        if es_leyenda_agreement:
+            precio_str = valor_str
             precio = valor_str
-        elif precio_str:
+        elif es_numerico:
+            precio_str = None
+            precio = valor_str
+        elif precio_str:  # heredar del contexto previo
             precio = precio_str
         
-        # si no hay precio, no es una habitacion
-        if not precio:
-            continue  
+       
+        
+        es_habitacion = nombre_norm.startswith(("dbl", "sgl", "tpl"))
+        # chequeo si es una habitacion (dbl, sgl, tpl), si no tiene precio chequeo precio BAR
+        if (es_habitacion):
+            if not precio and row[3] is not None:
+                precio = str(row[3]).strip()
             
-        habitacion = HabitacionExcel(
-            nombre=nombre_raw,
-            precio=precio,
-            row_idx=i,
-            periodo_ids=[]  # se asignan luego
-        )
+            ## si sigue sin precio luego de intentar con precio BAR, se omite
+            if not precio:
+                continue
+            
+            habitacion = HabitacionExcel(
+                nombre=nombre_raw,
+                precio=precio,
+                row_idx=i,
+                periodo_ids=[]  # se asignan luego
+            )
 
-        if hotel_actual:
-            if tipo_actual:
-                tipo_actual.habitaciones.append(habitacion)
-            else:
-                hotel_actual.habitaciones_directas.append(habitacion)
-        ## agregar periodos a las habitaciones del ultimo hotel
-    
+            if hotel_actual:
+                if tipo_actual:
+                    tipo_actual.habitaciones.append(habitacion)
+                else:
+                    hotel_actual.habitaciones_directas.append(habitacion)
+        else:
+            if not precio:
+                continue
+            # si no es habitacion y no tiene precio, es un extra
+            extra = Extra(
+                nombre=nombre_raw,
+                precio=precio
+            )
+            if hotel_actual:
+                hotel_actual.extras.append(extra)
+            
+        
+    ## agregar periodos a las habitaciones del ultimo hotel
     agregar_periodos_a_habitaciones(hotel_actual)
     return DatosExcel(hoteles=hoteles)

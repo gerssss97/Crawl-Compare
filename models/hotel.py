@@ -133,8 +133,7 @@ def normalizar_precio_str(s: str) -> Optional[float]:
 
 LEYENDAS_AGREEMENT = [
     "closing agreement",
-    "a convenir",
-    "price on request"
+    "bar 20% com"
 ]
 
 class HabitacionExcel(BaseModel):
@@ -196,12 +195,16 @@ class TipoHabitacionExcel(BaseModel):
     nombre: str
     habitaciones: List[HabitacionExcel] = Field(default_factory=list)
 
+class Extra(BaseModel):
+    nombre: str
+    precio: Optional[float] = None
 
 class HotelExcel(BaseModel):
     nombre: str
     tipos: List[TipoHabitacionExcel] = Field(default_factory=list)
     habitaciones_directas: List[HabitacionExcel] = Field(default_factory=list)
     periodos: List[Periodo] = Field(default_factory=list)
+    extras: list[Extra] = Field(default_factory=list)
 
     def periodo_por_id(self, pid: int) -> Optional[Periodo]:
         for p in self.periodos:
