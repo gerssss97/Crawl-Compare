@@ -1,6 +1,6 @@
 import re
-from difflib import SequenceMatcher
-from models.hotel import *
+from Models.hotelExcel import *
+from Models.hotelWeb import *
 from rapidfuzz import fuzz
 
 def encontrar_mejor_match(nombre_excel, nombres_web):
@@ -69,7 +69,7 @@ def contiene_breakfast(texto, umbral=75):
 
     return False
 
-def obtener_mejor_match_con_breakfast(combo_elegido, hab_web):
+def obtener_mejor_match_con_breakfast(combo_elegido, hab_web: HabitacionWeb):
     # Normalizar combo_elegido
     tiene_breakfast = contiene_breakfast(combo_elegido)
     # Extraer nombres de habitaciones web
@@ -91,7 +91,7 @@ def obtener_mejor_match_con_breakfast(combo_elegido, hab_web):
                     if contiene_breakfast(combo.titulo)
                 ]
                 if combos_filtrados:
-                    habitacion = Habitacion(
+                    habitacion = HabitacionWeb(
                         nombre=habitacion.nombre,
                         detalles=habitacion.detalles,
                         combos=combos_filtrados

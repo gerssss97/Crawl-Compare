@@ -4,19 +4,19 @@ from email.mime.text import MIMEText ##crea msjs con formato adecuado
 from email.mime.multipart import MIMEMultipart
 
 
-gestor = GestorDatos("./Data/Extracto.xlsx")
+gestor = GestorDatos("./Data/Extracto_prueba2.xlsx")
 
 def dar_hoteles_excel():
     return gestor.hoteles_excel_get
 
-def dar_habitaciones_excel(hotelExcel, tipo):
+def dar_habitaciones_excel(hotelExcel: HotelExcel, tipo):
     return gestor.habitaciones_excel_get(hotelExcel, tipo)
 
-def dar_tipos_habitacion_excel(HotelExcel):
+def dar_tipos_habitacion_excel(HotelExcel: HotelExcel):
     return gestor.tipos_habitaciones_excel_get(HotelExcel)
 
 ## devuelve true si la diferencia es mayor o igual a 1
-async def comparar_habitaciones(habitacion_excel,precio_hab_excel):
+async def comparar_habitaciones(habitacion_excel: HabitacionExcel, precio_hab_excel):
     await gestor.coincidir_excel_web(habitacion_excel) #busca la mejor coincidencia con hab web
 
     precio_web = gestor.mejor_habitacion_web_get.combos[0].precio  # type: ignore

@@ -9,7 +9,6 @@ para validación visual y comparación.
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from ExtractorDatos.extractor import cargar_excel
-from datetime import datetime
 
 
 def crear_hoja_periodos(wb, hotel):
@@ -37,13 +36,14 @@ def crear_hoja_periodos(wb, hotel):
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Agregar datos de periodos
-    for periodo in hotel.periodos:
-        ws.append([
-            periodo.id,
-            periodo.nombre,
-            periodo.fecha_inicio.strftime("%d-%m-%Y"),
-            periodo.fecha_fin.strftime("%d-%m-%Y")
-        ])
+    for periodoGroup in hotel.periodos_group:
+        for periodo in periodoGroup.periodos:
+            ws.append([
+                periodo.id,
+                periodoGroup.nombre,
+                periodo.fecha_inicio.strftime("%d-%m-%Y"),
+                periodo.fecha_fin.strftime("%d-%m-%Y")
+            ])
 
     # Ajustar ancho de columnas
     ws.column_dimensions['A'].width = 10
@@ -166,7 +166,7 @@ def obtener_detalles_periodos(hotel, periodo_ids):
     for pid in periodo_ids:
         periodo = hotel.periodo_por_id(pid)
         if periodo:
-            detalles.append(f"{periodo.nombre} ({periodo.fecha_inicio.strftime('%d-%m-%Y')} - {periodo.fecha_fin.strftime('%d-%m-%Y')})")
+            detalles.append(f" ({periodo.fecha_inicio.strftime('%d-%m-%Y')} - {periodo.fecha_fin.strftime('%d-%m-%Y')})")
         else:
             detalles.append(f"ID {pid} (no encontrado)")
 
@@ -295,7 +295,7 @@ def exportar_datos_a_excel(datos_excel, archivo_salida):
         total_hab_por_tipo = sum(len(tipo.habitaciones) for tipo in hotel.tipos)
         ws_resumen.append([
             hotel.nombre,
-            len(hotel.periodos),
+            len(hotel.periodos_group),
             len(hotel.tipos),
             len(hotel.habitaciones_directas),
             total_hab_por_tipo,
@@ -342,8 +342,8 @@ def main():
     print()
 
     # Configuración de rutas
-    path_excel_entrada = "./Data/Extracto2.xlsx"
-    path_excel_salida = "./Data/Extracto_Validacion.xlsx"
+    path_excel_entrada = "./Data/Extracto_prueba2.xlsx"
+    path_excel_salida = "./Data/Extracto_Validacion2.xlsx"
 
     print(f"[>] Archivo de entrada: {path_excel_entrada}")
     print(f"[>] Archivo de salida:  {path_excel_salida}")
@@ -365,7 +365,7 @@ def main():
         total_habitaciones = len(hotel.habitaciones_directas) + total_hab_por_tipo
 
         print(f"\nHOTEL: {hotel.nombre}")
-        print(f"   |-- Periodos: {len(hotel.periodos)}")
+        print(f"   |-- Periodos_ group: {len(hotel.periodos_group)}")
         print(f"   |-- Tipos de habitación: {len(hotel.tipos)}")
         print(f"   |-- Habitaciones directas: {len(hotel.habitaciones_directas)}")
         print(f"   |-- Habitaciones por tipo: {total_hab_por_tipo}")

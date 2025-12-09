@@ -1,6 +1,7 @@
 from ExtractorDatos.extractor import *
 from ScrawlingChinese.crawler import *
-from models.hotel import *
+from Models.hotelExcel import *
+from Models.hotelWeb import *
 from Core.comparador import *
 import pickle
 import os
@@ -10,9 +11,9 @@ class GestorDatos:
     def __init__(self,path_excel):
         self.__path = path_excel
         self.__datos_excel = cargar_excel(self.__path) 
-        self.__hotel_web : Optional[Hotel] = None
-        self.__habitaciones_web : Optional[List[Habitacion]] = None
-        self.mejor_habitacion_web : Habitacion | None
+        self.__hotel_web : Optional[HotelWeb] = None
+        self.__habitaciones_web : Optional[List[HabitacionWeb]] = None
+        self.mejor_habitacion_web : HabitacionWeb | None
 
         self.__last_fecha_ingreso = None
         self.__last_fecha_egreso = None
@@ -20,7 +21,7 @@ class GestorDatos:
         self.__last_niños = None
         self.mensaje_match = None
     
-    async def coincidir_excel_web (self, habitacion_excel):
+    async def coincidir_excel_web (self, habitacion_excel: HabitacionExcel):
         if not self.__habitaciones_web:
             raise ValueError("No hay datos de habitaciones web cargados al momento de COINCIDIR con el excel")
         self.mejor_habitacion_web, self.mensaje_match = obtener_mejor_match_con_breakfast(habitacion_excel, self.__habitaciones_web)
@@ -29,7 +30,7 @@ class GestorDatos:
             raise ValueError(f"[ERROR] No se encontró una coincidencia para el combo", habitacion_excel)
         return 
 
-    async def obtener_hotel_web(self, fecha_ingreso,fecha_egreso,adultos,niños):
+    async def obtener_hotel_web(self, fecha_ingreso, fecha_egreso, adultos, niños):
         if (self.__last_fecha_ingreso == fecha_ingreso and
             self.__last_fecha_egreso == fecha_egreso and
             self.__last_adultos == adultos and
@@ -42,7 +43,7 @@ class GestorDatos:
                 self.__hotel_web = pickle.load(f)
                 # imprimir_hotel_web(self.__hotel_web)
                 self.__habitaciones_web = self.__hotel_web.habitacion
-        else:# Guardar los nuevos parámetros
+        else:
             self.__last_fecha_ingreso = fecha_ingreso
             self.__last_fecha_egreso = fecha_egreso
             self.__last_adultos = adultos
@@ -56,39 +57,16 @@ class GestorDatos:
                 self.__habitaciones_web = self.__hotel_web.habitacion
   
         return self.__hotel_web    
-    
-    # def tipos_habitaciones_excel_get(self,hotelExcel)-> List[TipoHabitacionExcel] | None:
-    #     for hotel in self.__datos_excel.hoteles:
-    #         if hotel.nombre == hotelExcel:
-    #             return hotel.tipos
-    #     return None
-    
-    # def habitaciones_excel_get(self,hotelExcel,tipo = None)-> List[HabitacionExcel] | None:
-    #     if tipo is None:
-    #         for hotel in self.__datos_excel.hoteles:
-    #             if hotel.nombre == hotelExcel:
-    #                 return hotel.habitaciones_directas
-    #     else:
-    #         for hotel in self.__datos_excel.hoteles:
-    #             if hotel.nombre == hotelExcel:
-    #                 for tipos in hotel.tipos:
-    #                     if tipos.nombre == tipo:
-    #                         return tipos.habitaciones
-    #     return None
-        
+           
     @property
     def hoteles_excel_get(self)-> List[HotelExcel]:
         return self.__datos_excel.hoteles
 
     @property
-    def mejor_habitacion_web_get(self)-> Habitacion | None:
+    def mejor_habitacion_web_get(self)-> HabitacionWeb | None:
         return self.mejor_habitacion_web   
     
     @property
     def mensaje_get(self)-> str | None:
         return self.mensaje_match
       
-
-    # @property
-    # def precio_combo_elegido_get(self)-> float:
-    #     return self.__precio_combo_elegido

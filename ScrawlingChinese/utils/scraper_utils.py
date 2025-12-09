@@ -13,7 +13,8 @@ from crawl4ai import (
     LLMExtractionStrategy,
 )
 from datetime import date
-from models.hotel import *
+from Models.hotelExcel import *
+from Models.hotelWeb import *
 
 
 
@@ -44,7 +45,7 @@ def get_llm_strategy() -> LLMExtractionStrategy:
     return LLMExtractionStrategy(
         provider="groq/deepseek-r1-distill-llama-70b",  # Name of the LLM provider
         api_token=os.getenv("GROQ_API_KEY"),  # API token for authentication
-        schema=Habitacion.model_json_schema(),  # JSON schema of the data model
+        schema=HabitacionWeb.model_json_schema(),  # JSON schema of the data model
         extraction_type="schema",  # Type of extraction to perform
         instruction=(
         "Extrae todas las habitaciones con su nombre, su detalle, "
@@ -88,7 +89,7 @@ async def procesar_resultado_scraping(result):
             habitaciones = []
             for h in hotel_data:
                 try:
-                    habitacion = Habitacion(**h)
+                    habitacion = HabitacionWeb(**h)
                     habitaciones.append(habitacion)
                 except Exception as e:
                     print(f"Error procesando habitación: {e}")
@@ -98,7 +99,7 @@ async def procesar_resultado_scraping(result):
                 print("Error: No se pudo procesar ninguna habitación válida")
                 return None
                 
-            hotel = Hotel(
+            hotel = HotelWeb(
                 detalles="Alvear Palace Hotel",
                 habitacion=habitaciones
             )
@@ -127,7 +128,7 @@ async def fetch_and_process_page(
     nombre_hotel: str = "Alvear Palace Hotel",
     max_retries: int = 3,
     delay_between_retries: int = 5
-) -> Optional[Hotel]:
+) -> Optional[HotelWeb]:
     
     url_completa = f"{base_url}?{urlencode(params)}"
     print(f"Loading hotel page: {url_completa}...")
