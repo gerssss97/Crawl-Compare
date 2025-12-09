@@ -2,27 +2,67 @@ import calendar
 from datetime import date
 import re
 from typing import Optional
-from models.hotel import Periodo, HotelExcel
+from Models.hotelExcel import Periodo, HotelExcel, PeriodoGroup
 from openpyxl.utils import range_boundaries
 
 
 
-def contiene_season(text: str) -> bool:
-    if not isinstance(text, str):
-        return False 
-    return 'season' in text.lower()
+def contiene_season(texto: str) -> bool:
+    if not isinstance(texto, str):
+        return False
+    return 'season' in texto.lower()
 
-mes_a_numero = {}
-# populate mapping with english month names and abbreviations (case-insensitive)
-for i in range(1, 13):
-    mes_a_numero[calendar.month_name[i].lower()] = i
-    mes_a_numero[calendar.month_abbr[i].lower()] = i
+def contiene_special_dates(texto: str) -> bool:
+    if not isinstance(texto, str):
+        return False
+    return 'special dates' in texto.lower()
+
+def parece_periodo(texto) -> bool:
+    """
+    Determina si un texto parece ser un periodo válido para procesar.
+    Retorna True si contiene 'season', fechas entre paréntesis, o formato 'Nombre: fecha - fecha'.
+    """
+    if not texto:
+        return False
+
+    texto_str = str(texto).strip()
+
+    # Ignorar URLs
+    if "http" in texto_str.lower() or "https" in texto_str.lower():
+        return False
+
+    # Si contiene "season", es un periodo
+    if contiene_season(texto_str):
+        return True
+    
+    if contiene_special_dates(texto_str):
+        return True
+
+    # Si contiene paréntesis con contenido, probablemente sea un periodo
+    if '(' in texto_str and ')' in texto_str:
+        return True
+
+    # Si tiene formato "Algo: fecha - fecha" con meses abreviados
+    # Buscar patrones como "26Dec25", "3Jan26", etc.
+    patron_fecha = r'\d{1,2}[A-Za-z]{3}\d{2}'
+    if re.search(patron_fecha, texto_str):
+        return True
+
+    return False
+
 
 def parsear_string_a_fecha(token: str) -> Optional[date]:
+    
     """
     Parsea un token como '1May25', '1 May 2025', '01 May 25' etc.
     Devuelve una fecha o nada si no se pudo parsear.
     """
+    mes_a_numero = {}
+# populate mapping with english month names and abbreviations (case-insensitive)
+    for i in range(1, 13):
+        mes_a_numero[calendar.month_name[i].lower()] = i
+        mes_a_numero[calendar.month_abbr[i].lower()] = i
+
     s = token.strip()
     if not s:
         return None
@@ -177,8 +217,27 @@ def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
         print(f"[WARNING] No se pudieron parsear las fechas para {nombre}")
         return [nombre]  # No se pudieron parsear las fechas pero devolvemos el nombre
 
-def construir_periodo(fecha_inicio : date, fecha_fin : date, nombre_periodo: str ) -> Periodo:
-    periodo = Periodo.crear(fecha_inicio, fecha_fin, nombre_periodo)
+
+def obtener_valor_real(ws, fila, col):
+    """Devuelve el valor real de una celda, incluso si pertenece a un merge."""
+    cell = ws.cell(row=fila + 1, column=col + 1)  # +1 porque enumerate empieza en 0
+    for merged_range in ws.merged_cells.ranges:
+        min_col, min_row, max_col, max_row = range_boundaries(str(merged_range))
+        if min_row <= cell.row <= max_row and min_col <= cell.column <= max_col:
+            # La celda pertenece a un merge → usar la principal (superior izquierda)
+            top_left = ws.cell(row=min_row, column=min_col)
+            return top_left.value
+    return cell.value
+
+def agregar_nombre_group(hotel: HotelExcel, nombre: str):
+    grupo = PeriodoGroup(nombre = nombre, periodos= [] )
+    hotel.periodos_group.append(grupo)
+    return
+    
+
+
+def construir_periodo(fecha_inicio : date, fecha_fin : date , nombre: Optional[str] = None) -> Periodo:
+    periodo = Periodo.crear(fecha_inicio, fecha_fin, nombre)
     return periodo
 
 def agregar_periodos_a_habitaciones(hotel : HotelExcel):
@@ -192,14 +251,3 @@ def agregar_periodos_a_habitaciones(hotel : HotelExcel):
                 for periodo in hotel.periodos:
                     habitacion.periodo_ids.append(periodo.id)
     return
-
-def obtener_valor_real(ws, fila, col):
-    """Devuelve el valor real de una celda, incluso si pertenece a un merge."""
-    cell = ws.cell(row=fila + 1, column=col + 1)  # +1 porque enumerate empieza en 0
-    for merged_range in ws.merged_cells.ranges:
-        min_col, min_row, max_col, max_row = range_boundaries(str(merged_range))
-        if min_row <= cell.row <= max_row and min_col <= cell.column <= max_col:
-            # La celda pertenece a un merge → usar la principal (superior izquierda)
-            top_left = ws.cell(row=min_row, column=min_col)
-            return top_left.value
-    return cell.value

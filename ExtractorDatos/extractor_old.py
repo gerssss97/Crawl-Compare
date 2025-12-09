@@ -1,10 +1,10 @@
 from openpyxl import load_workbook
-from Models.hotelExcel import HotelExcel, HabitacionExcel, PeriodoGroup, DatosExcel, TipoHabitacionExcel, Extra
-from Models.periodo import Periodo
+from Models.hotelExcel import *
+from Models.periodo import *
 from ExtractorDatos.utils import *
 import traceback
 import sys
-from typing import List
+
 
 EXCLUSIONES = [
     "season rates", "(per room)", "closing agreement",
@@ -25,28 +25,9 @@ def cargar_excel(path_excel, max_row=300) -> DatosExcel:
     precio_str = None
     fila_nombre_seasson = -1
     nombre_periodo = None 
-    habitaciones_sin_periodos: List [HabitacionExcel] = []
 
     for i, row in enumerate(ws.iter_rows(values_only=True, max_row=max_row)):  # type: ignore
         if not any(row):
-
-            # Asignar periodos a las habitaciones SIN periodos
-            if hotel_actual and hotel_actual.periodos_group:
-                # Siempre asignar el último grupo de periodos disponible
-                ultimo_grupo = hotel_actual.periodos_group[-1]
-                for habitacion in habitaciones_sin_periodos:
-                    for periodo in ultimo_grupo.periodos:
-                        habitacion.periodo_ids.add(periodo.id)
-            
-            if hotel_actual:
-                if tipo_actual:
-                    for habitacion in habitaciones_sin_periodos:
-                        tipo_actual.habitaciones.append(habitacion)
-                else:
-                    for habitacion in habitaciones_sin_periodos:
-                        hotel_actual.habitaciones_directas.append(habitacion)
-            
-            habitaciones_sin_periodos= []
             continue  # fila vacía
 
         ## Logica para extraer periodos
@@ -83,6 +64,7 @@ def cargar_excel(path_excel, max_row=300) -> DatosExcel:
 
             hotel_actual = HotelExcel(nombre=nombre_raw, tipos=[], habitaciones_directas=[],periodos=[])
             hoteles.append(hotel_actual)
+            primer_habitacion = True
             tipo_actual = None
             continue
 
@@ -107,6 +89,7 @@ def cargar_excel(path_excel, max_row=300) -> DatosExcel:
         if es_texto_no_leyenda:
             continue # Ejemplo: "closing"  → ignorar la habitación
 
+
         precio = None
         if es_leyenda_agreement:
             precio_str = valor_str
@@ -116,6 +99,7 @@ def cargar_excel(path_excel, max_row=300) -> DatosExcel:
             precio = valor_str
         elif precio_str:
             precio = precio_str
+
 
         es_habitacion = nombre_norm.startswith(("dbl", "sgl", "tpl"))
         # chequeo si es una habitacion (dbl, sgl, tpl), si no tiene precio chequeo precio BAR
@@ -134,8 +118,18 @@ def cargar_excel(path_excel, max_row=300) -> DatosExcel:
                 periodo_ids=[]  # se asignan a continuación
             )
 
-            habitaciones_sin_periodos.append(habitacion)
-        
+            # Asignar periodos a la habitación
+            if hotel_actual and hotel_actual.periodos_group:
+                # Siempre asignar el último grupo de periodos disponible
+                ultimo_grupo = hotel_actual.periodos_group[-1]
+                for periodo in ultimo_grupo.periodos:
+                    habitacion.periodo_ids.append(periodo.id)
+
+            if hotel_actual:
+                if tipo_actual:
+                    tipo_actual.habitaciones.append(habitacion)
+                else:
+                    hotel_actual.habitaciones_directas.append(habitacion)
         else:
             if not precio:
                 continue
@@ -168,18 +162,13 @@ def detectar_y_agregar_periodo(hotel_actual: HotelExcel, periodo_raw, i, fila_no
     if isinstance(periodo_raw, str) and ("http" in periodo_raw.lower() or "https" in periodo_raw.lower()):
         return (True, None)
 
-    ## Se intentan detectar nombres de periodos tipo "low season", "high season", SPECIAL DATES
+    ## Se intentan detectar nombres de periodos tipo "low season", "high season", etc
     if contiene_season(periodo_raw):
         nuevo_nombre = str(periodo_raw).strip()
-        agregar_nombre_group(hotel_actual, nuevo_nombre)
-        return (False, nuevo_nombre)
-    
-    if contiene_special_dates(periodo_raw):
-        nuevo_nombre = str(periodo_raw).strip()
-        agregar_nombre_group(hotel_actual, nuevo_nombre)
-        return (False, nuevo_nombre)
+        # Retornar sin crear periodo, solo guardamos el nombre para los siguientes
+        return (True, nuevo_nombre)
 
-    ## Si no hay nombre de periodo, se intenta EXTRAER FECHAS
+    ## Si no hay nombre de periodo, se intenta extraer fechas
     try:
         ## intentamos extraer las fechas con parentesis (1May25 - 30Sep25) (12Dec25 - 27Dec25)
         fechas_con_parentesis = extraer_fechas_con_parentesis(periodo_raw)
@@ -189,12 +178,12 @@ def detectar_y_agregar_periodo(hotel_actual: HotelExcel, periodo_raw, i, fila_no
             for fecha_inicio, fecha_fin in fechas_con_parentesis:
                 ## El nombre del periodo se determina por la distancia
                 ## respecto a la fila donde se encontro una leyenda con "season"
-                if fila_nombre_seasson != -1 and i - fila_nombre_seasson <= 3:
-                    
+                if fila_nombre_seasson != -1 and i - fila_nombre_seasson <= 3 and nombre_periodo_actual:
+                    nombre_periodo_a_usar = nombre_periodo_actual
                     # Agregar a un grupo existente con el mismo nombre
                     agregar_periodo_a_grupo_existente = True
                 else:
-                    nombre_periodo_a_usar = "SIN NOMBRE DE GRUPO"
+                    nombre_periodo_a_usar = "hardoceado con parentesis"
                     agregar_periodo_a_grupo_existente = False
 
                 # Construir el periodo
@@ -202,30 +191,32 @@ def detectar_y_agregar_periodo(hotel_actual: HotelExcel, periodo_raw, i, fila_no
 
                 # Agregarlo al hotel
                 if agregar_periodo_a_grupo_existente and hotel_actual.periodos_group:
-                    hotel_actual.periodos_group[-1].periodos.append(periodo)
-                elif nombre_periodo_a_usar == "SIN NOMBRE DE GRUPO":
+                    # Buscar el grupo con el nombre correcto
+                    grupo_encontrado = False
+                    for grupo in hotel_actual.periodos_group:
+                        if grupo.nombre == nombre_periodo_a_usar:
+                            grupo.periodos.append(periodo)
+                            grupo_encontrado = True
+                            break
+
+                    # Si no existe el grupo, crearlo
+                    if not grupo_encontrado:
+                        periodo_group = PeriodoGroup(
+                            nombre=nombre_periodo_a_usar,
+                            periodos=[periodo]
+                        )
+                        hotel_actual.periodos_group.append(periodo_group)
+                else:
                     # Crear nuevo grupo
                     periodo_group = PeriodoGroup(
                         nombre=nombre_periodo_a_usar,
                         periodos=[periodo]
                     )
                     hotel_actual.periodos_group.append(periodo_group)
-                    return (False, nombre_periodo_a_usar)
-                else:
-    ##CAMBIAR EL PRINT POR UN ERROR
-                    print("EXTRAÑO, no se encontro un grupo de periodo debiendo ya de existir al menos un nombre en dicha VAR")  
-
-                    # Si no existe el grupo, crearlo
-                    # if not grupo_encontrado:
-                    #     periodo_group = PeriodoGroup(
-                    #         nombre=nombre_periodo_a_usar,
-                    #         periodos=[periodo]
-                    #     )
-                    #     hotel_actual.periodos_group.append(periodo_group)
 
             return (False, None)  # No continuar, procesamos fechas exitosamente
 
-        else: ## caso SPECIAL DATES 
+        else:
             ## Sino, intentamos extraer fechas del tipo "New Year: 26Dec25 - 3Jan26" "Easter: 2-5Apr26"
             resultado = extraer_fechas_sin_parentesis(periodo_raw)
 
@@ -242,9 +233,19 @@ def detectar_y_agregar_periodo(hotel_actual: HotelExcel, periodo_raw, i, fila_no
             ## se construye el periodo y se lo agrega al hotel actual
             fecha_inicio, fecha_fin = fechas_sin_parentesis
 
+            if not nombre_periodo_extraido:
+                nombre_periodo_a_usar = "hardoceado sin parentesis"
+            else:
+                nombre_periodo_a_usar = nombre_periodo_extraido
 
-            periodo = construir_periodo(fecha_inicio, fecha_fin, nombre_periodo_extraido)
-            hotel_actual.periodos_group[-1].periodos.append(periodo)
+            periodo = construir_periodo(fecha_inicio, fecha_fin)
+
+            # Crear nuevo grupo para periodos sin paréntesis
+            periodo_group = PeriodoGroup(
+                nombre=nombre_periodo_a_usar,
+                periodos=[periodo]
+            )
+            hotel_actual.periodos_group.append(periodo_group)
 
             return (False, None)
 

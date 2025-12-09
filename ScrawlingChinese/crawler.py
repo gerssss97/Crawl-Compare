@@ -2,7 +2,8 @@ import asyncio
 from crawl4ai import AsyncWebCrawler
 from dotenv import load_dotenv
 from .config import BASE_URL, CSS_SELECTOR
-from models.hotel import *
+from Models.hotelExcel import *
+from Models.hotelWeb import HotelWeb
 
 from .utils.scraper_utils import (
     fetch_and_process_page,
@@ -13,7 +14,7 @@ from .utils.scraper_utils import (
 load_dotenv()
 
 
-async def crawl_alvear(fecha_ingreso,fecha_egreso,adultos,niños) -> Optional[Hotel] :
+async def crawl_alvear(fecha_ingreso,fecha_egreso,adultos,niños) -> Optional[HotelWeb] :
     browser_config = get_browser_config()
     llm_strategy = get_llm_strategy()
     session_id = "venue_crawl_session"
