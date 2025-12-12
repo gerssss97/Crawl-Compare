@@ -8,6 +8,20 @@ import sys
 from Models.hotelWeb import *
 from Core.controller import *
 
+# Importar infraestructura de estado y estilos
+from UI.state.event_bus import EventBus
+from UI.state.app_state import AppState
+from UI.styles.fonts import FontManager
+
+# Importar componentes
+from UI.components import DateInputWidget, LabeledComboBox, PeriodosPanel, PrecioPanel, EntradaEtiquetada
+
+# Importar vistas
+from UI.views import VistaResultados
+
+# Importar controladores
+from UI.controllers import ControladorHotel, ControladorValidacion, ControladorComparacion
+
 
 class InterfazApp:
 
@@ -87,36 +101,51 @@ class InterfazApp:
         self.root = root
         self.root.title("Comparador de precios ")
         self.root.geometry("900x700")
-        # Campos de entrada
-        self.seleccion_hotel = tk.StringVar()
-        self.seleccion_edificio = tk.StringVar()
-        self.seleccion_habitacion_excel = tk.StringVar()
-        
-        self.fecha_dia_entrada = tk.StringVar()
-        self.fecha_mes_entrada = tk.StringVar()
-        self.fecha_ano_entrada = tk.StringVar()
-        self.fecha_entrada_completa = tk.StringVar()
-        
-        self.fecha_dia_salida = tk.StringVar()
-        self.fecha_mes_salida = tk.StringVar()
-        self.fecha_ano_salida = tk.StringVar()
-        self.fecha_salida_completa = tk.StringVar()
 
-        self.adultos = tk.IntVar(value=1)
-        self.niños = tk.IntVar()
-        self.precio_var = tk.StringVar(value="(ninguna seleccionada)")
-        self.periodos_var = tk.StringVar(value="")
+        # ===== FASE 1: Infraestructura Base =====
+        # Sistema de eventos para comunicación desacoplada
+        self.event_bus = EventBus()
+        # self.event_bus.enable_debug()  # Descomentar para debugging
 
-        self.fuente_normal = font.Font(family="Helvetica", size=12)
-        self.fuente_negrita = font.Font(family="Helvetica", size=12, weight="bold")
-        self.fuente_grande_negrita = font.Font(family="Helvetica", size=16, weight="bold")
-        self.fuente_resultado = font.Font(family="Helvetica", size=12, weight="normal")
-        self.fuente_periodos_titulo = font.Font(family="Helvetica", size=11, weight="bold")
-        self.fuente_periodos_contenido = font.Font(family="Helvetica", size=11)
-        self.fuente_precio = font.Font(family="Helvetica", size=14, weight="bold")
-        self.fuente_combobox = font.Font(family="Helvetica", size=12)
-        self.fuente_combo = font.Font(family="Helvetica", size=20)
-        self.fuente_boton = font.Font(family="Helvetica", size=13, weight="bold")
+        # Estado centralizado de la aplicación
+        self.state = AppState(self.event_bus)
+
+        # Gestor de fuentes centralizado
+        self.fonts = FontManager(self.root)
+
+        # ===== Compatibilidad con código existente =====
+        # Variables que apuntan al estado centralizado
+        self.seleccion_hotel = self.state.hotel
+        self.seleccion_edificio = self.state.edificio
+        self.seleccion_habitacion_excel = self.state.habitacion
+
+        self.fecha_dia_entrada = self.state.fecha_dia_entrada
+        self.fecha_mes_entrada = self.state.fecha_mes_entrada
+        self.fecha_ano_entrada = self.state.fecha_ano_entrada
+        self.fecha_entrada_completa = self.state.fecha_entrada_completa
+
+        self.fecha_dia_salida = self.state.fecha_dia_salida
+        self.fecha_mes_salida = self.state.fecha_mes_salida
+        self.fecha_ano_salida = self.state.fecha_ano_salida
+        self.fecha_salida_completa = self.state.fecha_salida_completa
+
+        self.adultos = self.state.adultos
+        self.niños = self.state.ninos
+        self.precio_var = self.state.precio
+        self.periodos_var = self.state.periodos_var
+
+        # Fuentes que apuntan al FontManager
+        self.fuente_normal = self.fonts.normal
+        self.fuente_negrita = self.fonts.negrita
+        self.fuente_grande_negrita = self.fonts.grande_negrita
+        self.fuente_resultado = self.fonts.resultado
+        self.fuente_periodos_titulo = self.fonts.periodos_titulo
+        self.fuente_periodos_contenido = self.fonts.periodos_contenido
+        self.fuente_precio = self.fonts.precio
+        self.fuente_combobox = self.fonts.combobox
+        self.fuente_combo = self.fonts.combo
+        self.fuente_boton = self.fonts.boton
+
         # Configurar estilo para combobox con letra más grande
         style = ttk.Style()
         style.configure('Custom.TCombobox', font=self.fuente_combo)
@@ -126,6 +155,20 @@ class InterfazApp:
         self.vcmd_dia = (self.root.register(self.validar_dia), "%P")
         self.vcmd_mes = (self.root.register(self.validar_mes), "%P")
         self.vcmd_ano = (self.root.register(self.validar_ano), "%P")
+
+        # ===== FASE 4: Inicializar Controladores =====
+        self.controlador_validacion = ControladorValidacion(self.state)
+        self.controlador_hotel = ControladorHotel(self.state, self.event_bus)
+        self.controlador_comparacion = ControladorComparacion(
+            self.state,
+            self.event_bus,
+            self.controlador_validacion
+        )
+
+        # Suscribir a eventos de comparación
+        self.event_bus.on('comparison_started', self._on_comparison_started)
+        self.event_bus.on('comparison_completed', self._on_comparison_completed)
+        self.event_bus.on('comparison_error', self._on_comparison_error)
 
         # FRAME principal unificado - con estilo mejorado
         self.principal_container = tk.Frame(self.root, relief=tk.SOLID, borderwidth=1, bg='#F5F5F5')
@@ -147,65 +190,30 @@ class InterfazApp:
         self.fila_dinamica_inicio = 2
         self.crear_campos_estaticos()
         
+        # ===== FASE 2: Componentes Panel Derecho =====
         # FRAME precio de la habitación (col 2)
         self.precio_frame = ttk.Frame(self.root)
         self.precio_frame.grid(row=0, column=2, rowspan=3, sticky='nsew', padx=4, pady=2)
 
-        ttk.Label(self.precio_frame, text="Precio de la habitación", font=self.fuente_negrita).grid(row=0, column=0, sticky='w', pady=(0,5), padx=(0,10))
-
-        # Frame contenedor del precio con estilo discreto
-        precio_container = tk.Frame(self.precio_frame, relief=tk.SOLID, borderwidth=1, bg='#F5F5F5')
-        precio_container.grid(row=1, column=0, sticky='ew', pady=(0,15), padx=(0,10))
-
-        self.label_precio = tk.Label(
-            precio_container,
-            textvariable=self.precio_var,
-            font=self.fuente_precio,
-            bg='#F5F5F5',
-            fg='#2C3E50',
-            padx=12,
-            pady=8,
-            anchor='w'
+        # Componente PrecioPanel
+        self.precio_panel = PrecioPanel(
+            self.precio_frame,
+            textvariable=self.state.precio,
+            fonts=self.fonts
         )
-        self.label_precio.pack(fill='both', expand=True)
+        self.precio_panel.grid(row=0, column=0, sticky='ew')
 
-        # Sección de periodos
-        ttk.Label(self.precio_frame, text="Periodos de la habitación", font=self.fuente_negrita).grid(row=2, column=0, sticky='w', pady=(10,5), padx=(0,10))
+        # Componente PeriodosPanel
+        self.periodos_panel = PeriodosPanel(self.precio_frame, fonts=self.fonts)
+        self.periodos_panel.grid(row=1, column=0, sticky='nsew')
 
-        # Frame para el texto de periodos con borde discreto
-        periodos_container = tk.Frame(self.precio_frame, relief=tk.SOLID, borderwidth=1, bg='#F5F5F5')
-        periodos_container.grid(row=3, column=0, sticky='nsew', pady=(0,10), padx=(0,10))
+        # Configurar expansión del frame
+        self.precio_frame.rowconfigure(1, weight=1)
 
-        self.periodos_text = tk.Text(
-            periodos_container,
-            height=15,
-            width=38,
-            wrap="word",
-            font=self.fuente_periodos_contenido,
-            bg='#FAFAFA',
-            relief=tk.FLAT,
-            padx=10,
-            pady=10,
-            cursor='arrow'
-        )
-        self.periodos_text.grid(row=0, column=0, sticky="nsew")
+        # ===== Mantener compatibilidad con código existente =====
+        self.periodos_text = self.periodos_panel._text  # Para código que accede directamente
 
-        # Scrollbar para periodos
-        periodos_scrollbar = ttk.Scrollbar(periodos_container, orient="vertical", command=self.periodos_text.yview)
-        periodos_scrollbar.grid(row=0, column=1, sticky="ns")
-        self.periodos_text.configure(yscrollcommand=periodos_scrollbar.set)
-
-        # Configurar el Text como readonly
-        self.periodos_text.config(state='disabled')
-
-        # Configurar tags para el formato discreto
-        self.periodos_text.tag_configure("advertencia", foreground="#C0392B", font=self.fuente_negrita)
-        self.periodos_text.tag_configure("grupo", foreground="#34495E", font=self.fuente_periodos_titulo, spacing1=6, spacing3=3)
-        self.periodos_text.tag_configure("periodo", foreground="#555555", font=self.fuente_periodos_contenido, lmargin1=20, lmargin2=20)
-
-        # Configurar expansión del container
-        periodos_container.rowconfigure(0, weight=1)
-        periodos_container.columnconfigure(0, weight=1)
+        # Tags ya configurados en PeriodosPanel, no es necesario reconfigurar
         
         self.cargar_hoteles_excel()
         
@@ -373,29 +381,13 @@ class InterfazApp:
         self.widgets_dinamicos.append(self.boton_ejecutar)
         i += 1
 
-        frame_resultado = tk.Frame(self.principal_frame, bg='#F5F5F5')
-        frame_resultado.grid(row=i, column=0, sticky='nsew', pady=(0, 0))
-        self.widgets_dinamicos.append(frame_resultado)
+        # ===== FASE 3: Componente VistaResultados =====
+        self.vista_resultados = VistaResultados(self.principal_frame, fonts=self.fonts, bg='#F5F5F5')
+        self.vista_resultados.grid(row=i, column=0, sticky='nsew', pady=(0, 0))
+        self.widgets_dinamicos.append(self.vista_resultados)
 
-        frame_resultado.rowconfigure(0, weight=1)
-        frame_resultado.columnconfigure(0, weight=1)
-
-        self.resultado = tk.Text(frame_resultado, height=20, width=80, font=self.fuente_resultado, wrap="word")
-        self.resultado.grid(row=0, column=0, sticky="nsew")
-
-        # Scrollbar vertical
-        scrollbar = ttk.Scrollbar(frame_resultado, orient="vertical", command=self.resultado.yview)
-        scrollbar.grid(row=0, column=1, sticky="ns")
-
-        # Vincular Text con Scrollbar
-        self.resultado.configure(yscrollcommand=scrollbar.set)
-        # # Resultado
-        # self.resultado = tk.Text(self.principal_frame, height=15, width=80, font=self.fuente_resultado)
-        # self.resultado.grid(row=i, column=0, columnspan=2, sticky='nsew', padx=4, pady=2)
-
-        # Configurar tags
-        self.resultado.tag_configure("bold", font=self.fuente_negrita)
-        self.resultado.tag_configure("grande y negra", font=self.fuente_grande_negrita)
+        # Mantener compatibilidad con código existente
+        self.resultado = self.vista_resultados.obtener_widget_text()
 
 
 
@@ -638,77 +630,25 @@ class InterfazApp:
                 break
 
         if not hotel_actual:
-            self.limpiar_periodos()
+            self.periodos_panel.limpiar()
             return
 
-        # Actualizar el widget Text
-        self.periodos_text.config(state='normal')
-        self.periodos_text.delete('1.0', tk.END)
-
-        # Verificar si hay periodos
-        if not habitacion.periodo_ids:
-            self.periodos_text.insert(tk.END, "⚠️ ADVERTENCIA:\n", "advertencia")
-            self.periodos_text.insert(tk.END, "Sin periodos asignados", "advertencia")
-            self.periodos_text.config(state='disabled')
-            return
-
-        # Agrupar los periodos por nombre de grupo
-        from collections import OrderedDict
-        grupos_periodos = OrderedDict()
-
-        for pid in habitacion.periodo_ids:
-            periodo = hotel_actual.periodo_por_id(pid)
-            if periodo:
-                # Buscar a qué grupo pertenece este periodo
-                nombre_grupo = None
-                for grupo in hotel_actual.periodos_group:
-                    if periodo in grupo.periodos:
-                        nombre_grupo = grupo.nombre
-                        break
-
-                if nombre_grupo:
-                    if nombre_grupo not in grupos_periodos:
-                        grupos_periodos[nombre_grupo] = []
-                    grupos_periodos[nombre_grupo].append(periodo)
-
-        if not grupos_periodos:
-            self.periodos_text.insert(tk.END, "⚠️ ADVERTENCIA:\n", "advertencia")
-            self.periodos_text.insert(tk.END, "Sin periodos asignados", "advertencia")
-            self.periodos_text.config(state='disabled')
-            return
-
-        # Insertar con formato mejorado
-        for i, (nombre_grupo, periodos) in enumerate(grupos_periodos.items()):
-            if i > 0:
-                self.periodos_text.insert(tk.END, "\n")
-
-            # Insertar nombre del grupo con estilo
-            self.periodos_text.insert(tk.END, f"{nombre_grupo}\n", "grupo")
-
-            # Insertar cada periodo
-            for periodo in periodos:
-                inicio_str = periodo.fecha_inicio.strftime("%d/%m/%Y")
-                fin_str = periodo.fecha_fin.strftime("%d/%m/%Y")
-                # Agregar el nombresito si existe
-                if periodo.nombresito:
-                    self.periodos_text.insert(tk.END, f"  • {periodo.nombresito}: {inicio_str} - {fin_str}\n", "periodo")
-                else:
-                    self.periodos_text.insert(tk.END, f"  • {inicio_str} - {fin_str}\n", "periodo")
-
-        self.periodos_text.config(state='disabled')
+        # ===== FASE 2: Usar componente PeriodosPanel =====
+        self.periodos_panel.actualizar_periodos(habitacion, hotel_actual)
 
     def limpiar_periodos(self):
         """Limpia el widget de periodos"""
-        self.periodos_text.config(state='normal')
-        self.periodos_text.delete('1.0', tk.END)
-        self.periodos_text.config(state='disabled')
+        # ===== FASE 2: Usar componente PeriodosPanel =====
+        self.periodos_panel.limpiar()
 
 
     def ejecutar_comparacion_wrapper(self):
-        threading.Thread(target=self.run_async, daemon= True).start()
-        pass
-    
+        """Wrapper para ejecutar comparación - ahora usa el controlador."""
+        # ===== FASE 4: Usar ControladorComparacion =====
+        self.controlador_comparacion.ejecutar_comparacion_async()
+
     def run_async(self):
+        """DEPRECATED - Ahora usa controlador"""
         asyncio.run(self.ejecutar_comparacion())
         
     async def ejecutar_comparacion(self):
@@ -768,6 +708,49 @@ class InterfazApp:
         except Exception as e:
             self.resultado.insert(tk.END, f"Error inesperado: ", ("bold",))
             self.resultado.insert(tk.END, f"{str(e)}\n")
+
+    # ===== FASE 4: Event Handlers de Controladores =====
+    def _on_comparison_started(self, data=None):
+        """Handler cuando inicia la comparación."""
+        self.resultado.delete('1.0', tk.END)
+        self.resultado.insert(tk.END, "Iniciando comparación...\n")
+
+    def _on_comparison_completed(self, resultado_data):
+        """Handler cuando completa la comparación.
+
+        Args:
+            resultado_data (dict): Datos del resultado {mensaje, coincide, habitacion_web}
+        """
+        self.resultado.delete('1.0', tk.END)
+        mensaje = resultado_data['mensaje']
+        coincide = resultado_data['coincide']
+
+        # Insertar mensaje
+        lineas = mensaje.split('\n')
+        for linea in lineas:
+            if 'Habitación web' in linea:
+                self.resultado.insert(tk.END, linea + '\n', ("bold",))
+            elif 'encontró diferencia' in linea or 'coinciden' in linea:
+                self.resultado.insert(tk.END, linea + '\n', ("bold",))
+            else:
+                self.resultado.insert(tk.END, linea + '\n')
+
+        # Mostrar botón email si hay diferencia
+        if coincide:
+            self.mostrar_email_btn()
+
+    def _on_comparison_error(self, error_msg):
+        """Handler cuando hay error en la comparación.
+
+        Args:
+            error_msg (str): Mensaje de error
+        """
+        if "Validación fallida" in error_msg:
+            # Las validaciones ya mostraron su propio messagebox
+            return
+
+        self.resultado.insert(tk.END, f"Error: ", ("bold",))
+        self.resultado.insert(tk.END, f"{error_msg}\n")
 
 
 def run_interfaz():
