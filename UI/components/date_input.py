@@ -3,6 +3,7 @@
 import tkinter as tk
 from tkinter import ttk
 from .base_component import BaseComponent
+from UI.utils.validadores_fecha import validar_dia, validar_mes, validar_ano
 
 
 class DateInputWidget(BaseComponent):
@@ -83,17 +84,6 @@ class DateInputWidget(BaseComponent):
             validate='key', validatecommand=self._get_ano_validation())
         self._entry_ano.grid(row=0, column=7, padx=2)
 
-        # Entry completa (readonly)
-        self._entry_completa = ttk.Entry(
-            input_frame, textvariable=self._fecha_completa,
-            state='readonly', width=12)
-        self._entry_completa.grid(row=0, column=8, padx=(10, 0))
-
-    def _bind_events(self):
-        """Conecta eventos de trace."""
-        self._dia.trace_add("write", self._actualizar_fecha_completa)
-        self._mes.trace_add("write", self._actualizar_fecha_completa)
-        self._ano.trace_add("write", self._actualizar_fecha_completa)
 
     def _get_dia_validation(self):
         """Comando de validación para día."""
@@ -109,53 +99,17 @@ class DateInputWidget(BaseComponent):
 
     def _validar_dia(self, valor):
         """Valida el día (1-31)."""
-        if valor == "":
-            return True
-        if valor.isdigit():
-            n = int(valor)
-            return 1 <= n <= 31
-        return False
+        return validar_dia(valor)
 
     def _validar_mes(self, valor):
         """Valida el mes (1-12)."""
-        if valor == "":
-            return True
-        if valor.isdigit():
-            n = int(valor)
-            return 1 <= n <= 12
-        return False
+        return validar_mes(valor)
 
     def _validar_ano(self, valor):
         """Valida el año (1-4 dígitos)."""
-        if valor == "":
-            return True
-        if valor.isdigit():
-            return 1 <= len(valor) <= 4
-        return False
+        return validar_ano(valor)
 
-    def _actualizar_fecha_completa(self, *args):
-        """Actualiza campo de fecha completa."""
-        dia = self._dia.get().zfill(2)
-        mes = self._mes.get().zfill(2)
-        ano = self._ano.get()
 
-        if dia and mes and ano:
-            fecha = f"{dia}-{mes}-{ano}"
-            self._fecha_completa.set(fecha)
-
-            # Llamar callback si existe
-            if self._on_change_callback:
-                self._on_change_callback(fecha)
-        else:
-            self._fecha_completa.set("")
-
-    def get_value(self):
-        """Obtiene fecha completa en formato DD-MM-AAAA.
-
-        Returns:
-            str: Fecha en formato "DD-MM-AAAA" o "" si está incompleta
-        """
-        return self._fecha_completa.get()
 
     def set_value(self, fecha_str):
         """Establece fecha desde string DD-MM-AAAA.
@@ -181,7 +135,6 @@ class DateInputWidget(BaseComponent):
         self._dia.set("")
         self._mes.set("")
         self._ano.set("")
-        self._fecha_completa.set("")
 
     def on_change(self, callback):
         """Registra callback para cuando cambia la fecha.
@@ -190,14 +143,6 @@ class DateInputWidget(BaseComponent):
             callback (callable): Función a llamar con la fecha completa
         """
         self._on_change_callback = callback
-
-    def get_fecha_completa_var(self):
-        """Obtiene StringVar de fecha completa para binding externo.
-
-        Returns:
-            tk.StringVar: Variable de la fecha completa
-        """
-        return self._fecha_completa
 
     def get_dia_var(self):
         """Obtiene StringVar del día."""

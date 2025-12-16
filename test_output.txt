@@ -1,0 +1,53 @@
+Test 1: Variable GMTP_KEY no existe
+  Valor: None
+  Validacion 'if not clave': True
+
+Test 2: Variable GMTP_KEY existe pero esta vacia
+  Valor: ''
+  Validacion 'if not clave': True
+
+Test 3: Variable GMTP_KEY existe con valor
+  Valor: 'test_value'
+  Validacion 'if not clave': False
+
+Test 4: Probar funcion enviar_email_discrepancia sin GMTP_KEY
+[DEBUG] Procesando texto: Until 5Jan27
+[DEBUG] Partes después del split: ['Until 5Jan27']
+[DEBUG] Procesando texto: New Year: 26Dec25 - 3Jan26
+[DEBUG] Partes después del split: ['New Year', ' 26Dec25 - 3Jan26']
+[DEBUG] Nombre: New Year
+[DEBUG] Rango de fechas: 26Dec25 - 3Jan26
+[DEBUG] Split de fechas: ['26Dec25', '3Jan26']
+[DEBUG] Fecha izquierda: 26Dec25
+[DEBUG] Fecha derecha: 3Jan26
+[DEBUG] Procesando texto: Carnival: 14-17Feb26
+[DEBUG] Partes después del split: ['Carnival', ' 14-17Feb26']
+[DEBUG] Nombre: Carnival
+[DEBUG] Rango de fechas: 14-17Feb26
+[DEBUG] Split de fechas: ['14', '17Feb26']
+[DEBUG] Fecha izquierda: 14
+[DEBUG] Fecha derecha: 17Feb26
+[DEBUG] Fecha izquierda modificada (añadido año): 14Feb26
+[DEBUG] Procesando texto: Easter: 2-5Apr26
+[DEBUG] Partes después del split: ['Easter', ' 2-5Apr26']
+[DEBUG] Nombre: Easter
+[DEBUG] Rango de fechas: 2-5Apr26
+[DEBUG] Split de fechas: ['2', '5Apr26']
+[DEBUG] Fecha izquierda: 2
+[DEBUG] Fecha derecha: 5Apr26
+[DEBUG] Fecha izquierda modificada (añadido año): 2Apr26
+[DEBUG] Procesando texto: New Year: 26Dec26 - 3Jan27
+[DEBUG] Partes después del split: ['New Year', ' 26Dec26 - 3Jan27']
+[DEBUG] Nombre: New Year
+[DEBUG] Rango de fechas: 26Dec26 - 3Jan27
+[DEBUG] Split de fechas: ['26Dec26', '3Jan27']
+[DEBUG] Fecha izquierda: 26Dec26
+[DEBUG] Fecha derecha: 3Jan27
+[DEBUG] Procesando texto: 21Oct25/ 24Oct25 - 22Nov25/ 8-23Dec25
+[DEBUG] Partes después del split: ['21Oct25/ 24Oct25 - 22Nov25/ 8-23Dec25']
+[DEBUG] Procesando texto: Black Out Dates 27Nov25 - 7Dec25/ 22Dec25 - 3Jan26
+[DEBUG] Partes después del split: ['Black Out Dates 27Nov25 - 7Dec25/ 22Dec25 - 3Jan26']
+[DEBUG] Procesando texto: Black Out Dates 27Nov26 - 7Dec26/ 24Dec26 - 31Dec26
+[DEBUG] Partes después del split: ['Black Out Dates 27Nov26 - 7Dec26/ 24Dec26 - 31Dec26']
+Ocurrió un error al enviar el correo: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 5a478bee46e88-2ac190acd01sm24013967eec.1 - gsmtp')
+  ERROR: No lanzo ValueError, retorno: False

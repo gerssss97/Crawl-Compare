@@ -4,6 +4,9 @@ import tkinter as tk
 from tkinter import ttk
 from collections import OrderedDict
 from .base_component import BaseComponent
+from Models.habitacion_unificada import HabitacionUnificada
+from Models.hotelExcel import HabitacionExcel
+from UI.utils import crear_scrollbar_autohide
 
 
 class PeriodosPanel(BaseComponent):
@@ -36,16 +39,15 @@ class PeriodosPanel(BaseComponent):
         ttk.Label(self, text="Periodos de la habitación", font=font_titulo).grid(
             row=0, column=0, sticky='w', pady=(10, 5), padx=(0, 10))
 
-        # Frame contenedor con borde
-        container = tk.Frame(self, relief=tk.SOLID, borderwidth=1, bg='#F5F5F5')
+        # Frame contenedor con borde y altura fija
+        container = tk.Frame(self, relief=tk.SOLID, borderwidth=1, bg='#F5F5F5', height=300)
         container.grid(row=1, column=0, sticky='nsew', pady=(0, 10), padx=(0, 10))
+        container.grid_propagate(False)  # Mantener altura fija
 
-        # Text widget
+        # Text widget sin especificar altura ni ancho (se adaptará al container)
         font_contenido = self.fonts.periodos_contenido if self.fonts else None
         self._text = tk.Text(
             container,
-            height=15,
-            width=38,
             wrap="word",
             font=font_contenido,
             bg='#FAFAFA',
@@ -56,10 +58,11 @@ class PeriodosPanel(BaseComponent):
         )
         self._text.grid(row=0, column=0, sticky="nsew")
 
-        # Scrollbar
-        scrollbar = ttk.Scrollbar(container, orient="vertical", command=self._text.yview)
-        scrollbar.grid(row=0, column=1, sticky="ns")
-        self._text.configure(yscrollcommand=scrollbar.set)
+        # Scrollbar con autohide
+        self._scrollbar = ttk.Scrollbar(container, orient="vertical", command=self._text.yview)
+        self._scrollbar.grid(row=0, column=1, sticky="ns")
+        autohide_callback = crear_scrollbar_autohide(self._text, self._scrollbar, layout_manager='grid')
+        self._text.configure(yscrollcommand=autohide_callback)
 
         # Configurar como readonly
         self._text.config(state='disabled')
@@ -104,14 +107,25 @@ class PeriodosPanel(BaseComponent):
         """Actualiza periodos de una habitación.
 
         Args:
-            habitacion: Objeto HabitacionExcel con periodo_ids
+            habitacion: HabitacionUnificada o HabitacionExcel con periodo_ids
             hotel_excel: Objeto HotelExcel con periodos_group
         """
         self._text.config(state='normal')
         self._text.delete('1.0', tk.END)
 
+        # Obtener todos los periodo_ids según el tipo de habitación
+        if isinstance(habitacion, HabitacionUnificada):
+            # Si es unificada, obtener TODOS los periodos de TODAS las variantes
+            periodo_ids = habitacion.todos_los_periodos()
+        elif isinstance(habitacion, HabitacionExcel):
+            # Si es una habitación simple, usar sus periodo_ids
+            periodo_ids = habitacion.periodo_ids
+        else:
+            # Fallback: intentar acceder al atributo periodo_ids
+            periodo_ids = getattr(habitacion, 'periodo_ids', set())
+
         # Verificar si hay periodos
-        if not habitacion.periodo_ids:
+        if not periodo_ids:
             self._text.insert(tk.END, "⚠️ ADVERTENCIA:\n", "advertencia")
             self._text.insert(tk.END, "Sin periodos asignados", "advertencia")
             self._text.config(state='disabled')
@@ -120,7 +134,7 @@ class PeriodosPanel(BaseComponent):
         # Agrupar periodos por grupo
         grupos_periodos = OrderedDict()
 
-        for pid in habitacion.periodo_ids:
+        for pid in periodo_ids:
             periodo = hotel_excel.periodo_por_id(pid)
             if periodo:
                 # Buscar grupo

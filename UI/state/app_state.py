@@ -50,6 +50,7 @@ class AppState:
         # ===== Datos cargados =====
         self.hoteles_excel = []  # Lista de HotelExcel
         self.habitaciones_excel = []  # Lista de HabitacionExcel del hotel/edificio actual
+        self.habitaciones_unificadas = []  # Lista de HabitacionUnificada (sin duplicados)
         self.habitacion_web = None  # HabitacionWeb de la última comparación
 
         # Configurar traces para emitir eventos

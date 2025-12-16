@@ -2,6 +2,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+from UI.utils import crear_scrollbar_autohide
 
 
 class VistaResultados(tk.Frame):
@@ -50,10 +51,11 @@ class VistaResultados(tk.Frame):
         )
         self._text.grid(row=0, column=0, sticky="nsew")
 
-        # Scrollbar
-        scrollbar = ttk.Scrollbar(frame_resultado, orient="vertical", command=self._text.yview)
-        scrollbar.grid(row=0, column=1, sticky="ns")
-        self._text.configure(yscrollcommand=scrollbar.set)
+        # Scrollbar con autohide
+        self._scrollbar = ttk.Scrollbar(frame_resultado, orient="vertical", command=self._text.yview)
+        self._scrollbar.grid(row=0, column=1, sticky="ns")
+        autohide_callback = crear_scrollbar_autohide(self._text, self._scrollbar, layout_manager='grid')
+        self._text.configure(yscrollcommand=autohide_callback)
 
         # Configurar tags de formato
         self._text.tag_configure("bold", font=self.fonts.negrita)
