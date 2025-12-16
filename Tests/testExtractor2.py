@@ -318,13 +318,13 @@ def exportar_datos_a_excel(datos_excel, archivo_salida):
         crear_hoja_habitaciones(wb, hotel)
 
         # Crear hoja de tipos de habitación
-        crear_hoja_tipos(wb, hotel)
+        # crear_hoja_tipos(wb, hotel)  # Deshabilitado - función disponible si se necesita
 
         # Crear hoja de periodos
         crear_hoja_periodos(wb, hotel)
 
         # Crear hoja de extras
-        crear_hoja_extras(wb, hotel)
+        # crear_hoja_extras(wb, hotel)  # Deshabilitado - función disponible si se necesita
 
     # Guardar archivo
     wb.save(archivo_salida)

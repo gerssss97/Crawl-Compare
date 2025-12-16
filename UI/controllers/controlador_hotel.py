@@ -1,6 +1,7 @@
 """Controlador de lógica de hoteles, edificios y habitaciones."""
 
 from Core.controller import dar_hoteles_excel
+from Core.servicio_habitaciones import unificar_habitaciones
 
 
 class ControladorHotel:
@@ -50,37 +51,32 @@ class ControladorHotel:
             hotel_nombre (str): Nombre del hotel
 
         Returns:
-            list: Lista de nombres de edificios con grupo de periodo
+            list: Lista de nombres de edificios SIN grupo de periodo
         """
         hotel = hotel_nombre.lower() + " (a)"
 
         for hotel_excel in self.estado_app.hoteles_excel:
             if hotel_excel.nombre.lower() == hotel:
-                edificios = []
+                # Usar un set para evitar duplicados (mismo edificio en múltiples periodos)
+                edificios_set = set()
                 for tipo in hotel_excel.tipos:
-                    nombre_edificio = tipo.nombre
+                    edificios_set.add(tipo.nombre)
 
-                    # Obtener grupo de periodo del edificio
-                    nombre_grupo = self._obtener_grupo_periodo_edificio(hotel_excel, tipo)
-
-                    if nombre_grupo and nombre_grupo.upper() != "SIN NOMBRE DE GRUPO":
-                        edificios.append(f"{nombre_edificio} - {nombre_grupo}")
-                    else:
-                        edificios.append(nombre_edificio)
-
+                # Convertir a lista ordenada
+                edificios = sorted(list(edificios_set))
                 return edificios
 
         return []
 
     def cargar_habitaciones(self, hotel_nombre, edificio_nombre=None):
-        """Carga habitaciones de un hotel/edificio.
+        """Carga habitaciones de un hotel/edificio y las UNIFICA.
 
         Args:
             hotel_nombre (str): Nombre del hotel
             edificio_nombre (str, optional): Nombre del edificio
 
         Returns:
-            list: Lista de nombres de habitaciones con grupo de periodo
+            list: Lista de nombres únicos de habitaciones (sin duplicados)
         """
         hotel = hotel_nombre.lower() + " (a)"
         hotel_excel = None
@@ -97,28 +93,29 @@ class ControladorHotel:
         if edificio_nombre is None:
             habitaciones = hotel_excel.habitaciones_directas
         else:
-            # Con edificio: buscar tipo
+            # Con edificio: buscar TODOS los tipos con ese nombre
+            # (un mismo edificio puede tener múltiples entradas con distintos periodos)
             nombre_tipo_base = edificio_nombre.split(' - ')[0] if ' - ' in edificio_nombre else edificio_nombre
 
             habitaciones = []
             for tipo in hotel_excel.tipos:
                 if tipo.nombre == nombre_tipo_base:
-                    habitaciones = tipo.habitaciones
-                    break
+                    # Agregar todas las habitaciones de este tipo (no hacer break)
+                    habitaciones.extend(tipo.habitaciones)
 
-        # Crear nombres con grupo de periodo
-        nombres = []
-        for hab in habitaciones:
-            nombre_grupo = self._obtener_grupo_periodo_habitacion(hotel_excel, hab)
-            if nombre_grupo and nombre_grupo.upper() != "SIN NOMBRE DE GRUPO":
-                nombres.append(f"{hab.nombre} - {nombre_grupo}")
-            else:
-                nombres.append(hab.nombre)
+        # NUEVO: Unificar habitaciones (agrupa por nombre)
+        habitaciones_unificadas = unificar_habitaciones(habitaciones)
 
-        # Guardar habitaciones en estado
-        self.estado_app.habitaciones_excel = habitaciones
+        # Guardar en estado
+        self.estado_app.habitaciones_unificadas = habitaciones_unificadas
+        self.estado_app.habitaciones_excel = habitaciones  # Mantener compatibilidad
 
-        return nombres
+        # Emitir evento
+        self.event_bus.emit('habitaciones_cargadas',
+                           [hab.nombre for hab in habitaciones_unificadas])
+
+        # Retornar solo nombres únicos (sin sufijo de periodo)
+        return [hab.nombre for hab in habitaciones_unificadas]
 
     def on_hotel_changed(self, hotel_nombre):
         """Callback cuando cambia el hotel.

@@ -20,60 +20,72 @@ from UI.components import DateInputWidget, LabeledComboBox, PeriodosPanel, Preci
 from UI.views import VistaResultados
 
 # Importar controladores
-from UI.controllers import ControladorHotel, ControladorValidacion, ControladorComparacion
+from UI.controllers import ControladorHotel, ControladorValidacion, ControladorComparacion, ControladorPrecios
+
+# Importar validadores
+from UI.utils.validadores_fecha import (
+    validar_dia, validar_mes, validar_ano,
+    parsear_fecha_dd_mm_aaaa, validar_fecha_mayor_o_igual, validar_fecha_mayor
+)
 
 
 class InterfazApp:
 
     def validar_dia(self, valor):
-        if valor == "":
-            return True
-        if valor.isdigit():
-            n = int(valor)
-            return 1 <= n <= 31
-        return False
-       
+        """DEPRECATED: Usar validadores_fecha.validar_dia() en su lugar."""
+        return validar_dia(valor)
+
     def validar_mes(self, valor):
-        if valor == "":
-            return True 
-        if valor.isdigit():
-            n = int(valor)
-            return 1 <= n <= 12
+        """DEPRECATED: Usar validadores_fecha.validar_mes() en su lugar."""
+        return validar_mes(valor)
 
     def validar_ano(self, valor):
-        if valor == "":
-            return True
-        if valor.isdigit():
-            return  1 <= len(valor) <= 4
+        """DEPRECATED: Usar validadores_fecha.validar_ano() en su lugar."""
+        return validar_ano(valor)
     
     def validar_fecha(self):
-    #Valida que las fechas completas sean correctas y existan en el calendario
+        """DEPRECATED: Usar ControladorValidacion.validar_fecha() en su lugar.
+
+        Valida que las fechas completas sean correctas y existan en el calendario.
+        """
         campos = [
-            ("entrada", self.fecha_entrada_completa.get()), 
+            ("entrada", self.fecha_entrada_completa.get()),
             ("salida", self.fecha_salida_completa.get())
         ]
-        for nombre, fecha in campos:
-            try:
-                fecha_dt = datetime.strptime(fecha, "%d-%m-%Y")
-                fecha_actual = datetime.now()
-                if fecha_actual > fecha_dt:
-                    messagebox.showerror("Error", f"La fecha de {nombre} debe ser mayor o igual al actual.")
-                    return False  
-            except ValueError:
+        fecha_actual = datetime.now()
+
+        for nombre, fecha_str in campos:
+            fecha_dt = parsear_fecha_dd_mm_aaaa(fecha_str)
+
+            if fecha_dt is None:
                 messagebox.showerror("Error", f"La fecha de {nombre} debe tener el formato DD-MM-AAAA y ser válida.")
                 return False
+
+            if not validar_fecha_mayor_o_igual(fecha_str, fecha_actual):
+                messagebox.showerror("Error", f"La fecha de {nombre} debe ser mayor o igual al actual.")
+                return False
+
         return True
 
     def validar_orden_fechas(self):
-        #Valida que la fecha de salida sea posterior a la fecha de entrada
-        try:
-            fecha_entrada = datetime.strptime(self.fecha_entrada_completa.get(), "%d-%m-%Y")
-            fecha_salida = datetime.strptime(self.fecha_salida_completa.get(), "%d-%m-%Y")
-        except ValueError:
-            return False 
-        if fecha_salida <= fecha_entrada:
+        """DEPRECATED: Usar ControladorValidacion.validar_orden_fechas() en su lugar.
+
+        Valida que la fecha de salida sea posterior a la fecha de entrada.
+        """
+        fecha_entrada_str = self.fecha_entrada_completa.get()
+        fecha_salida_str = self.fecha_salida_completa.get()
+
+        # Validar que ambas fechas tengan formato válido
+        if parsear_fecha_dd_mm_aaaa(fecha_entrada_str) is None:
+            return False
+        if parsear_fecha_dd_mm_aaaa(fecha_salida_str) is None:
+            return False
+
+        # Validar que fecha salida > fecha entrada
+        if not validar_fecha_mayor(fecha_salida_str, fecha_entrada_str):
             messagebox.showerror("Error", "La fecha de salida debe ser posterior a la fecha de entrada.")
             return False
+
         return True
 
     def actualizar_fecha_entrada(self, *args):
@@ -100,7 +112,7 @@ class InterfazApp:
 
         self.root = root
         self.root.title("Comparador de precios ")
-        self.root.geometry("900x700")
+        self.root.geometry("1200x700")  # Ancho aumentado para mostrar paneles completos
 
         # ===== FASE 1: Infraestructura Base =====
         # Sistema de eventos para comunicación desacoplada
@@ -164,11 +176,13 @@ class InterfazApp:
             self.event_bus,
             self.controlador_validacion
         )
+        self.controlador_precios = ControladorPrecios(self.state, self.event_bus)
 
         # Suscribir a eventos de comparación
         self.event_bus.on('comparison_started', self._on_comparison_started)
         self.event_bus.on('comparison_completed', self._on_comparison_completed)
         self.event_bus.on('comparison_error', self._on_comparison_error)
+        self.event_bus.on('precios_actualizados', self._on_precios_actualizados)
 
         # FRAME principal unificado - con estilo mejorado
         self.principal_container = tk.Frame(self.root, relief=tk.SOLID, borderwidth=1, bg='#F5F5F5')
@@ -216,11 +230,14 @@ class InterfazApp:
         # Tags ya configurados en PeriodosPanel, no es necesario reconfigurar
         
         self.cargar_hoteles_excel()
-        
-        # Permite que las columnas se expandan
-        self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_columnconfigure(1, weight=3)
-        self.root.grid_columnconfigure(2, weight=1)
+
+        # Configurar columnas con peso y tamaño mínimo para responsividad
+        self.root.grid_columnconfigure(0, weight=3, minsize=400)  # Panel izquierdo - más peso y ancho mínimo
+        self.root.grid_columnconfigure(1, weight=0)  # Columna vacía sin peso
+        self.root.grid_columnconfigure(2, weight=1, minsize=350)  # Panel derecho - ancho mínimo para mostrar contenido
+
+        # Configurar filas
+        self.root.grid_rowconfigure(0, weight=1)
     
     def mostrar_email_btn(self):
         self.boton_ejecutar = ttk.Button(self.precio_frame, text="Envio de email", command=self.crear_pantalla_mail)
@@ -296,10 +313,6 @@ class InterfazApp:
         self.entry_ano_entrada = ttk.Entry(self.fechas_entrada_frame, width=5, textvariable=self.fecha_ano_entrada, validatecommand=self.vcmd_ano, validate='key')
         self.entry_ano_entrada.grid(row=0, column=7, padx=2)
 
-        # Entry de solo lectura que representa la fecha completa
-        entry_completa = ttk.Entry(self.fechas_entrada_frame, textvariable=self.fecha_entrada_completa, state='readonly', width=12)
-        entry_completa.grid(row=0, column=8, padx=(10,0))
-
         # Fecha entrada VIEJA unificado todo en un campo
         # self.label_fecha_entrada = ttk.Label(self.principal_frame, text="Fecha de entrada (DD-MM-AAAA):")
         # self.entry_fecha_entrada = ttk.Entry(self.principal_frame, textvariable=self.fecha_entrada, validate='key', validatecommand=self.vcmd)
@@ -341,9 +354,6 @@ class InterfazApp:
         tk.Label(self.fechas_salida_frame, text="AAAA", bg='#F5F5F5', font=self.fuente_normal).grid(row=0, column=6, padx=2)
         self.entry_ano_salida = ttk.Entry(self.fechas_salida_frame, width=5, textvariable=self.fecha_ano_salida, validatecommand=self.vcmd_ano, validate='key')
         self.entry_ano_salida.grid(row=0, column=7, padx=2)
-
-        entry_completa = ttk.Entry(self.fechas_salida_frame, textvariable=self.fecha_salida_completa, state='readonly', width=12)
-        entry_completa.grid(row=0, column=8, padx=(10,0))
 
         # Fecha salida
         # self.label_fecha_salida = ttk.Label(self.principal_frame, text="Fecha de salida (DD-MM-AAAA):")
@@ -442,6 +452,10 @@ class InterfazApp:
         
     def cargar_hoteles_excel(self):
         self.hoteles_excel = dar_hoteles_excel()
+
+        # IMPORTANTE: También guardar en AppState para que ControladorHotel pueda accederlos
+        self.state.hoteles_excel = self.hoteles_excel
+
         hoteles = [hoteles_excel.nombre for hoteles_excel in self.hoteles_excel]
         for i in range(len(hoteles)):
             hoteles[i]= hoteles[i].replace("(A)","").strip()
@@ -486,55 +500,29 @@ class InterfazApp:
         return None
 
     def cargar_edificios_excel(self, hotel):
-        edificios = []
-        for hotel_excel in self.hoteles_excel:
-            if hotel_excel.nombre.lower() == hotel:
-                # Para cada tipo (edificio), obtener el nombre del grupo de periodo
-                for tipo in hotel_excel.tipos:
-                    nombre_edificio = tipo.nombre
+        """NUEVO: Usa el ControladorHotel para cargar edificios sin sufijos"""
+        # Extraer nombre del hotel sin "(a)" y capitalizar
+        hotel_nombre = hotel.replace(" (a)", "").replace(" (A)", "").strip()
+        # Capitalizar primera letra de cada palabra para que coincida con el Excel
+        hotel_nombre = ' '.join(word.capitalize() for word in hotel_nombre.split())
 
-                    # Buscar el grupo de periodo de las habitaciones de este edificio
-                    nombre_grupo = self.obtener_grupo_periodo_edificio(hotel_excel, tipo)
-
-                    if nombre_grupo and nombre_grupo.upper() != "SIN NOMBRE DE GRUPO":
-                        edificios.append(f"{nombre_edificio} - {nombre_grupo}")
-                    else:
-                        edificios.append(nombre_edificio)
+        # Usar el controlador para cargar edificios
+        edificios = self.controlador_hotel.cargar_edificios(hotel_nombre)
 
         self.var_edificio_cb['values'] = edificios
         self.seleccion_edificio.set("")
 
     def cargar_habitaciones_excel(self, hotel, tipo=None):
-        hotel_excel = None
-        if tipo is None:
-            for hotelExcel in self.hoteles_excel:
-                if hotelExcel.nombre.lower() == hotel:
-                    self.habitaciones_excel = hotelExcel.habitaciones_directas
-                    hotel_excel = hotelExcel
-        else:
-            # Extraer el nombre base del edificio (sin el sufijo del grupo de periodo)
-            nombre_tipo_base = tipo.split(' - ')[0] if ' - ' in tipo else tipo
+        """NUEVO: Usa el ControladorHotel para cargar habitaciones unificadas"""
+        # Extraer nombre del hotel sin "(a)" y capitalizar
+        hotel_nombre = hotel.replace(" (a)", "").replace(" (A)", "").strip()
+        # Capitalizar primera letra de cada palabra para que coincida con el Excel
+        hotel_nombre = ' '.join(word.capitalize() for word in hotel_nombre.split())
 
-            for hotelExcel in self.hoteles_excel:
-                if hotelExcel.nombre.lower() == hotel:
-                    for tipos in hotelExcel.tipos:
-                        if tipos.nombre == nombre_tipo_base:
-                            self.habitaciones_excel = tipos.habitaciones
-                            hotel_excel = hotelExcel
-                            break
+        # Usar el controlador para cargar habitaciones unificadas
+        nombres_habitaciones = self.controlador_hotel.cargar_habitaciones(hotel_nombre, tipo)
 
-        # Crear los nombres con el grupo de periodo si corresponde
-        nombres_habitaciones = []
-        if hotel_excel:
-            for habitacion in self.habitaciones_excel:
-                nombre_grupo = self.obtener_grupo_periodo_habitacion(hotel_excel, habitacion)
-                if nombre_grupo and nombre_grupo.upper() != "SIN NOMBRE DE GRUPO":
-                    nombres_habitaciones.append(f"{habitacion.nombre} - {nombre_grupo}")
-                else:
-                    nombres_habitaciones.append(habitacion.nombre)
-        else:
-            nombres_habitaciones = [hab.nombre for hab in self.habitaciones_excel]
-
+        # Actualizar combobox con nombres únicos (sin duplicados)
         self.habit_excel_cb['values'] = nombres_habitaciones
 
         # Limpiar selección y periodos
@@ -579,48 +567,40 @@ class InterfazApp:
         print(f"\n[DEBUG] on_habitacion_excel_cambiada disparado - Seleccionado: '{seleccionado}'")
 
         try:
-            # Usar el índice actual del combobox en lugar de buscar el valor
-            # esto soluciona el problema de habitaciones con el mismo nombre
+            # Usar el índice actual del combobox
             idx = self.habit_excel_cb.current()
             print(f"[DEBUG] Índice del combobox (current): {idx}")
-            habitacion = self.habitaciones_excel[idx]
 
-            # Manejar precio que puede ser float o string
-            if habitacion.precio is not None:
-                if isinstance(habitacion.precio, (int, float)):
-                    precio_texto = f"${habitacion.precio:.2f}"
-                else:
-                    # Es un string (ej: "closing agreement")
-                    precio_texto = str(habitacion.precio)
-            elif habitacion.precio_string:
-                precio_texto = habitacion.precio_string
-            else:
-                precio_texto = "Sin precio"
+            if idx == -1:
+                return
 
-            self.precio_var.set(precio_texto)
-            print(f"[DEBUG] Habitación: row={habitacion.row_idx}")
-            print(f"[DEBUG] - precio (tipo={type(habitacion.precio).__name__}): {habitacion.precio}")
-            print(f"[DEBUG] - precio_string: {habitacion.precio_string}")
-            print(f"[DEBUG] - precio_texto mostrado: {precio_texto}")
-            print(f"[DEBUG] - periodo_ids: {habitacion.periodo_ids}")
+            # NUEVO: Obtener habitación unificada
+            habitacion_unificada = self.state.habitaciones_unificadas[idx]
+            print(f"[DEBUG] Habitación unificada: {habitacion_unificada.nombre}")
+            print(f"[DEBUG] - Variantes: {len(habitacion_unificada.variantes)}")
 
-            # Actualizar visualización de periodos
-            print(f"[DEBUG] Actualizando periodos...")
-            self.actualizar_periodos_habitacion(habitacion)
+            # Emitir evento con habitación unificada
+            self.event_bus.emit('habitacion_unificada_changed', habitacion_unificada)
+
+            # Ya no mostramos precio aquí - lo maneja ControladorPrecios
+
+            # Actualizar visualización de periodos con TODAS las variantes
+            print(f"[DEBUG] Actualizando periodos con {len(habitacion_unificada.variantes)} variante(s)...")
+            self.actualizar_periodos_habitacion(habitacion_unificada)
             print(f"[DEBUG] Periodos actualizados correctamente")
-        except ValueError as e:
-            self.precio_var.set("")
-            self.limpiar_periodos()
-            print(f"[ERROR] ValueError - La selección '{seleccionado}' no es válida: {e}")
+
         except Exception as e:
-            self.precio_var.set("")
             self.limpiar_periodos()
             print(f"[ERROR] Exception - Error inesperado: {type(e).__name__}: {e}")
             import traceback
             traceback.print_exc()
 
     def actualizar_periodos_habitacion(self, habitacion):
-        """Actualiza el widget de periodos con la información de la habitación seleccionada"""
+        """Actualiza el widget de periodos con la información de la habitación seleccionada.
+
+        Args:
+            habitacion: HabitacionUnificada o HabitacionExcel con periodo_ids
+        """
         # Obtener el hotel actual
         hotel_nombre = self.seleccion_hotel.get().lower() + " (a)"
         hotel_actual = None
@@ -752,22 +732,46 @@ class InterfazApp:
         self.resultado.insert(tk.END, f"Error: ", ("bold",))
         self.resultado.insert(tk.END, f"{error_msg}\n")
 
+    def _on_precios_actualizados(self, data):
+        """Handler cuando se actualizan los precios desde ControladorPrecios.
+
+        Args:
+            data (dict): Datos del evento con 'tipo' y contenido según el tipo
+        """
+        tipo = data.get('tipo')
+
+        if tipo == 'sin_fechas':
+            self.precio_panel._mostrar_mensaje(data['mensaje'])
+
+        elif tipo == 'sin_periodos':
+            self.precio_panel._mostrar_mensaje(data['mensaje'])
+
+        elif tipo == 'precios_calculados':
+            precios = data['precios']
+            self.precio_panel.mostrar_precios_multiples(precios)
+
 
 def run_interfaz():
-    # Ejecutar testExtractor2 para generar archivo de validación
-    print("\n" + "="*60)
-    print("EJECUTANDO testExtractor2.py...")
-    print("="*60 + "\n")
+    from pathlib import Path
 
-    try:
-        subprocess.run([sys.executable, "testExtractor2.py"], check=True)
-        print("\n" + "="*60)
-        print("testExtractor2.py ejecutado exitosamente")
-        print("="*60 + "\n")
-    except subprocess.CalledProcessError as e:
-        print(f"\nError al ejecutar testExtractor2.py: {e}\n")
-    except FileNotFoundError:
-        print("\nNo se encontró testExtractor2.py, continuando con la interfaz...\n")
+    # Obtener ruta absoluta del proyecto root
+    project_root = Path(__file__).parent.parent
+
+    # TESTEO del extractor de datos
+    # try:
+    #     # Ejecutar como módulo desde el directorio raíz del proyecto
+    #     subprocess.run(
+    #         [sys.executable, "-m", "Tests.testExtractor2"],
+    #         cwd=str(project_root),
+    #         check=True
+    #     )
+    #     print("\n" + "="*60)
+    #     print("testExtractor2.py ejecutado exitosamente")
+    #     print("="*60 + "\n")
+    # except subprocess.CalledProcessError as e:
+    #     print(f"\nError al ejecutar testExtractor2.py: {e}\n")
+    # except FileNotFoundError:
+    #     print(f"\nNo se encontró Tests/testExtractor2.py, continuando con la interfaz...\n")
 
     # Iniciar interfaz
     root = tk.Tk()

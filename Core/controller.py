@@ -56,7 +56,32 @@ def generar_texto_email(hotel, habitacion_excel, precio_excel, precio_web):
     )
 
 def enviar_email_discrepancia(hotel, habitacion_excel, precio_excel, precio_web, remitente, destinatario, texto_override=None):
-    clave = os.getenv("GMTP_KEY")  # carga la clave desde env
+    """Envía email notificando discrepancia de precios.
+
+    Args:
+        hotel: Nombre del hotel
+        habitacion_excel: Nombre de habitación en Excel
+        precio_excel: Precio en Excel
+        precio_web: Precio en web
+        remitente: Email del remitente
+        destinatario: Email del destinatario
+        texto_override: Texto personalizado (opcional)
+
+    Returns:
+        bool: True si el envío fue exitoso, False en caso contrario
+
+    Raises:
+        ValueError: Si GMTP_KEY no está configurada en variables de entorno
+    """
+    clave = os.getenv("GMTP_KEY")
+
+    if not clave:
+        raise ValueError(
+            "GMTP_KEY no está configurada. Configure la variable de entorno "
+            "con su clave de aplicación de Gmail antes de enviar emails.\n"
+            "Ejemplo: set GMTP_KEY=tu_clave_aqui (Windows) o export GMTP_KEY=tu_clave_aqui (Linux/Mac)"
+        )
+
     asunto = f"Discrepancia de precios - {hotel}"
 
     if texto_override:
