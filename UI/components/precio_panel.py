@@ -161,10 +161,11 @@ class PrecioPanel(BaseComponent):
                 text=f"Periodo: {nombre_grupo}",
                 font=self.fonts.negrita if self.fonts else None,
                 bg='#FAFAFA',
+                fg='#2C3E50',
                 anchor='w'
             ).pack(fill='x', padx=8, pady=(8, 2))
 
-            # Rango de fechas
+            # Rango de fechas (con fondo suave para destacar)
             fecha_inicio_str = periodo.fecha_inicio.strftime("%d/%m/%Y")
             fecha_fin_str = periodo.fecha_fin.strftime("%d/%m/%Y")
             fecha_str = f"({fecha_inicio_str} - {fecha_fin_str})"
@@ -173,25 +174,38 @@ class PrecioPanel(BaseComponent):
                 periodo_frame,
                 text=fecha_str,
                 font=self.fonts.normal if self.fonts else None,
-                bg='#FAFAFA',
-                fg='#555555',
-                anchor='w'
+                bg='#E8F4F8',  # Fondo azul muy suave
+                fg='#2C5F7A',   # Azul oscuro suave
+                anchor='w',
+                padx=6,
+                pady=2
             ).pack(fill='x', padx=8, pady=2)
 
-            # Precio
+            # Precio (diferente estilo según tipo)
             if isinstance(precio, (int, float)):
+                # Precio numérico: con fondo suave y negrita
                 precio_texto = f"Precio: ${precio:.2f}"
+                tk.Label(
+                    periodo_frame,
+                    text=precio_texto,
+                    font=self.fonts.precio if self.fonts else None,
+                    bg='#E8F5E9',  # Fondo verde muy suave
+                    fg='#1B5E20',   # Verde oscuro
+                    anchor='w',
+                    padx=6,
+                    pady=3
+                ).pack(fill='x', padx=8, pady=(2, 8))
             else:
+                # Precio leyenda: en itálica sin fondo
                 precio_texto = f"Precio: {precio}"
-
-            tk.Label(
-                periodo_frame,
-                text=precio_texto,
-                font=self.fonts.precio if self.fonts else None,
-                bg='#FAFAFA',
-                fg='#2C3E50',
-                anchor='w'
-            ).pack(fill='x', padx=8, pady=(2, 8))
+                tk.Label(
+                    periodo_frame,
+                    text=precio_texto,
+                    font=self.fonts.precio_leyenda if self.fonts else None,
+                    bg='#FAFAFA',
+                    fg='#757575',   # Gris medio
+                    anchor='w'
+                ).pack(fill='x', padx=8, pady=(2, 8))
 
             # Vincular mousewheel al frame y sus hijos DESPUÉS de crear todos los widgets
             self._bind_mousewheel_to_widget(periodo_frame)

@@ -111,3 +111,78 @@ class VistaResultados(tk.Frame):
     def scroll_to_end(self):
         """Hace scroll hasta el final del texto."""
         self._text.see(tk.END)
+
+    def mostrar_resultado_multiperiodo(self, resultado):
+        """Muestra resultado multi-periodo en formato de tabla comparativa.
+
+        Args:
+            resultado: ResultadoComparacionMultiperiodo con breakdown por periodo
+        """
+        self.limpiar()
+
+        # Header
+        self.agregar(f"{'='*80}\n", tags=("bold",))
+        self.agregar("COMPARACIÓN MULTI-PERIODO\n", tags=("grande y negra",))
+        self.agregar(f"{'='*80}\n\n", tags=("bold",))
+
+        # Habitaciones
+        self.agregar("Habitación Excel: ", tags=("bold",))
+        self.agregar(f"{resultado.habitacion_excel_nombre}\n")
+
+        self.agregar("Habitación Web: ", tags=("bold",))
+        self.agregar(f"{resultado.habitacion_web_matcheada.nombre}\n\n")
+
+        # Mensaje de matching
+        if resultado.mensaje_match:
+            self.agregar(f"{resultado.mensaje_match}\n\n")
+
+        # Status global
+        if resultado.tiene_discrepancias:
+            self.agregar("Estado: ", tags=("bold",))
+            self.agregar("❌ DISCREPANCIAS DETECTADAS\n\n", tags=("bold",))
+        else:
+            self.agregar("Estado: ", tags=("bold",))
+            self.agregar("✅ TODO COINCIDE\n\n")
+
+        # Tabla comparativa
+        self.agregar(f"{'='*80}\n")
+        header = f"{'Periodo':<25} | {'Fechas':<20} | {'Excel':<10} | {'Web':<10} | {'Estado':<10}\n"
+        self.agregar(header, tags=("bold",))
+        self.agregar(f"{'-'*80}\n")
+
+        # Filas de periodos
+        for idx, res_periodo in enumerate(resultado.periodos, start=1):
+            periodo = res_periodo.periodo
+
+            # Nombre del periodo
+            nombre_periodo = f"Periodo {periodo.id}"
+
+            # Fechas
+            fecha_inicio_str = periodo.fecha_inicio.strftime("%d/%m")
+            fecha_fin_str = periodo.fecha_fin.strftime("%d/%m")
+            fechas_str = f"{fecha_inicio_str}-{fecha_fin_str}"
+
+            # Precios
+            if isinstance(res_periodo.precio_excel, (int, float)):
+                precio_excel_str = f"${res_periodo.precio_excel:.2f}"
+            else:
+                precio_excel_str = str(res_periodo.precio_excel)[:10]
+
+            precio_web_str = f"${res_periodo.precio_web:.2f}"
+
+            # Estado
+            estado_str = "✅ OK" if res_periodo.coincide else "❌ DIFF"
+
+            # Fila
+            fila = f"{nombre_periodo:<25} | {fechas_str:<20} | {precio_excel_str:<10} | {precio_web_str:<10} | {estado_str:<10}\n"
+            self.agregar(fila, tags=("bold",) if not res_periodo.coincide else None)
+
+        self.agregar(f"{'='*80}\n\n")
+
+        # Detalles de habitación web
+        from Models.hotelWeb import imprimir_habitacion_web
+        texto_habitacion = imprimir_habitacion_web(resultado.habitacion_web_matcheada)
+        self.agregar("\nDETALLES HABITACIÓN WEB:\n", tags=("bold",))
+        self.agregar(texto_habitacion)
+
+        self.scroll_to_end()

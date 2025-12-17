@@ -57,7 +57,8 @@ class ControladorPrecios:
         if self._fechas_son_validas():
             self._calcular_y_mostrar_precios()
         else:
-            # Mostrar mensaje "Ingrese fechas"
+            # Mostrar mensaje "Ingrese fechas" y resetear precio
+            self.estado_app.precio.set("(ninguna seleccionada)")
             self.event_bus.emit('precios_actualizados', {
                 'tipo': 'sin_fechas',
                 'mensaje': '(Ingrese fechas para ver precios)'
@@ -117,8 +118,9 @@ class ControladorPrecios:
             hotel_actual
         )
 
-        # Si no hay periodos aplicables, mostrar advertencia
+        # Si no hay periodos aplicables, mostrar advertencia y resetear precio
         if not periodos_aplicables:
+            self.estado_app.precio.set("(ninguna seleccionada)")
             self.event_bus.emit('precios_actualizados', {
                 'tipo': 'sin_periodos',
                 'mensaje': 'No hay periodos definidos para estas fechas'
@@ -142,6 +144,29 @@ class ControladorPrecios:
                 'precio': precio,
                 'nombre_grupo': nombre_grupo
             })
+
+        # Actualizar AppState.precio para validación
+        if precios_data:
+            if len(precios_data) == 1:
+                # Un solo periodo - mostrar precio exacto
+                precio = precios_data[0]['precio']
+                if isinstance(precio, (int, float)):
+                    self.estado_app.precio.set(f"${precio:.2f}")
+                else:
+                    self.estado_app.precio.set(str(precio))
+            else:
+                # Múltiples periodos - mostrar rango
+                precios_num = [p['precio'] for p in precios_data if isinstance(p['precio'], (int, float))]
+                if precios_num:
+                    min_precio = min(precios_num)
+                    max_precio = max(precios_num)
+                    if min_precio == max_precio:
+                        self.estado_app.precio.set(f"${min_precio:.2f}")
+                    else:
+                        self.estado_app.precio.set(f"${min_precio:.2f} - ${max_precio:.2f}")
+                else:
+                    # Todos son leyendas
+                    self.estado_app.precio.set(precios_data[0]['precio'])
 
         # Emitir evento con los precios calculados
         self.event_bus.emit('precios_actualizados', {

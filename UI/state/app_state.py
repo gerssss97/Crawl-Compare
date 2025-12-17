@@ -52,6 +52,7 @@ class AppState:
         self.habitaciones_excel = []  # Lista de HabitacionExcel del hotel/edificio actual
         self.habitaciones_unificadas = []  # Lista de HabitacionUnificada (sin duplicados)
         self.habitacion_web = None  # HabitacionWeb de la última comparación
+        self.resultado_multiperiodo = None  # ResultadoComparacionMultiperiodo de la última comparación
 
         # Configurar traces para emitir eventos
         self._setup_traces()
