@@ -102,13 +102,15 @@ async def comparar_multiperiodo(
 
             print(f"Scraping con fechas: {fecha_inicio_str} a {fecha_fin_str}")
 
-            # Scrape web (SIEMPRE force_fresh=True para multi-periodo)
+            # Scrape web (TESTING: usar force_pickle para tests rápidos)
             hotel_web = await dar_hotel_web(
                 fecha_inicio_str,
                 fecha_fin_str,
                 adultos,
                 ninos,
-                force_fresh=True  # CRÍTICO
+                force_fresh=False,     # Cambia a True para scraping fresco
+                use_pickle=False,      # False para multi-periodo
+                force_pickle=False      # MODO TESTING: Carga pickle directo
             )
 
             if not hotel_web or not hotel_web.habitacion:

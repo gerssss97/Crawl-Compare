@@ -51,6 +51,9 @@ class FontManager:
         # Fuente para botones
         self.boton = font.Font(family="Helvetica", size=13, weight="bold")
 
+        # Fuente monoespaciada para tablas (mejor alineación)
+        self.tabla = font.Font(family="Courier", size=11)
+
     def get_font(self, font_name):
         """Obtiene una fuente por nombre.
 
