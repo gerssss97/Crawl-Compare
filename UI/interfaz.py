@@ -313,11 +313,6 @@ class InterfazApp:
         self.entry_ano_entrada = ttk.Entry(self.fechas_entrada_frame, width=5, textvariable=self.fecha_ano_entrada, validatecommand=self.vcmd_ano, validate='key')
         self.entry_ano_entrada.grid(row=0, column=7, padx=2)
 
-        # Fecha entrada VIEJA unificado todo en un campo
-        # self.label_fecha_entrada = ttk.Label(self.principal_frame, text="Fecha de entrada (DD-MM-AAAA):")
-        # self.entry_fecha_entrada = ttk.Entry(self.principal_frame, textvariable=self.fecha_entrada, validate='key', validatecommand=self.vcmd)
-        # self.label_fecha_entrada.grid(row=i, column=0, sticky='w', padx=4, pady=2)
-        # self.entry_fecha_entrada.grid(row=i, column=1, sticky='ew', padx=4, pady=2)
         i += 1
 
         self.label_fecha_salida = tk.Label(self.principal_frame, text="Fecha de salida:", font=self.fuente_normal, bg='#F5F5F5')
@@ -355,34 +350,28 @@ class InterfazApp:
         self.entry_ano_salida = ttk.Entry(self.fechas_salida_frame, width=5, textvariable=self.fecha_ano_salida, validatecommand=self.vcmd_ano, validate='key')
         self.entry_ano_salida.grid(row=0, column=7, padx=2)
 
-        # Fecha salida
-        # self.label_fecha_salida = ttk.Label(self.principal_frame, text="Fecha de salida (DD-MM-AAAA):")
-        # self.entry_fecha_salida = ttk.Entry(self.principal_frame, textvariable=self.fecha_salida, validate='key', validatecommand=self.vcmd)
-        # self.label_fecha_salida.grid(row=i, column=0, sticky='w', padx=4, pady=2)
-        # self.entry_fecha_salida.grid(row=i, column=1, sticky='ew', padx=4, pady=2)
+       
+        i += 1
+
+        # Adultos y Niños en una sola fila
+        huespedes_container = tk.Frame(self.principal_frame, bg='#F5F5F5')
+        huespedes_container.grid(row=i, column=0, sticky='ew')
+        # huespedes_container.grid_propagate(False)  # Mantener altura fija
+        self.widgets_dinamicos.append(huespedes_container)
         i += 1
 
         # Adultos
-        self.label_adultos = tk.Label(self.principal_frame, text="Cantidad de adultos:", font=self.fuente_normal, bg='#F5F5F5')
-        self.label_adultos.grid(row=i, column=0, sticky='w', pady=(4, 4))
-        self.widgets_dinamicos.append(self.label_adultos)
-        i += 1
-        self.entry_adultos = ttk.Entry(self.principal_frame, textvariable=self.adultos, font=self.fuente_normal, width=5)
-        self.entry_adultos.grid(row=i, column=0, sticky='w', pady=(0, 8))
-        self.widgets_dinamicos.append(self.entry_adultos)
-        i += 1
+        tk.Label(huespedes_container, text="Adultos:", font=self.fuente_normal, bg='#F5F5F5').pack(side='left', padx=(0, 5))
+        self.entry_adultos = ttk.Entry(huespedes_container, textvariable=self.adultos, font=self.fuente_normal, width=5)
+        self.entry_adultos.pack(side='left', padx=(0, 20), pady=8)
 
         # Niños
-        self.label_niños = tk.Label(self.principal_frame, text="Cantidad de niños:", font=self.fuente_normal, bg='#F5F5F5')
-        self.label_niños.grid(row=i, column=0, sticky='w', pady=(0, 4))
-        self.widgets_dinamicos.append(self.label_niños)
-        i += 1
-        self.entry_niños = ttk.Entry(self.principal_frame, textvariable=self.niños, font=self.fuente_normal, width=5)
-        self.entry_niños.grid(row=i, column=0, sticky='w', pady=(0, 8))
+        tk.Label(huespedes_container, text="Niños:", font=self.fuente_normal, bg='#F5F5F5').pack(side='left', padx=(0, 5))
+        self.entry_niños = ttk.Entry(huespedes_container, textvariable=self.niños, font=self.fuente_normal, width=5)
+        self.entry_niños.pack(side='left', pady=8)
         self.entry_niños.bind("<Return>", lambda event: self.ejecutar_comparacion_wrapper())
-        self.widgets_dinamicos.append(self.entry_niños)
-        i += 1
 
+        i+=1
         # Botón ejecutar comparacion
         style = ttk.Style()
         style.configure('Boton.TButton', font=self.fuente_boton)
@@ -399,36 +388,141 @@ class InterfazApp:
         # Mantener compatibilidad con código existente
         self.resultado = self.vista_resultados.obtener_widget_text()
 
+        # Configurar expansión de la vista de resultados
+        self.principal_frame.rowconfigure(i, weight=1)
 
-
-        # self.principal_frame.rowconfigure(i, weight=1)
     def crear_pantalla_mail(self):
         self.geometria_anterior = self.root.geometry()
 
         self.principal_container.grid_forget()
         self.precio_frame.grid_forget()
-        
+
         self.mail_frame = ttk.Frame(self.root)
         self.mail_frame.grid(row=0, column=0, columnspan=3, sticky="nsew")
-        self.mail_frame.columnconfigure(1, weight=2, uniform='col')
+        self.mail_frame.columnconfigure(0, weight=1)
+        self.mail_frame.rowconfigure(1, weight=1)
         self.root.geometry(self.geometria_anterior)
 
         lbl_email = ttk.Label(self.mail_frame, text="Contenido del Email:")
-        lbl_email.grid(row=0, column=0, padx=10, pady=10, sticky="w")
-    
-        self.email_textbox = tk.Text(self.mail_frame, wrap="word", height=15, width=50, font= self.fuente_resultado)
+        lbl_email.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
+
+        self.email_textbox = tk.Text(self.mail_frame, wrap="word", height=15, width=50, font=self.fuente_resultado)
         self.email_textbox.grid(row=1, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
-        
-        texto_predeterminado = generar_texto_email(
-            self.seleccion_hotel.get(),
-            self.seleccion_habitacion_excel.get(),
-            self.precio_var.get(),
-            self.habitacion_web.combos[0].precio
-        )
+
+        # NUEVO: Detectar si hay resultado multi-periodo y generar texto apropiado
+        from Core.controller import generar_texto_email_multiperiodo
+
+        if hasattr(self.state, 'resultado_multiperiodo') and self.state.resultado_multiperiodo:
+            # Usar generador multi-periodo
+            texto_predeterminado = generar_texto_email_multiperiodo(
+                self.seleccion_hotel.get(),
+                self.state.resultado_multiperiodo
+            )
+        else:
+            # Legacy: usar generador single-period
+            texto_predeterminado = generar_texto_email(
+                self.seleccion_hotel.get(),
+                self.seleccion_habitacion_excel.get(),
+                self.precio_var.get(),
+                self.habitacion_web.combos[0].precio
+            )
+
         self.email_textbox.insert(tk.END, texto_predeterminado)
 
+        # Bindings para mejorar edición (Ctrl+Backspace, Ctrl+Delete)
+        self._setup_email_text_bindings()
+
         enviar_btn = ttk.Button(self.mail_frame, text="Enviar Email", command=self.enviar_email)
-        enviar_btn.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
+        enviar_btn.grid(row=2, column=0, padx=10, pady=15, sticky="ew")
+
+    def _setup_email_text_bindings(self):
+        """Configura bindings para mejorar edición del Text widget de email."""
+
+        def delete_word_left(event):
+            """Elimina palabra a la izquierda del cursor (Ctrl+Backspace)."""
+            try:
+                # Obtener posición actual
+                cursor_pos = self.email_textbox.index(tk.INSERT)
+
+                # Obtener línea y columna
+                line, col = map(int, cursor_pos.split('.'))
+
+                # Obtener contenido de la línea actual
+                line_text = self.email_textbox.get(f"{line}.0", f"{line}.end")
+
+                if col == 0:
+                    # Si estamos al inicio de línea, eliminar salto de línea anterior
+                    if line > 1:
+                        self.email_textbox.delete(f"{line-1}.end", cursor_pos)
+                else:
+                    # Buscar inicio de palabra hacia atrás
+                    text_before = line_text[:col]
+                    # Eliminar espacios en blanco a la izquierda
+                    text_stripped = text_before.rstrip()
+
+                    if len(text_stripped) == 0:
+                        # Solo espacios, eliminar todos
+                        start_pos = f"{line}.0"
+                    else:
+                        # Encontrar inicio de palabra
+                        words_before = text_stripped.split()
+                        if words_before:
+                            last_word = words_before[-1]
+                            # Buscar posición del inicio de la última palabra
+                            start_col = text_before.rfind(last_word)
+                            start_pos = f"{line}.{start_col}"
+                        else:
+                            start_pos = f"{line}.0"
+
+                    self.email_textbox.delete(start_pos, cursor_pos)
+
+                return "break"  # Prevenir comportamiento default
+            except Exception as e:
+                print(f"Error en delete_word_left: {e}")
+                return "break"
+
+        def delete_word_right(event):
+            """Elimina palabra a la derecha del cursor (Ctrl+Delete)."""
+            try:
+                cursor_pos = self.email_textbox.index(tk.INSERT)
+                line, col = map(int, cursor_pos.split('.'))
+                line_text = self.email_textbox.get(f"{line}.0", f"{line}.end")
+
+                if col >= len(line_text):
+                    # Estamos al final de línea, eliminar salto de línea
+                    self.email_textbox.delete(cursor_pos, f"{line+1}.0")
+                else:
+                    # Buscar final de palabra hacia adelante
+                    text_after = line_text[col:]
+                    # Eliminar espacios en blanco a la derecha
+                    text_stripped = text_after.lstrip()
+
+                    if len(text_stripped) == 0:
+                        # Solo espacios hasta el final
+                        end_pos = f"{line}.end"
+                    else:
+                        # Encontrar final de palabra
+                        match = text_stripped.split()[0] if text_stripped.split() else ""
+                        if match:
+                            # Encontrar posición del final de la primera palabra
+                            end_col = col + len(text_after) - len(text_stripped) + len(match)
+                            end_pos = f"{line}.{end_col}"
+                        else:
+                            end_pos = f"{line}.end"
+
+                    self.email_textbox.delete(cursor_pos, end_pos)
+
+                return "break"
+            except Exception as e:
+                print(f"Error en delete_word_right: {e}")
+                return "break"
+
+        # Bindings para Windows/Linux
+        self.email_textbox.bind("<Control-BackSpace>", delete_word_left)
+        self.email_textbox.bind("<Control-Delete>", delete_word_right)
+
+        # Bindings alternativos para algunos sistemas
+        self.email_textbox.bind("<Control-h>", delete_word_left)
 
     def enviar_email(self):
         remitente = "gerlucero1997@gmail.com"

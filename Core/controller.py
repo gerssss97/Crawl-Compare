@@ -34,7 +34,7 @@ def dar_habitacion_web():
 def dar_mensaje():
     return gestor.mensaje_get
 
-async def dar_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fresh=False):
+async def dar_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fresh=False, use_pickle=True, force_pickle=False):
     """Obtiene datos del hotel web.
 
     Args:
@@ -42,15 +42,18 @@ async def dar_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fres
         fecha_egreso: Fecha salida DD-MM-YYYY
         adultos: Número de adultos
         niños: Número de niños
-        force_fresh: Si True, fuerza scraping fresco ignorando caché
+        force_fresh: Si True, ignora TODO caché y hace scraping fresco
+        use_pickle: Si False, ignora pickle pero usa caché en memoria
+        force_pickle: Si True, USA SIEMPRE el pickle (para testing, ignora fechas)
 
     Returns:
         HotelWeb con datos scrapeados
 
     Raises:
         ValueError: Si no se pueden obtener datos válidos
+        FileNotFoundError: Si force_pickle=True pero no existe el archivo pickle
     """
-    hotel = await gestor.obtener_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fresh)
+    hotel = await gestor.obtener_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fresh, use_pickle, force_pickle)
 
     if hotel is None or not hotel.habitacion:
         raise ValueError("No se pudieron obtener datos válidos del hotel web")

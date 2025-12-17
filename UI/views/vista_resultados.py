@@ -41,11 +41,11 @@ class VistaResultados(tk.Frame):
         frame_resultado.rowconfigure(0, weight=1)
         frame_resultado.columnconfigure(0, weight=1)
 
-        # Text widget
+        # Text widget con altura ajustable
         self._text = tk.Text(
             frame_resultado,
-            height=20,
-            width=80,
+            height=25,
+            width=100,
             font=self.fonts.resultado,
             wrap="word"
         )
@@ -60,6 +60,7 @@ class VistaResultados(tk.Frame):
         # Configurar tags de formato
         self._text.tag_configure("bold", font=self.fonts.negrita)
         self._text.tag_configure("grande y negra", font=self.fonts.grande_negrita)
+        self._text.tag_configure("tabla", font=self.fonts.tabla)
 
         # Expandir
         self.grid_rowconfigure(0, weight=1)
@@ -145,10 +146,11 @@ class VistaResultados(tk.Frame):
             self.agregar("✅ TODO COINCIDE\n\n")
 
         # Tabla comparativa
-        self.agregar(f"{'='*80}\n")
-        header = f"{'Periodo':<25} | {'Fechas':<20} | {'Excel':<10} | {'Web':<10} | {'Estado':<10}\n"
-        self.agregar(header, tags=("bold",))
-        self.agregar(f"{'-'*80}\n")
+        separador = "=" * 90
+        self.agregar(f"{separador}\n", tags=("tabla",))
+        header = f"{'Periodo':<15} | {'Fechas':<13} | {'Excel':>12} | {'Web':>12} | {'Estado':<8}\n"
+        self.agregar(header, tags=("bold", "tabla"))
+        self.agregar(f"{'-' * 90}\n", tags=("tabla",))
 
         # Filas de periodos
         for idx, res_periodo in enumerate(resultado.periodos, start=1):
@@ -166,18 +168,19 @@ class VistaResultados(tk.Frame):
             if isinstance(res_periodo.precio_excel, (int, float)):
                 precio_excel_str = f"${res_periodo.precio_excel:.2f}"
             else:
-                precio_excel_str = str(res_periodo.precio_excel)[:10]
+                precio_excel_str = str(res_periodo.precio_excel)[:12]
 
             precio_web_str = f"${res_periodo.precio_web:.2f}"
 
             # Estado
             estado_str = "✅ OK" if res_periodo.coincide else "❌ DIFF"
 
-            # Fila
-            fila = f"{nombre_periodo:<25} | {fechas_str:<20} | {precio_excel_str:<10} | {precio_web_str:<10} | {estado_str:<10}\n"
-            self.agregar(fila, tags=("bold",) if not res_periodo.coincide else None)
+            # Fila con alineación: periodo y fechas a izq, precios a derecha, estado a izq
+            fila = f"{nombre_periodo:<15} | {fechas_str:<13} | {precio_excel_str:>12} | {precio_web_str:>12} | {estado_str:<8}\n"
+            tags = ("bold", "tabla") if not res_periodo.coincide else ("tabla",)
+            self.agregar(fila, tags=tags)
 
-        self.agregar(f"{'='*80}\n\n")
+        self.agregar(f"{separador}\n\n", tags=("tabla",))
 
         # Detalles de habitación web
         from Models.hotelWeb import imprimir_habitacion_web
