@@ -30,32 +30,62 @@ class GestorDatos:
             raise ValueError(f"[ERROR] No se encontró una coincidencia para el combo", habitacion_excel)
         return 
 
-    async def obtener_hotel_web(self, fecha_ingreso, fecha_egreso, adultos, niños):
-        if (self.__last_fecha_ingreso == fecha_ingreso and
-            self.__last_fecha_egreso == fecha_egreso and
-            self.__last_adultos == adultos and
-            self.__last_niños == niños):
-            print("Usando datos de hotel web en caché.")
+    async def obtener_hotel_web(self, fecha_ingreso, fecha_egreso, adultos, niños, force_fresh=False):
+        """Obtiene datos del hotel web, con opción de forzar scraping fresco.
 
-        if os.path.exists("hotel_guardado.pkl"):
+        Args:
+            fecha_ingreso: Fecha entrada DD-MM-YYYY
+            fecha_egreso: Fecha salida DD-MM-YYYY
+            adultos: Número de adultos
+            niños: Número de niños
+            force_fresh: Si True, ignora caché y hace scraping fresco
+
+        Returns:
+            HotelWeb con datos scrapeados
+        """
+        # Check caché en memoria (solo si no forzamos fresco)
+        if not force_fresh:
+            if (self.__last_fecha_ingreso == fecha_ingreso and
+                self.__last_fecha_egreso == fecha_egreso and
+                self.__last_adultos == adultos and
+                self.__last_niños == niños):
+                print("Usando datos de hotel web en caché de memoria.")
+                return self.__hotel_web
+
+        # Check caché en archivo (solo si no forzamos fresco Y existe archivo)
+        if not force_fresh and os.path.exists("hotel_guardado.pkl"):
             with open("hotel_guardado.pkl", "rb") as f:
-                print("Usando datos de hotel web en hotel Guardado.")
+                print("Usando datos de hotel web desde hotel_guardado.pkl.")
                 self.__hotel_web = pickle.load(f)
-                # imprimir_hotel_web(self.__hotel_web)
                 self.__habitaciones_web = self.__hotel_web.habitacion
-        else:
-            self.__last_fecha_ingreso = fecha_ingreso
-            self.__last_fecha_egreso = fecha_egreso
-            self.__last_adultos = adultos
-            self.__last_niños = niños
-            fecha_ingreso_iso = datetime.strptime(fecha_ingreso, "%d-%m-%Y").strftime("%Y-%m-%d")
-            fecha_egreso_iso = datetime.strptime(fecha_egreso, "%d-%m-%Y").strftime("%Y-%m-%d")
-            self.__hotel_web = await crawl_alvear(fecha_ingreso_iso, fecha_egreso_iso, adultos, niños)  
+                # Actualizar parámetros de caché en memoria
+                self.__last_fecha_ingreso = fecha_ingreso
+                self.__last_fecha_egreso = fecha_egreso
+                self.__last_adultos = adultos
+                self.__last_niños = niños
+                return self.__hotel_web
+
+        # Realizar scraping fresco
+        print(f"Realizando scraping fresco para {fecha_ingreso} a {fecha_egreso}...")
+        self.__last_fecha_ingreso = fecha_ingreso
+        self.__last_fecha_egreso = fecha_egreso
+        self.__last_adultos = adultos
+        self.__last_niños = niños
+
+        fecha_ingreso_iso = datetime.strptime(fecha_ingreso, "%d-%m-%Y").strftime("%Y-%m-%d")
+        fecha_egreso_iso = datetime.strptime(fecha_egreso, "%d-%m-%Y").strftime("%Y-%m-%d")
+
+        self.__hotel_web = await crawl_alvear(fecha_ingreso_iso, fecha_egreso_iso, adultos, niños)
+        self.__habitaciones_web = self.__hotel_web.habitacion
+
+        # Guardar en archivo cache solo para single-period (NO para multi-periodo)
+        # Para multi-periodo, force_fresh=True evita guardar el cache
+        if not force_fresh:
             with open("hotel_guardado.pkl", "wb") as f:
                 pickle.dump(self.__hotel_web, f)
-                imprimir_hotel_web(self.__hotel_web)
-                self.__habitaciones_web = self.__hotel_web.habitacion
-  
+
+        imprimir_hotel_web(self.__hotel_web)
+
         return self.__hotel_web    
            
     @property

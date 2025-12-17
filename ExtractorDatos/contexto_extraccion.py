@@ -113,8 +113,8 @@ class ContextoExtraccion:
         if self._procesar_habitacion(nombre_raw, nombre_norm, precio, row, i):
             return
 
-        # 9. Extra
-        self._procesar_extra(nombre_raw, precio)
+        # 9. Extra (de momento en desuso)
+        # self._procesar_extra(nombre_raw, precio)
 
     def _procesar_fila_vacia(self) -> None:
         """Procesa una fila vacía asignando periodos y limpiando el buffer.

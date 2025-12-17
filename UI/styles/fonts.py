@@ -39,6 +39,9 @@ class FontManager:
         # Fuente destacada para el precio
         self.precio = font.Font(family="Helvetica", size=14, weight="bold")
 
+        # Fuente en itálica para leyendas de precio
+        self.precio_leyenda = font.Font(family="Helvetica", size=13, slant="italic")
+
         # Fuente para comboboxes (mismo tamaño que normal)
         self.combobox = font.Font(family="Helvetica", size=12)
 

@@ -699,25 +699,40 @@ class InterfazApp:
         """Handler cuando completa la comparación.
 
         Args:
-            resultado_data (dict): Datos del resultado {mensaje, coincide, habitacion_web}
+            resultado_data: ResultadoComparacionMultiperiodo (nuevo) o dict (legacy)
         """
-        self.resultado.delete('1.0', tk.END)
-        mensaje = resultado_data['mensaje']
-        coincide = resultado_data['coincide']
+        from Core.comparador_multiperiodo import ResultadoComparacionMultiperiodo
 
-        # Insertar mensaje
-        lineas = mensaje.split('\n')
-        for linea in lineas:
-            if 'Habitación web' in linea:
-                self.resultado.insert(tk.END, linea + '\n', ("bold",))
-            elif 'encontró diferencia' in linea or 'coinciden' in linea:
-                self.resultado.insert(tk.END, linea + '\n', ("bold",))
-            else:
-                self.resultado.insert(tk.END, linea + '\n')
+        if isinstance(resultado_data, ResultadoComparacionMultiperiodo):
+            # NUEVO: Resultado multi-periodo
+            self.vista_resultados.mostrar_resultado_multiperiodo(resultado_data)
 
-        # Mostrar botón email si hay diferencia
-        if coincide:
-            self.mostrar_email_btn()
+            # Guardar en estado para uso futuro (email, etc.)
+            self.state.resultado_multiperiodo = resultado_data
+
+            # Mostrar botón email si hay discrepancias
+            if resultado_data.tiene_discrepancias:
+                self.mostrar_email_btn()
+
+        else:
+            # LEGACY: Resultado single-period (compatibilidad)
+            self.resultado.delete('1.0', tk.END)
+            mensaje = resultado_data['mensaje']
+            coincide = resultado_data['coincide']
+
+            # Insertar mensaje
+            lineas = mensaje.split('\n')
+            for linea in lineas:
+                if 'Habitación web' in linea:
+                    self.resultado.insert(tk.END, linea + '\n', ("bold",))
+                elif 'encontró diferencia' in linea or 'coinciden' in linea:
+                    self.resultado.insert(tk.END, linea + '\n', ("bold",))
+                else:
+                    self.resultado.insert(tk.END, linea + '\n')
+
+            # Mostrar botón email si hay diferencia
+            if coincide:
+                self.mostrar_email_btn()
 
     def _on_comparison_error(self, error_msg):
         """Handler cuando hay error en la comparación.

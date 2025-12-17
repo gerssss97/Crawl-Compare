@@ -70,8 +70,14 @@ User Input → UI Components → EventBus → Controllers → Core Services → 
 
 #### 2. **Core Layer** - Lógica de negocio central
 - `controller.py`: Fachada de servicios (dar_hoteles_excel, comparar_habitaciones, dar_hotel_web)
+  - Funciones email: `generar_texto_email_multiperiodo()`, `enviar_email_multiperiodo()`
 - `gestor_datos.py`: GestorDatos - orquestador principal de datos Excel/Web
+  - Parámetro `force_fresh` para bypass de caché en multi-periodo
 - `comparador.py`: Algoritmos de fuzzy matching (RapidFuzz) para comparar habitaciones
+- `comparador_multiperiodo.py`: Lógica de comparación multi-periodo (NUEVO)
+  - Scraping secuencial con delays configurables
+  - Fuzzy matching UNA VEZ (primer periodo), reutilización para periodos subsiguientes
+  - Error handling robusto con continuación en caso de fallo
 - `periodo_utils.py`: Utilidades para manejo de periodos
 
 #### 3. **Models Layer** - Modelos Pydantic
@@ -172,14 +178,24 @@ class MiControlador:
 6. Instanciar en `InterfazApp.__init__`
 
 ### Modificar Lógica de Comparación
-La comparación se ejecuta así:
+La comparación **multi-periodo** se ejecuta así:
 1. Usuario llena formulario y presiona "Ejecutar comparación"
-2. `ControladorValidacion.validar_todo()` valida campos
+2. `ControladorValidacion.validar_todo()` valida campos (incluyendo precio actualizado)
 3. `ControladorComparacion.ejecutar_comparacion_async()` ejecuta en thread
-4. Llama a `Core.controller.dar_hotel_web()` (scraping asíncrono)
-5. Llama a `Core.controller.comparar_habitaciones()` (fuzzy matching)
-6. Emite `comparison_completed` con resultado
-7. `InterfazApp._on_comparison_completed()` actualiza UI
+4. Parsea fechas y busca `habitacion_unificada` en estado
+5. Llama a `comparar_multiperiodo()` que:
+   - Infiere periodos aplicables desde rango de fechas
+   - Loop SECUENCIAL por cada periodo:
+     - Scraping con `dar_hotel_web(force_fresh=True)`
+     - Fuzzy matching solo en primer periodo
+     - Extrae precio web y compara con precio Excel del periodo
+     - Delay de 2s entre periodos
+   - Retorna `ResultadoComparacionMultiperiodo`
+6. Emite `comparison_completed` con resultado (objeto, no dict)
+7. `InterfazApp._on_comparison_completed()` detecta tipo de resultado:
+   - Si `ResultadoComparacionMultiperiodo`: Llama `vista_resultados.mostrar_resultado_multiperiodo()`
+   - Si dict (legacy): Muestra mensaje simple
+8. UI muestra tabla comparativa con todos los periodos
 
 ## Datos Importantes
 
@@ -219,6 +235,45 @@ Algunos métodos se mantienen por compatibilidad:
 
 Al modificar código legacy, preferir migrar a la nueva arquitectura usando controladores y componentes.
 
+## Sistema Multi-Periodo (Nuevo)
+
+### Características Principales
+- **Scraping secuencial**: Un request por periodo con delays de 2s (configurable vía `SCRAPING_DELAY_SECONDS`)
+- **Fuzzy matching optimizado**: Se ejecuta UNA VEZ en el primer periodo, luego reutiliza resultado
+- **Cache bypass**: Parámetro `force_fresh=True` evita contaminación de caché
+- **Error handling robusto**: Si un periodo falla, continúa con los demás
+- **UI tabla comparativa**: Muestra todos los periodos con estado ✅ OK / ❌ DIFF
+- **Email automático**: Envía breakdown completo si hay discrepancias en CUALQUIER periodo
+
+### Estructura de Resultado
+```python
+ResultadoComparacionMultiperiodo:
+    habitacion_excel_nombre: str
+    habitacion_web_matcheada: HabitacionWeb
+    periodos: List[ResultadoPeriodo]
+        - periodo: Periodo
+        - precio_excel: float | str
+        - precio_web: float
+        - diferencia: float
+        - coincide: bool
+    tiene_discrepancias: bool
+    mensaje_match: str
+```
+
+### Configuración
+Variables de entorno en `.env`:
+```env
+GROQ_API_KEY=gsk_...               # Requerido para scraping
+GMTP_KEY=...                       # Opcional, para envío de emails
+SCRAPING_DELAY_SECONDS=2           # Delay entre periodos (default: 2s)
+```
+
+### Archivos Clave
+- `Core/comparador_multiperiodo.py`: Lógica principal (230 líneas)
+- `UI/views/vista_resultados.py`: Método `mostrar_resultado_multiperiodo()`
+- `UI/interfaz.py`: Handler `_on_comparison_completed()` con detección de tipo
+- Documentación completa: `CHECKPOINT_MULTIPERIODO.md`
+
 ## Debugging
 
 ### EventBus Debug
@@ -230,6 +285,7 @@ self.event_bus.enable_debug()
 ### Print Debugging
 El código tiene varios `print()` para debugging:
 - `Core/comparador.py`: Muestra scores de fuzzy matching
+- `Core/comparador_multiperiodo.py`: Muestra progreso detallado de cada periodo
 - `ExtractorDatos/utils.py`: Muestra parsing de fechas
 - `UI/interfaz.py`: Muestra cambios de hotel/habitación
 
@@ -240,6 +296,7 @@ self.state.hotel.get()  # Hotel actual
 self.state.habitacion.get()  # Habitación actual
 self.state.hoteles_excel  # Lista de HotelExcel
 self.state.habitaciones_excel  # Habitaciones del hotel actual
+self.state.resultado_multiperiodo  # ResultadoComparacionMultiperiodo (último)
 ```
 
 ## Testing

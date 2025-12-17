@@ -342,7 +342,7 @@ def main():
     print()
 
     # Configuración de rutas
-    path_excel_entrada = "./Data/Extracto_prueba2.xlsx"
+    path_excel_entrada = "./Data/Extracto_prueba.xlsx"
     path_excel_salida = "./Data/Extracto_Validacion2.xlsx"
 
     print(f"[>] Archivo de entrada: {path_excel_entrada}")

@@ -35,7 +35,14 @@ class HabitacionUnificada(BaseModel):
         """
         for variante in self.variantes:
             if periodo_id in variante.periodo_ids:
-                return variante.precio
+                # Si tiene precio numérico, retornarlo
+                if variante.precio is not None:
+                    return variante.precio
+                # Si tiene precio_string (leyenda), retornarlo
+                if variante.precio_string is not None:
+                    return variante.precio_string
+                # Si no tiene ni precio ni precio_string
+                return None
         return None
 
     def precios_para_periodos(self, periodo_ids: set[int]) -> Dict[int, float | str]:
