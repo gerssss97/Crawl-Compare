@@ -168,9 +168,9 @@ class PeriodosPanel(BaseComponent):
                 inicio_str = periodo.fecha_inicio.strftime("%d/%m/%Y")
                 fin_str = periodo.fecha_fin.strftime("%d/%m/%Y")
 
-                if periodo.nombresito:
+                if periodo.nombre:
                     self._text.insert(tk.END,
-                        f"  • {periodo.nombresito}: {inicio_str} - {fin_str}\n",
+                        f"  • {periodo.nombre}: {inicio_str} - {fin_str}\n",
                         "periodo")
                 else:
                     self._text.insert(tk.END,

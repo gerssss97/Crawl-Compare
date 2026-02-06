@@ -131,11 +131,13 @@ class VistaResultados(tk.Frame):
         self.agregar(f"{resultado.habitacion_excel_nombre}\n")
 
         self.agregar("Habitación Web: ", tags=("bold",))
-        self.agregar(f"{resultado.habitacion_web_matcheada.nombre}\n\n")
+        self.agregar(f"{resultado.habitacion_web_matcheada.nombre}\n")
 
-        # Mensaje de matching
+        # Mensaje de matching (justo después de mostrar la habitación web)
         if resultado.mensaje_match:
-            self.agregar(f"{resultado.mensaje_match}\n\n")
+            self.agregar(f"{resultado.mensaje_match}\n")
+
+        self.agregar("\n")
 
         # Status global
         if resultado.tiene_discrepancias:
@@ -159,9 +161,14 @@ class VistaResultados(tk.Frame):
             # Nombre del periodo
             nombre_periodo = f"Periodo {periodo.id}"
 
-            # Fechas
-            fecha_inicio_str = periodo.fecha_inicio.strftime("%d/%m")
-            fecha_fin_str = periodo.fecha_fin.strftime("%d/%m")
+            # Fechas específicas ingresadas (overlap con periodo)
+            if res_periodo.fecha_inicio_real and res_periodo.fecha_fin_real:
+                fecha_inicio_str = res_periodo.fecha_inicio_real.strftime("%d/%m")
+                fecha_fin_str = res_periodo.fecha_fin_real.strftime("%d/%m")
+            else:
+                # Fallback a fechas del periodo completo
+                fecha_inicio_str = periodo.fecha_inicio.strftime("%d/%m")
+                fecha_fin_str = periodo.fecha_fin.strftime("%d/%m")
             fechas_str = f"{fecha_inicio_str}-{fecha_fin_str}"
 
             # Precios
@@ -183,9 +190,27 @@ class VistaResultados(tk.Frame):
         self.agregar(f"{separador}\n\n", tags=("tabla",))
 
         # Detalles de habitación web
-        from Models.hotelWeb import imprimir_habitacion_web
-        texto_habitacion = imprimir_habitacion_web(resultado.habitacion_web_matcheada)
         self.agregar("\nDETALLES HABITACIÓN WEB:\n", tags=("bold",))
-        self.agregar(texto_habitacion)
+        self.agregar(f"🏠 Habitación: {resultado.habitacion_web_matcheada.nombre}\n")
+
+        if resultado.habitacion_web_matcheada.detalles:
+            self.agregar(f"📋 Detalles: {resultado.habitacion_web_matcheada.detalles}\n")
+
+        # Mostrar precios web de TODOS los periodos
+        self.agregar("\n💵 Precios Web por Periodo:\n", tags=("bold",))
+        for res_periodo in resultado.periodos:
+            periodo = res_periodo.periodo
+
+            # Formato de fechas
+            if res_periodo.fecha_inicio_real and res_periodo.fecha_fin_real:
+                fecha_inicio_str = res_periodo.fecha_inicio_real.strftime("%d/%m/%Y")
+                fecha_fin_str = res_periodo.fecha_fin_real.strftime("%d/%m/%Y")
+            else:
+                fecha_inicio_str = periodo.fecha_inicio.strftime("%d/%m/%Y")
+                fecha_fin_str = periodo.fecha_fin.strftime("%d/%m/%Y")
+
+            # Mostrar periodo y precio
+            self.agregar(f"   • Periodo {periodo.id} ({fecha_inicio_str} - {fecha_fin_str}): ")
+            self.agregar(f"${res_periodo.precio_web:.2f}\n", tags=("bold",))
 
         self.scroll_to_end()
