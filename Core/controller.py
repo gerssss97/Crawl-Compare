@@ -1,4 +1,5 @@
 from .gestor_datos import *
+import os
 import smtplib
 from email.mime.text import MIMEText ##crea msjs con formato adecuado
 from email.mime.multipart import MIMEMultipart
@@ -164,7 +165,7 @@ def generar_texto_email_multiperiodo(hotel, resultado_multiperiodo):
     return texto
 
 
-def enviar_email_multiperiodo(hotel, resultado_multiperiodo, remitente, destinatario):
+def enviar_email_multiperiodo(hotel, resultado_multiperiodo, remitente, destinatario, texto_override=None):
     """Envía email con discrepancias multi-periodo.
 
     Args:
@@ -172,6 +173,7 @@ def enviar_email_multiperiodo(hotel, resultado_multiperiodo, remitente, destinat
         resultado_multiperiodo: ResultadoComparacionMultiperiodo
         remitente: Email del remitente
         destinatario: Email del destinatario
+        texto_override: Texto personalizado (opcional). Si no se provee, se genera automáticamente.
 
     Returns:
         bool: True si el envío fue exitoso, False en caso contrario
@@ -183,7 +185,12 @@ def enviar_email_multiperiodo(hotel, resultado_multiperiodo, remitente, destinat
         print("No hay discrepancias, no se envía email.")
         return False
 
-    texto = generar_texto_email_multiperiodo(hotel, resultado_multiperiodo)
+    # Usar texto personalizado si se provee, sino generar automáticamente
+    if texto_override:
+        texto = texto_override
+    else:
+        texto = generar_texto_email_multiperiodo(hotel, resultado_multiperiodo)
+
     asunto = f"Discrepancias de precios multi-periodo - {hotel}"
 
     clave = os.getenv("GMTP_KEY")

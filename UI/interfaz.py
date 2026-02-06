@@ -223,7 +223,8 @@ class InterfazApp:
 
         # Configurar expansión del frame
         self.precio_frame.rowconfigure(1, weight=1)
-
+        self.precio_frame.columnconfigure(0, weight=1)  
+        
         # ===== Mantener compatibilidad con código existente =====
         self.periodos_text = self.periodos_panel._text  # Para código que accede directamente
 
@@ -238,6 +239,9 @@ class InterfazApp:
 
         # Configurar filas
         self.root.grid_rowconfigure(0, weight=1)
+
+        # Binding global para Shift+Enter
+        self.root.bind("<Shift-Return>", lambda event: self.ejecutar_comparacion_wrapper())
     
     def mostrar_email_btn(self):
         self.boton_ejecutar = ttk.Button(self.precio_frame, text="Envio de email", command=self.crear_pantalla_mail)
@@ -533,16 +537,144 @@ class InterfazApp:
             messagebox.showerror("Error", "El contenido del email no puede estar vacío.")
             return
 
-        enviar_email_discrepancia(
-            hotel=self.seleccion_hotel.get(),
-            habitacion_excel=self.seleccion_habitacion_excel.get(),
-            precio_excel=self.precio_var.get(),
-            precio_web=self.habitacion_web.combos[0].precio,
-            remitente=remitente,
-            destinatario=destinatario,
-            texto_override=texto_final 
+        # Crear ventana de "Procesando..."
+        ventana_procesando = tk.Toplevel(self.root)
+        ventana_procesando.title("Enviando Email")
+        ventana_procesando.geometry("300x100")
+        ventana_procesando.resizable(False, False)
+        ventana_procesando.transient(self.root)
+        ventana_procesando.grab_set()
+
+        # Centrar ventana
+        ventana_procesando.update_idletasks()
+        x = (ventana_procesando.winfo_screenwidth() // 2) - (300 // 2)
+        y = (ventana_procesando.winfo_screenheight() // 2) - (100 // 2)
+        ventana_procesando.geometry(f"300x100+{x}+{y}")
+
+        # Label de procesando
+        lbl_procesando = ttk.Label(
+            ventana_procesando,
+            text="Procesando envío de email...\nPor favor espere.",
+            font=("Segoe UI", 11),
+            justify="center"
         )
-        messagebox.showinfo("Éxito", "El correo se envió correctamente.")
+        lbl_procesando.pack(expand=True, pady=20)
+
+        # Actualizar UI para mostrar la ventana
+        ventana_procesando.update()
+
+        # Función para enviar email en background
+        def enviar_en_background():
+            try:
+                # Verificar si tenemos resultado multi-periodo
+                if hasattr(self.state, 'resultado_multiperiodo') and self.state.resultado_multiperiodo:
+                    from Core.controller import enviar_email_multiperiodo
+
+                    enviar_email_multiperiodo(
+                        hotel=self.seleccion_hotel.get(),
+                        resultado_multiperiodo=self.state.resultado_multiperiodo,
+                        remitente=remitente,
+                        destinatario=destinatario,
+                        texto_override=texto_final
+                    )
+                else:
+                    # Fallback legacy
+                    if not hasattr(self, 'habitacion_web') or not self.habitacion_web:
+                        raise ValueError("No hay datos de comparación disponibles.")
+
+                    enviar_email_discrepancia(
+                        hotel=self.seleccion_hotel.get(),
+                        habitacion_excel=self.seleccion_habitacion_excel.get(),
+                        precio_excel=self.precio_var.get(),
+                        precio_web=self.habitacion_web.combos[0].precio,
+                        remitente=remitente,
+                        destinatario=destinatario,
+                        texto_override=texto_final
+                    )
+
+                # Si llegamos aquí, el envío fue exitoso
+                self.root.after(0, lambda: self._mostrar_confirmacion_envio(ventana_procesando))
+
+            except Exception as e:
+                # Manejar error
+                self.root.after(0, lambda: self._mostrar_error_envio(ventana_procesando, str(e)))
+
+        # Ejecutar envío en thread
+        thread = threading.Thread(target=enviar_en_background, daemon=True)
+        thread.start()
+
+    def _mostrar_confirmacion_envio(self, ventana_procesando):
+        """Muestra modal de confirmación y redirige a ventana principal."""
+        # Cerrar ventana de procesando
+        ventana_procesando.destroy()
+
+        # Crear ventana de confirmación
+        ventana_confirmacion = tk.Toplevel(self.root)
+        ventana_confirmacion.title("Email Enviado")
+        ventana_confirmacion.geometry("350x150")
+        ventana_confirmacion.resizable(False, False)
+        ventana_confirmacion.transient(self.root)
+        ventana_confirmacion.grab_set()
+
+        # Centrar ventana
+        ventana_confirmacion.update_idletasks()
+        x = (ventana_confirmacion.winfo_screenwidth() // 2) - (350 // 2)
+        y = (ventana_confirmacion.winfo_screenheight() // 2) - (150 // 2)
+        ventana_confirmacion.geometry(f"350x150+{x}+{y}")
+
+        # Icono de éxito
+        lbl_exito = ttk.Label(
+            ventana_confirmacion,
+            text="✅ Email enviado correctamente",
+            font=("Segoe UI", 12, "bold"),
+            justify="center"
+        )
+        lbl_exito.pack(pady=(20, 10))
+
+        # Label de redirección con contador
+        self.contador_redireccion = 5
+        lbl_redireccion = ttk.Label(
+            ventana_confirmacion,
+            text=f"Redirigiendo a la ventana principal en {self.contador_redireccion} segundos...",
+            font=("Segoe UI", 10),
+            justify="center"
+        )
+        lbl_redireccion.pack(pady=10)
+
+        # Botón para regresar inmediatamente
+        btn_regresar = ttk.Button(
+            ventana_confirmacion,
+            text="Regresar Ahora",
+            command=lambda: self._regresar_a_principal(ventana_confirmacion)
+        )
+        btn_regresar.pack(pady=10)
+
+        # Función de countdown
+        def actualizar_countdown():
+            if self.contador_redireccion > 0:
+                self.contador_redireccion -= 1
+                lbl_redireccion.config(
+                    text=f"Redirigiendo a la ventana principal en {self.contador_redireccion} segundos..."
+                )
+                ventana_confirmacion.after(1000, actualizar_countdown)
+            else:
+                self._regresar_a_principal(ventana_confirmacion)
+
+        # Iniciar countdown
+        ventana_confirmacion.after(1000, actualizar_countdown)
+
+    def _mostrar_error_envio(self, ventana_procesando, error_msg):
+        """Muestra error de envío."""
+        ventana_procesando.destroy()
+        messagebox.showerror("Error al Enviar Email", f"No se pudo enviar el email:\n\n{error_msg}")
+
+    def _regresar_a_principal(self, ventana_modal):
+        """Regresa a la ventana principal desde el frame de email."""
+        ventana_modal.destroy()
+        self.mail_frame.grid_forget()
+        self.principal_container.grid(row=0, column=0, columnspan=2, rowspan=2, sticky="nsew", padx=4, pady=4)
+        self.precio_frame.grid(row=0, column=2, rowspan=3, sticky='nsew', padx=4, pady=2)
+        self.root.geometry(self.geometria_anterior)
         
     def cargar_hoteles_excel(self):
         self.hoteles_excel = dar_hoteles_excel()

@@ -17,7 +17,7 @@ load_dotenv()
 async def crawl_alvear(fecha_ingreso,fecha_egreso,adultos,niños) -> Optional[HotelWeb] :
     browser_config = get_browser_config()
     llm_strategy = get_llm_strategy()
-    session_id = "venue_crawl_session"
+    session_id = "hotel_crawl_session"
 
     # Initialize state variables
     params_busqueda = {

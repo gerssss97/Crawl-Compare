@@ -3,7 +3,7 @@ from typing import ClassVar, Optional
 from datetime import date
 
 class Periodo(BaseModel):
-    nombresito: Optional[str] = ""
+    nombre: Optional[str] = ""
     id: int = Field(init=False)  # nuevo id autoincremental, no se permite en init
     fecha_inicio: date
     fecha_fin: date
@@ -26,7 +26,7 @@ class Periodo(BaseModel):
     @classmethod
     def crear(cls, fecha_inicio: date, fecha_fin: date, nombre: Optional[str]) -> 'Periodo':
         return cls(
-            nombresito = nombre,
+            nombre = nombre,
             fecha_inicio = fecha_inicio,
             fecha_fin = fecha_fin
         )

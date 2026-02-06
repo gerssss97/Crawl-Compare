@@ -6,20 +6,59 @@ from datetime import date
 from Models.hotelExcel import Periodo, HotelExcel
 from Models.hotelWeb import HabitacionWeb
 from Core.servicio_habitaciones import inferir_periodos_desde_fechas
-from Core.comparador import obtener_mejor_match_con_breakfast
+from Core.comparador import obtener_mejor_match_con_breakfast, contiene_breakfast
 from Core.controller import dar_hotel_web
+
+
+def aplicar_filtro_breakfast(habitacion: HabitacionWeb, nombre_excel: str) -> HabitacionWeb:
+    """Aplica filtro de breakfast a una habitación web si es necesario.
+
+    Args:
+        habitacion: HabitacionWeb a filtrar
+        nombre_excel: Nombre de la habitación Excel (para detectar si incluye breakfast)
+
+    Returns:
+        HabitacionWeb filtrada (solo combos con breakfast) o habitación original
+    """
+    tiene_breakfast = contiene_breakfast(nombre_excel)
+
+    if not tiene_breakfast:
+        # No necesita filtro, devolver habitación original
+        return habitacion
+
+    # Filtrar combos que contengan breakfast
+    combos_filtrados = [
+        combo for combo in habitacion.combos
+        if contiene_breakfast(combo.titulo)
+    ]
+
+    if not combos_filtrados:
+        # Si no hay combos con breakfast, devolver habitación original
+        print(f"⚠️ Advertencia: No se encontraron combos con breakfast para '{habitacion.nombre}'")
+        return habitacion
+
+    # Crear nueva habitación con combos filtrados
+    print(f"→ Filtrado de breakfast aplicado: {len(habitacion.combos)} → {len(combos_filtrados)} combos")
+    return HabitacionWeb(
+        nombre=habitacion.nombre,
+        detalles=habitacion.detalles,
+        combos=combos_filtrados
+    )
 
 
 class ResultadoPeriodo:
     """Resultado de comparación para un periodo específico."""
 
     def __init__(self, periodo: Periodo, precio_excel: float | str,
-                 precio_web: float, diferencia: float, coincide: bool):
+                 precio_web: float, diferencia: float, coincide: bool,
+                 fecha_inicio_real: date = None, fecha_fin_real: date = None):
         self.periodo = periodo
         self.precio_excel = precio_excel
         self.precio_web = precio_web
         self.diferencia = diferencia
         self.coincide = coincide
+        self.fecha_inicio_real = fecha_inicio_real  # Fecha específica ingresada (overlap con periodo)
+        self.fecha_fin_real = fecha_fin_real  # Fecha específica ingresada (overlap con periodo)
 
 
 class ResultadoComparacionMultiperiodo:
@@ -143,8 +182,12 @@ async def comparar_multiperiodo(
                         f"Habitación '{habitacion_web_matcheada.nombre}' no encontrada en periodo {idx}"
                     )
 
-                # Actualizar con datos frescos (combos pueden cambiar por periodo)
-                habitacion_web_matcheada = habitacion_actual
+                # IMPORTANTE: Aplicar filtro de breakfast si corresponde
+                # (en periodos subsiguientes, los combos pueden cambiar)
+                habitacion_web_matcheada = aplicar_filtro_breakfast(
+                    habitacion_actual,
+                    habitacion_unificada.nombre
+                )
 
             # Extraer precio web del primer combo
             if not habitacion_web_matcheada.combos:
@@ -172,13 +215,15 @@ async def comparar_multiperiodo(
                 coincide = True  # No comparamos leyendas
                 print(f"→ Precio Excel es leyenda: {precio_excel}")
 
-            # Guardar resultado del periodo
+            # Guardar resultado del periodo con fechas específicas
             resultados_periodos.append(ResultadoPeriodo(
                 periodo=periodo,
                 precio_excel=precio_excel,
                 precio_web=precio_web,
                 diferencia=diferencia,
-                coincide=coincide
+                coincide=coincide,
+                fecha_inicio_real=fecha_scrape_inicio,
+                fecha_fin_real=fecha_scrape_fin
             ))
 
         except Exception as e:
@@ -186,13 +231,19 @@ async def comparar_multiperiodo(
             print(f"⚠️ ERROR en periodo {idx}: {str(e)}")
             print("→ Continuando con siguiente periodo...")
 
+            # Calcular fechas específicas incluso en error (para mostrarlas en tabla)
+            fecha_scrape_inicio = max(fecha_entrada, periodo.fecha_inicio)
+            fecha_scrape_fin = min(fecha_salida, periodo.fecha_fin)
+
             # Agregar resultado con error
             resultados_periodos.append(ResultadoPeriodo(
                 periodo=periodo,
                 precio_excel="Error",
                 precio_web=0.0,
                 diferencia=0.0,
-                coincide=False
+                coincide=False,
+                fecha_inicio_real=fecha_scrape_inicio,
+                fecha_fin_real=fecha_scrape_fin
             ))
 
         # Delay entre requests para evitar IP ban (excepto en último periodo)

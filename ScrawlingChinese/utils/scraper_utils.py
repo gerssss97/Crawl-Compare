@@ -30,6 +30,27 @@ def get_browser_config() -> BrowserConfig:
         browser_type="chromium",  # Type of browser to simulate
         headless=False,  # Whether to run in headless mode (no GUI)
         verbose=True,  # Enable verbose logging
+
+        # ===== OPTIMIZACIONES DE RENDIMIENTO =====
+        # Flags para acelerar carga de página sin perder datos
+        extra_args=[
+            # FLAG 1: Evita detección de bot (0-500ms ganancia)
+            # Elimina navigator.webdriver=true para que el sitio no active defensas anti-bot
+            # "--disable-blink-features=AutomationControlled",
+
+            # FLAG 2: Deshabilita red en background (500-1500ms ganancia) - ACTIVADO
+            # Evita telemetría, actualizaciones, crash reports
+            # Reduce "ruido" de red → wait_until="networkidle" termina más rápido
+            "--disable-background-networking",
+
+            # FLAG 3: Deshabilita extensiones del navegador (200-500ms ganancia)
+            # Las extensiones consumen CPU/memoria y hacen requests adicionales
+            "--disable-extensions",
+
+            # FLAG 4: Deshabilita barra de traducción (50-100ms ganancia)
+            # Evita que Chrome analice el idioma y cargue recursos de traducción
+            "--disable-features=TranslateUI",
+        ],
     )
 
 
@@ -41,17 +62,34 @@ def get_llm_strategy() -> LLMExtractionStrategy:
         LLMExtractionStrategy: The settings for how to extract data using LLM.
     """
     # https://docs.crawl4ai.com/api/strategies/#llmextractionstrategy
-    
+
     return LLMExtractionStrategy(
-        provider="groq/openai/gpt-oss-20b",  # Name of the LLM provider (OpenAI model via Groq)
+        # ===== MODELO FINAL: Balance perfecto velocidad/límites =====
+        # Progresión de modelos probados:
+        # - gpt-oss-20b: 40-60s (demasiado lento)
+        # - llama-3.1-8b-instant: 2-5s ❌ RATE LIMIT (6k tokens/min) - no soporta multi-periodo
+        # - llama-3.1-70b-versatile: ❌ DEPRECADO (modelo descontinuado por Groq)
+        # - llama-3.3-70b-versatile: 10-20s ✅ ÓPTIMO (30k tokens/min, modelo actual)
+        #
+        # Modelos activos 2026 con límites:
+        # - llama-3.3-70b-versatile: 30k tokens/min ✅ (recomendado - mejor calidad)
+        # - llama3-8b-8192: 30k tokens/min ✅ (alternativa más rápida, menos calidad)
+        # - llama-3.1-8b-instant: 6k tokens/min ❌ (insuficiente para multi-periodo)
+        #
+        # Con 3,705 tokens/request × 2 periodos = ~7,400 tokens
+        # llama-3.3-70b: 30k tokens/min = ~4 requests/min (perfecto)
+        provider="groq/llama-3.3-70b-versatile",
+
         api_token=os.getenv("GROQ_API_KEY"),  # API token for authentication
         schema=HabitacionWeb.model_json_schema(),  # JSON schema of the data model
         extraction_type="schema",  # Type of extraction to perform
+
+        # Prompt optimizado (más conciso = ~10% más rápido)
         instruction=(
-        "Extrae todas las habitaciones con su nombre, su detalle, "
-        "y una lista de promociones con su titulo (ejemplo 'desayuno incluido', 'cancelación gratuita', etc.),"
-        "descripcion y precio por noche "
-        ),  # Instructions for the LLM
+            "Extract all hotel rooms with: name, details, "
+            "and promotions list (title, description, nightly price)"
+        ),
+
         input_format="markdown",  # Format of the input content
         verbose=True,  # Enable verbose logging
     )
@@ -140,15 +178,63 @@ async def fetch_and_process_page(
             result = await crawler.arun(
                 url=url_completa,
                 config=CrawlerRunConfig(
-                    scan_full_page=True,
+                    scan_full_page=False,
                     cache_mode=CacheMode.BYPASS,
                     extraction_strategy=llm_strategy,
                     css_selector=css_selector,
                     session_id=session_id,
-                    page_timeout=30000,  # 30 segundos de timeout
-                    wait_until="networkidle"  # espera hasta que no haya actividad de red
+
+                    # ===== OPTIMIZACIONES DE RENDIMIENTO =====
+                    # Timeout: 30s para dar tiempo al LLM y carga completa
+                    page_timeout=30000,
+
+                    # TESTING: Volvemos a networkidle para verificar datos completos
+                    # - "networkidle": Espera 500ms sin requests (LENTO pero SEGURO)
+                    # - "domcontentloaded": Espera DOM listo (RÁPIDO pero puede perder datos dinámicos)
+                    # - "load": Espera TODOS los recursos (MEDIO)
+                    wait_until="networkidle",
+
+                    # Espera específica para el contenedor de habitaciones
+                    # Asegura que el elemento exista antes de capturar
+                    # NOTA: css_selector (línea 146) filtra el HTML; wait_for espera a que exista
+                    wait_for="css:.thumb-cards_products",  # Selector del contenedor de habitaciones
                 ),
             )
+
+            # ===== DEBUG: Guardar contenido enviado al LLM =====
+            if result.success:
+                try:
+                    import datetime
+                    # Markdown que recibe el LLM
+                    markdown_content = result.markdown if hasattr(result, 'markdown') else result.cleaned_html
+
+                    # Estadísticas
+                    num_chars = len(markdown_content)
+                    num_words = len(markdown_content.split())
+                    estimated_tokens = num_chars // 4
+
+                    # Timestamp para el archivo
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    debug_file = f"debug_llm_input_{timestamp}.txt"
+
+                    # Guardar todo en archivo
+                    with open(debug_file, "w", encoding="utf-8") as f:
+                        f.write("="*80 + "\n")
+                        f.write("DEBUG: CONTENIDO ENVIADO AL LLM\n")
+                        f.write("="*80 + "\n\n")
+                        f.write(f"Caracteres: {num_chars:,}\n")
+                        f.write(f"Palabras: {num_words:,}\n")
+                        f.write(f"Tokens estimados: {estimated_tokens:,}\n")
+                        f.write(f"URL: {url_completa}\n")
+                        f.write("\n" + "="*80 + "\n")
+                        f.write("CONTENIDO MARKDOWN:\n")
+                        f.write("="*80 + "\n\n")
+                        f.write(markdown_content)
+
+                    print(f"[DEBUG] Contenido LLM guardado en: {debug_file} ({num_chars:,} chars, ~{estimated_tokens:,} tokens)")
+                except Exception as e:
+                    print(f"[DEBUG] Error guardando debug: {e}")
+            # ===== FIN DEBUG =====
             # Verifica si los datos están completos
             if result.success and result.extracted_content:
                 habitaciones_data = json.loads(result.extracted_content)
