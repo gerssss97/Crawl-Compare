@@ -1,0 +1,6 @@
+Razón: Datos incompletos o vacíos
+URL: https://be.synxis.com/?adult=1&child=0&arrive=2026-10-01&depart=2026-12-30&chain=24447&hotel=6933&currency=USD&level=hotel&locale=en-US&productcurrency=USD&rooms=1&src=30
+Intento: 3/3
+Success: False
+Extracted Content: None
+HTML Length: 0

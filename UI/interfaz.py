@@ -184,6 +184,10 @@ class InterfazApp:
         self.event_bus.on('comparison_error', self._on_comparison_error)
         self.event_bus.on('precios_actualizados', self._on_precios_actualizados)
 
+        # Suscribir a eventos de gaps
+        self.event_bus.on('gaps_detected', self._on_gaps_detected)
+        self.event_bus.on('mostrar_modal_gaps', self._on_mostrar_modal_gaps)
+
         # FRAME principal unificado - con estilo mejorado
         self.principal_container = tk.Frame(self.root, relief=tk.SOLID, borderwidth=1, bg='#F5F5F5')
         self.principal_container.grid(row=0, column=0, columnspan=2, rowspan=2, sticky="nsew", padx=4, pady=4)
@@ -931,7 +935,8 @@ class InterfazApp:
 
         if isinstance(resultado_data, ResultadoComparacionMultiperiodo):
             # NUEVO: Resultado multi-periodo
-            self.vista_resultados.mostrar_resultado_multiperiodo(resultado_data)
+            gap_analysis = getattr(self.state, 'gap_analysis_actual', None)
+            self.vista_resultados.mostrar_resultado_multiperiodo(resultado_data, gap_analysis)
 
             # Guardar en estado para uso futuro (email, etc.)
             self.state.resultado_multiperiodo = resultado_data
@@ -980,16 +985,62 @@ class InterfazApp:
             data (dict): Datos del evento con 'tipo' y contenido según el tipo
         """
         tipo = data.get('tipo')
+        gap_analysis = data.get('gap_analysis')
 
         if tipo == 'sin_fechas':
             self.precio_panel._mostrar_mensaje(data['mensaje'])
 
         elif tipo == 'sin_periodos':
-            self.precio_panel._mostrar_mensaje(data['mensaje'])
+            # Mostrar gap analysis si existe
+            if gap_analysis:
+                self.precio_panel.mostrar_precios_multiples([], gap_analysis)
+            else:
+                self.precio_panel._mostrar_mensaje(data['mensaje'])
 
         elif tipo == 'precios_calculados':
             precios = data['precios']
-            self.precio_panel.mostrar_precios_multiples(precios)
+            # Pasar gap_analysis al panel de precios
+            self.precio_panel.mostrar_precios_multiples(precios, gap_analysis)
+
+    def _on_gaps_detected(self, data):
+        """Handler cuando se detectan gaps en la cobertura de periodos.
+
+        Este evento se emite solo para notificar que hay gaps, pero NO muestra
+        el modal aún. El modal se muestra cuando el usuario hace click en
+        "Ejecutar Comparación".
+
+        Args:
+            data (dict): Datos con 'gap_analysis' y 'habitacion'
+        """
+        # Por ahora solo se notifica, el PrecioPanel ya muestra la advertencia visual
+        pass
+
+    def _on_mostrar_modal_gaps(self, data):
+        """Handler para mostrar modal de confirmación de gaps.
+
+        Este evento se emite desde ControladorComparacion cuando el usuario
+        intenta ejecutar comparación con gaps no confirmados.
+
+        Args:
+            data (dict): Datos con 'gap_analysis'
+        """
+        gap_analysis = data['gap_analysis']
+
+        from UI.components.modal_advertencia_gaps import ModalAdvertenciaGaps
+
+        def on_gap_response(confirmo):
+            """Callback cuando usuario responde al modal."""
+            if confirmo:
+                # Usuario confirmó → marcar flag y ejecutar comparación
+                self.state.gap_confirmado = True
+                self.controlador_comparacion.ejecutar_comparacion_async()
+            else:
+                # Usuario canceló
+                self.state.gap_confirmado = False
+                self.resultado.insert(tk.END, "Comparación cancelada por el usuario.\n")
+
+        # Mostrar modal
+        ModalAdvertenciaGaps(self.root, gap_analysis, on_gap_response)
 
 
 def run_interfaz():

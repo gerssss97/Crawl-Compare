@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 from Models.habitacion_unificada import HabitacionUnificada
-from Core.servicio_habitaciones import inferir_periodos_desde_fechas
+from Core.servicio_habitaciones import inferir_periodos_desde_fechas, analizar_cobertura
 
 
 class ControladorPrecios:
@@ -92,7 +92,7 @@ class ControladorPrecios:
             return False
 
     def _calcular_y_mostrar_precios(self):
-        """Calcula precios para los periodos inferidos y emite evento con los resultados."""
+        """Calcula precios e infiere gaps para el rango de fechas."""
         fecha_entrada_str = self.estado_app.fecha_entrada_completa.get()
         fecha_salida_str = self.estado_app.fecha_salida_completa.get()
 
@@ -111,25 +111,32 @@ class ControladorPrecios:
         if not hotel_actual:
             return
 
-        # Inferir periodos aplicables para el rango de fechas
-        periodos_aplicables = inferir_periodos_desde_fechas(
-            fecha_entrada,
-            fecha_salida,
-            hotel_actual
-        )
+        # NUEVO: Analizar cobertura (periodos + gaps)
+        gap_analysis = analizar_cobertura(fecha_entrada, fecha_salida, hotel_actual)
 
-        # Si no hay periodos aplicables, mostrar advertencia y resetear precio
-        if not periodos_aplicables:
+        # Guardar en estado para que ControladorComparacion lo use
+        self.estado_app.gap_analysis_actual = gap_analysis
+
+        # Si NO hay periodos aplicables → error real (sin cobertura en absoluto)
+        if not gap_analysis.periodos_aplicables:
             self.estado_app.precio.set("(ninguna seleccionada)")
             self.event_bus.emit('precios_actualizados', {
                 'tipo': 'sin_periodos',
-                'mensaje': 'No hay periodos definidos para estas fechas'
+                'mensaje': 'Sin cobertura Excel para estas fechas',
+                'gap_analysis': gap_analysis
             })
             return
 
-        # Obtener precios para cada periodo
+        # Si hay gaps → emitir evento para que UI muestre advertencia visual
+        if gap_analysis.tiene_gaps:
+            self.event_bus.emit('gaps_detected', {
+                'gap_analysis': gap_analysis,
+                'habitacion': self.habitacion_actual.nombre if self.habitacion_actual else ''
+            })
+
+        # Obtener precios para cada periodo aplicable
         precios_data = []
-        for periodo in periodos_aplicables:
+        for periodo in gap_analysis.periodos_aplicables:
             precio = self.habitacion_actual.precio_para_periodo(periodo.id)
 
             # Buscar nombre del grupo al que pertenece el periodo
@@ -168,8 +175,9 @@ class ControladorPrecios:
                     # Todos son leyendas
                     self.estado_app.precio.set(precios_data[0]['precio'])
 
-        # Emitir evento con los precios calculados
+        # Emitir evento con los precios calculados (incluyendo gap_analysis)
         self.event_bus.emit('precios_actualizados', {
             'tipo': 'precios_calculados',
-            'precios': precios_data
+            'precios': precios_data,
+            'gap_analysis': gap_analysis  # Incluir análisis de gaps
         })

@@ -61,6 +61,7 @@ class VistaResultados(tk.Frame):
         self._text.tag_configure("bold", font=self.fonts.negrita)
         self._text.tag_configure("grande y negra", font=self.fonts.grande_negrita)
         self._text.tag_configure("tabla", font=self.fonts.tabla)
+        self._text.tag_configure("gap", font=self.fonts.tabla, foreground='#856404', background='#FFF3CD')
 
         # Expandir
         self.grid_rowconfigure(0, weight=1)
@@ -113,11 +114,12 @@ class VistaResultados(tk.Frame):
         """Hace scroll hasta el final del texto."""
         self._text.see(tk.END)
 
-    def mostrar_resultado_multiperiodo(self, resultado):
-        """Muestra resultado multi-periodo en formato de tabla comparativa.
+    def mostrar_resultado_multiperiodo(self, resultado, gap_analysis=None):
+        """Muestra resultado multi-periodo intercalando gaps cronológicamente.
 
         Args:
             resultado: ResultadoComparacionMultiperiodo con breakdown por periodo
+            gap_analysis: GapAnalysis opcional con información de gaps
         """
         self.limpiar()
 
@@ -150,42 +152,77 @@ class VistaResultados(tk.Frame):
         # Tabla comparativa
         separador = "=" * 90
         self.agregar(f"{separador}\n", tags=("tabla",))
-        header = f"{'Periodo':<15} | {'Fechas':<13} | {'Excel':>12} | {'Web':>12} | {'Estado':<8}\n"
+        header = f"{'Rango Fechas':<23} | {'Excel':>12} | {'Web':>12} | {'Estado':<20}\n"
         self.agregar(header, tags=("bold", "tabla"))
         self.agregar(f"{'-' * 90}\n", tags=("tabla",))
 
-        # Filas de periodos
-        for idx, res_periodo in enumerate(resultado.periodos, start=1):
-            periodo = res_periodo.periodo
+        # NUEVO: Mezclar periodos y gaps en orden cronológico
+        items = []
 
-            # Nombre del periodo
-            nombre_periodo = f"Periodo {periodo.id}"
+        # Agregar periodos
+        for res_periodo in resultado.periodos:
+            items.append({
+                'tipo': 'periodo',
+                'fecha_inicio': res_periodo.fecha_inicio_real or res_periodo.periodo.fecha_inicio,
+                'fecha_fin': res_periodo.fecha_fin_real or res_periodo.periodo.fecha_fin,
+                'data': res_periodo
+            })
 
-            # Fechas específicas ingresadas (overlap con periodo)
-            if res_periodo.fecha_inicio_real and res_periodo.fecha_fin_real:
-                fecha_inicio_str = res_periodo.fecha_inicio_real.strftime("%d/%m")
-                fecha_fin_str = res_periodo.fecha_fin_real.strftime("%d/%m")
-            else:
-                # Fallback a fechas del periodo completo
-                fecha_inicio_str = periodo.fecha_inicio.strftime("%d/%m")
-                fecha_fin_str = periodo.fecha_fin.strftime("%d/%m")
-            fechas_str = f"{fecha_inicio_str}-{fecha_fin_str}"
+        # Agregar gaps si existen
+        if gap_analysis and gap_analysis.gaps:
+            for gap in gap_analysis.gaps:
+                items.append({
+                    'tipo': 'gap',
+                    'fecha_inicio': gap.fecha_inicio,
+                    'fecha_fin': gap.fecha_fin,
+                    'data': gap
+                })
 
-            # Precios
-            if isinstance(res_periodo.precio_excel, (int, float)):
-                precio_excel_str = f"${res_periodo.precio_excel:.2f}"
-            else:
-                precio_excel_str = str(res_periodo.precio_excel)[:12]
+        # Ordenar por fecha de inicio
+        items.sort(key=lambda x: x['fecha_inicio'])
 
-            precio_web_str = f"${res_periodo.precio_web:.2f}"
+        # Mostrar cada item
+        for item in items:
+            if item['tipo'] == 'periodo':
+                # Mostrar fila de periodo
+                res_periodo = item['data']
+                periodo = res_periodo.periodo
 
-            # Estado
-            estado_str = "✅ OK" if res_periodo.coincide else "❌ DIFF"
+                # Fechas específicas
+                if res_periodo.fecha_inicio_real and res_periodo.fecha_fin_real:
+                    fecha_inicio_str = res_periodo.fecha_inicio_real.strftime("%d/%m/%Y")
+                    fecha_fin_str = res_periodo.fecha_fin_real.strftime("%d/%m/%Y")
+                else:
+                    fecha_inicio_str = periodo.fecha_inicio.strftime("%d/%m/%Y")
+                    fecha_fin_str = periodo.fecha_fin.strftime("%d/%m/%Y")
+                fechas_str = f"{fecha_inicio_str} - {fecha_fin_str}"
 
-            # Fila con alineación: periodo y fechas a izq, precios a derecha, estado a izq
-            fila = f"{nombre_periodo:<15} | {fechas_str:<13} | {precio_excel_str:>12} | {precio_web_str:>12} | {estado_str:<8}\n"
-            tags = ("bold", "tabla") if not res_periodo.coincide else ("tabla",)
-            self.agregar(fila, tags=tags)
+                # Precios
+                if isinstance(res_periodo.precio_excel, (int, float)):
+                    precio_excel_str = f"${res_periodo.precio_excel:.2f}"
+                else:
+                    precio_excel_str = str(res_periodo.precio_excel)[:12]
+
+                precio_web_str = f"${res_periodo.precio_web:.2f}"
+
+                # Estado
+                estado_str = "✅ OK" if res_periodo.coincide else "❌ DIFF"
+
+                # Fila
+                fila = f"{fechas_str:<23} | {precio_excel_str:>12} | {precio_web_str:>12} | {estado_str:<20}\n"
+                tags = ("bold", "tabla") if not res_periodo.coincide else ("tabla",)
+                self.agregar(fila, tags=tags)
+
+            elif item['tipo'] == 'gap':
+                # Mostrar fila de gap
+                gap = item['data']
+                fecha_inicio_str = gap.fecha_inicio.strftime("%d/%m/%Y")
+                fecha_fin_str = gap.fecha_fin.strftime("%d/%m/%Y")
+                fechas_str = f"{fecha_inicio_str} - {fecha_fin_str}"
+
+                # Fila de gap con formato especial
+                fila = f"{fechas_str:<23} | {'N/A':>12} | {'N/A':>12} | {'⚠️ SIN COBERTURA':<20}\n"
+                self.agregar(fila, tags=("gap",))
 
         self.agregar(f"{separador}\n\n", tags=("tabla",))
 

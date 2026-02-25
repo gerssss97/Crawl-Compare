@@ -28,7 +28,7 @@ class ControladorValidacion:
         self.estado_app = estado_app
 
     def validar_fecha(self, fecha_str, nombre_campo):
-        """Valida formato y existencia de fecha.
+        """Valida formato y que fecha sea hoy o posterior.
 
         Args:
             fecha_str (str): Fecha en formato DD-MM-AAAA
@@ -38,8 +38,8 @@ class ControladorValidacion:
             bool: True si es válida, False si no
         """
         try:
-            fecha_dt = datetime.strptime(fecha_str, "%d-%m-%Y")
-            fecha_actual = datetime.now()
+            fecha_dt = datetime.strptime(fecha_str, "%d-%m-%Y").date()  # CAMBIO: usar .date()
+            fecha_actual = datetime.now().date()  # CAMBIO: usar .date()
 
             if fecha_actual > fecha_dt:
                 messagebox.showerror(

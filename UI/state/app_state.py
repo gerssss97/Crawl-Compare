@@ -54,6 +54,10 @@ class AppState:
         self.habitacion_web = None  # HabitacionWeb de la última comparación
         self.resultado_multiperiodo = None  # ResultadoComparacionMultiperiodo de la última comparación
 
+        # ===== Gap analysis (cobertura de periodos) =====
+        self.gap_analysis_actual = None  # GapAnalysis | None - análisis de gaps del rango actual
+        self.gap_confirmado = False  # bool - True si usuario confirmó continuar con gaps
+
         # Configurar traces para emitir eventos
         self._setup_traces()
 
@@ -103,3 +107,5 @@ class AppState:
         self.reset_huespedes()
         self.periodos_var.set("")
         self.habitacion_web = None
+        self.gap_analysis_actual = None
+        self.gap_confirmado = False

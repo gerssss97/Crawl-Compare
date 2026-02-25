@@ -54,15 +54,27 @@ class ControladorComparacion:
         asyncio.run(self._ejecutar_comparacion())
 
     async def _ejecutar_comparacion(self):
-        """Ejecuta comparación multi-periodo asíncrona."""
+        """Ejecuta comparación multi-periodo asíncrona, validando gaps primero."""
         try:
             self.event_bus.emit('comparison_started')
 
-            # Validar
+            # Validar campos básicos
             if not self.controlador_validacion.validar_todo():
                 self.event_bus.emit('comparison_error', "Validación fallida")
                 return
 
+            # NUEVO: Verificar si hay gaps no confirmados
+            gap_analysis = getattr(self.estado_app, 'gap_analysis_actual', None)
+            gap_confirmado = getattr(self.estado_app, 'gap_confirmado', False)
+
+            if gap_analysis and gap_analysis.tiene_gaps and not gap_confirmado:
+                # Hay gaps y usuario NO confirmó aún → mostrar modal
+                self.event_bus.emit('mostrar_modal_gaps', {
+                    'gap_analysis': gap_analysis
+                })
+                return  # Esperar confirmación del usuario
+
+            # Sin gaps O usuario confirmó → proceder con comparación
             # Obtener datos del estado
             fecha_entrada_str = self.estado_app.fecha_entrada_completa.get()
             fecha_salida_str = self.estado_app.fecha_salida_completa.get()
@@ -109,6 +121,9 @@ class ControladorComparacion:
                 ninos=ninos,
                 hotel=hotel_actual
             )
+
+            # Resetear flag de gap confirmado para próxima comparación
+            self.estado_app.gap_confirmado = False
 
             # Emitir evento de éxito
             self.event_bus.emit('comparison_completed', resultado)

@@ -114,7 +114,8 @@ async def procesar_resultado_scraping(result):
 
  
     try:
-        print("Contenido extraído:", result.extracted_content)  
+        # DEBUG: Ver contenido raw antes de parsear
+        # print("Contenido extraído:", result.extracted_content)  
         hotel_data = json.loads(result.extracted_content)
 
         if not hotel_data:
@@ -201,39 +202,43 @@ async def fetch_and_process_page(
                 ),
             )
 
+            """
+            DEBUG: Guardar el contenido enviado al LLM para análisis posterior
+            comentado para no generar archivos en cada ejecución, descomentar para debug detallado
+            """
             # ===== DEBUG: Guardar contenido enviado al LLM =====
-            if result.success:
-                try:
-                    import datetime
+            # if result.success:
+            #     try:
+                    # import datetime
                     # Markdown que recibe el LLM
-                    markdown_content = result.markdown if hasattr(result, 'markdown') else result.cleaned_html
+                    # markdown_content = result.markdown if hasattr(result, 'markdown') else result.cleaned_html
 
-                    # Estadísticas
-                    num_chars = len(markdown_content)
-                    num_words = len(markdown_content.split())
-                    estimated_tokens = num_chars // 4
+                    # # Estadísticas
+                    # num_chars = len(markdown_content)
+                    # num_words = len(markdown_content.split())
+                    # estimated_tokens = num_chars // 4
 
-                    # Timestamp para el archivo
-                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                    debug_file = f"debug_llm_input_{timestamp}.txt"
+                    # # Timestamp para el archivo
+                    # timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    # debug_file = f"debug_llm_input_{timestamp}.txt"
 
-                    # Guardar todo en archivo
-                    with open(debug_file, "w", encoding="utf-8") as f:
-                        f.write("="*80 + "\n")
-                        f.write("DEBUG: CONTENIDO ENVIADO AL LLM\n")
-                        f.write("="*80 + "\n\n")
-                        f.write(f"Caracteres: {num_chars:,}\n")
-                        f.write(f"Palabras: {num_words:,}\n")
-                        f.write(f"Tokens estimados: {estimated_tokens:,}\n")
-                        f.write(f"URL: {url_completa}\n")
-                        f.write("\n" + "="*80 + "\n")
-                        f.write("CONTENIDO MARKDOWN:\n")
-                        f.write("="*80 + "\n\n")
-                        f.write(markdown_content)
+                    # # Guardar todo en archivo
+                    # with open(debug_file, "w", encoding="utf-8") as f:
+                    #     f.write("="*80 + "\n")
+                    #     f.write("DEBUG: CONTENIDO ENVIADO AL LLM\n")
+                    #     f.write("="*80 + "\n\n")
+                    #     f.write(f"Caracteres: {num_chars:,}\n")
+                    #     f.write(f"Palabras: {num_words:,}\n")
+                    #     f.write(f"Tokens estimados: {estimated_tokens:,}\n")
+                    #     f.write(f"URL: {url_completa}\n")
+                    #     f.write("\n" + "="*80 + "\n")
+                    #     f.write("CONTENIDO MARKDOWN:\n")
+                    #     f.write("="*80 + "\n\n")
+                    #     f.write(markdown_content)
 
-                    print(f"[DEBUG] Contenido LLM guardado en: {debug_file} ({num_chars:,} chars, ~{estimated_tokens:,} tokens)")
-                except Exception as e:
-                    print(f"[DEBUG] Error guardando debug: {e}")
+                    # print(f"[DEBUG] Contenido LLM guardado en: {debug_file} ({num_chars:,} chars, ~{estimated_tokens:,} tokens)")
+                # except Exception as e:
+                #     print(f"[DEBUG] Error guardando debug: {e}")
             # ===== FIN DEBUG =====
             # Verifica si los datos están completos
             if result.success and result.extracted_content:
@@ -241,12 +246,72 @@ async def fetch_and_process_page(
                 if habitaciones_data and len(habitaciones_data) > 0:
                     print(f"Datos extraídos exitosamente en el intento {intento + 1}")
                     return await procesar_resultado_scraping(result)
-            
+
+            # ===== DEBUG: Guardar HTML cuando datos incompletos =====
             print(f"Intento {intento + 1} falló o datos incompletos. Esperando {delay_between_retries} segundos...")
+            try:
+                import datetime
+                from pathlib import Path
+
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                debug_dir = Path("debug_html_errors")
+                debug_dir.mkdir(exist_ok=True)
+
+                html_file = debug_dir / f"incomplete_data_{timestamp}_intento{intento+1}.html"
+                html_file.write_text(result.html if hasattr(result, 'html') else "NO HTML", encoding='utf-8')
+
+                meta_file = debug_dir / f"incomplete_meta_{timestamp}_intento{intento+1}.txt"
+                with open(meta_file, "w", encoding="utf-8") as f:
+                    f.write(f"Razón: Datos incompletos o vacíos\n")
+                    f.write(f"URL: {url_completa}\n")
+                    f.write(f"Intento: {intento + 1}/{max_retries}\n")
+                    f.write(f"Success: {result.success}\n")
+                    f.write(f"Extracted Content: {result.extracted_content}\n")
+                    f.write(f"HTML Length: {len(result.html) if hasattr(result, 'html') else 'N/A'}\n")
+
+                print(f"[DEBUG] HTML incompleto guardado en: {html_file}")
+                print(f"[DEBUG] Metadata guardada en: {meta_file}")
+            except Exception as debug_error:
+                print(f"[DEBUG] Error guardando debug de datos incompletos: {debug_error}")
+            # ===== FIN DEBUG =====
+
             await asyncio.sleep(delay_between_retries)
 
         except Exception as e:
             print(f"Error en intento {intento + 1}: {str(e)}")
+
+            # ===== DEBUG: Guardar HTML en caso de error =====
+            try:
+                import datetime
+                from pathlib import Path
+
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                debug_dir = Path("debug_html_errors")
+                debug_dir.mkdir(exist_ok=True)
+
+                # Guardar HTML raw si está disponible
+                if 'result' in locals() and hasattr(result, 'html') and result.html:
+                    html_file = debug_dir / f"error_html_{timestamp}_intento{intento+1}.html"
+                    html_file.write_text(result.html, encoding='utf-8')
+                    print(f"[DEBUG] HTML guardado en: {html_file}")
+
+                    # También guardar metadata del error
+                    meta_file = debug_dir / f"error_meta_{timestamp}_intento{intento+1}.txt"
+                    with open(meta_file, "w", encoding="utf-8") as f:
+                        f.write(f"Error: {str(e)}\n")
+                        f.write(f"URL: {url_completa}\n")
+                        f.write(f"Intento: {intento + 1}/{max_retries}\n")
+                        f.write(f"Success: {result.success if 'result' in locals() else 'N/A'}\n")
+                        f.write(f"HTML Length: {len(result.html) if 'result' in locals() and hasattr(result, 'html') else 'N/A'}\n")
+                        f.write(f"Extracted Content: {result.extracted_content if 'result' in locals() and hasattr(result, 'extracted_content') else 'N/A'}\n")
+                        f.write(f"Error Message: {result.error_message if 'result' in locals() and hasattr(result, 'error_message') else 'N/A'}\n")
+                    print(f"[DEBUG] Metadata guardada en: {meta_file}")
+                else:
+                    print(f"[DEBUG] No hay HTML disponible para guardar (result no existe o no tiene HTML)")
+            except Exception as debug_error:
+                print(f"[DEBUG] Error guardando debug HTML: {debug_error}")
+            # ===== FIN DEBUG =====
+
             if intento < max_retries - 1:
                 await asyncio.sleep(delay_between_retries)
             else:

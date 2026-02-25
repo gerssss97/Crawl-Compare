@@ -121,8 +121,8 @@ class PrecioPanel(BaseComponent):
             anchor='w'
         ).pack(fill='both')
 
-    def mostrar_precios_multiples(self, precios_data):
-        """Muestra múltiples precios organizados por periodo.
+    def mostrar_precios_multiples(self, precios_data, gap_analysis=None):
+        """Muestra múltiples precios organizados por periodo + advertencia de gaps.
 
         Args:
             precios_data: Lista de dicts con estructura:
@@ -131,6 +131,7 @@ class PrecioPanel(BaseComponent):
                     'precio': float | str,
                     'nombre_grupo': str
                 }
+            gap_analysis: GapAnalysis opcional con información de gaps detectados
         """
         # Limpiar contenido anterior
         for widget in self._contenedor_precios.winfo_children():
@@ -139,6 +140,41 @@ class PrecioPanel(BaseComponent):
         if not precios_data:
             self._mostrar_mensaje("(Ingrese fechas para ver precios)")
             return
+
+        # Si hay gaps, mostrar advertencia primero
+        if gap_analysis and gap_analysis.tiene_gaps:
+            gap_frame = tk.Frame(
+                self._contenedor_precios,
+                bg='#FFF3CD',
+                relief=tk.SOLID,
+                borderwidth=2
+            )
+            gap_frame.pack(fill='x', padx=5, pady=(5, 10))
+
+            # Título de advertencia
+            tk.Label(
+                gap_frame,
+                text="⚠️ Cobertura Parcial",
+                font=self.fonts.negrita if self.fonts else None,
+                bg='#FFF3CD',
+                fg='#856404',
+                anchor='w'
+            ).pack(fill='x', padx=8, pady=(8, 2))
+
+            # Descripción de gaps
+            tk.Label(
+                gap_frame,
+                text=gap_analysis.get_gap_description(),
+                font=self.fonts.normal if self.fonts else None,
+                bg='#FFF3CD',
+                fg='#856404',
+                anchor='w',
+                justify='left',
+                wraplength=350
+            ).pack(fill='x', padx=8, pady=(2, 8))
+
+            # Vincular mousewheel al frame de gaps
+            self._bind_mousewheel_to_widget(gap_frame)
 
         # Crear entrada por cada periodo
         for i, item in enumerate(precios_data):
