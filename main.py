@@ -1,7 +1,40 @@
 from Core.gestor_datos import *
-##from UI.interfaz import run_interfaz
+
+# ============================================================
+# CONFIGURACION DE UI
+# True  = nueva interfaz CustomTkinter
+# False = interfaz legacy tkinter
+# ============================================================
+USE_CUSTOMTKINTER = True
+
+if USE_CUSTOMTKINTER:
+    import customtkinter as ctk
+    from UI.interfaz_ctk import CrawlCompareGUI
+else:
+    import tkinter as tk
+    from UI.interfaz import InterfazApp as CrawlCompareGUI
+
+
+def run_app():
+    """Lanza la interfaz seleccionada por el toggle."""
+    if USE_CUSTOMTKINTER:
+        root = ctk.CTk()
+        app = CrawlCompareGUI(root)
+    else:
+        root = tk.Tk()
+        app = CrawlCompareGUI(root)
+    root.mainloop()
+
 
 if __name__ == "__main__":
+    run_app()
+
+
+# ============================================================
+# Codigo de test / debug (descomentar segun necesidad)
+# ============================================================
+def _test_datos():
+    """Imprime un resumen del Excel para verificar la carga."""
     
      # Test de extracción
     path_excel = "./Data/Extracto2.xlsx"  # ajusta la ruta según tu estructura
