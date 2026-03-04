@@ -64,7 +64,8 @@ class GestorDatos:
 
         # Check caché en memoria (solo si no forzamos fresco)
         if not force_fresh:
-            if (self.__last_fecha_ingreso == fecha_ingreso and
+            if (self.__hotel_web is not None and
+                self.__last_fecha_ingreso == fecha_ingreso and
                 self.__last_fecha_egreso == fecha_egreso and
                 self.__last_adultos == adultos and
                 self.__last_niños == niños):

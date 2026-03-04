@@ -22,7 +22,7 @@
 
 ```bash
 # Activar entorno conda
-conda activate deep-seek-crawler
+conda activate crawler
 
 # Instalar CustomTkinter
 pip install customtkinter

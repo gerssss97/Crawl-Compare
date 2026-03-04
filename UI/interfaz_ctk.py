@@ -353,9 +353,7 @@ class CrawlCompareGUI:
         nombres = [h.nombre.replace("(A)", "").replace("(a)", "").strip() for h in self.hoteles_excel]
         self.hotel_combo.set_values(nombres)
 
-        if nombres:
-            self.state.hotel.set(nombres[0])
-            self._on_hotel_changed(nombres[0])
+        # No autoseleccionar — el usuario elige desde el dropdown
 
     def _cargar_edificios(self, hotel_nombre):
         """Carga los edificios para el hotel dado."""
@@ -388,6 +386,7 @@ class CrawlCompareGUI:
             self.edificio_combo.pack(fill="x", pady=(0, Spacing.FORM_GAP))
             self.habitacion_combo.pack(fill="x")
             self._edificio_visible = True
+            self.edificio_combo.update_idletasks()  # fuerza render del label interno
 
     def _ocultar_edificio(self):
         """Oculta el combo de edificio."""
@@ -440,14 +439,14 @@ class CrawlCompareGUI:
             if not nombre or not self.state.habitaciones_unificadas:
                 return
 
-            # Obtener indice por nombre dentro de los valores del combobox
-            valores = list(self.habitacion_combo.combobox.cget("values"))
-            try:
-                idx = valores.index(nombre)
-            except ValueError:
+            # Buscar por nombre directamente (más robusto que por índice)
+            habitacion_unificada = next(
+                (h for h in self.state.habitaciones_unificadas if h.nombre == nombre),
+                None,
+            )
+            if habitacion_unificada is None:
                 return
 
-            habitacion_unificada = self.state.habitaciones_unificadas[idx]
             self.event_bus.emit("habitacion_unificada_changed", habitacion_unificada)
             self._actualizar_periodos(habitacion_unificada)
 

@@ -67,6 +67,7 @@ class CTkLabeledComboBox(CTkBaseComponent):
             text=label_text,
             font=(Typography.FAMILY, Typography.BODY, Typography.BOLD),
             text_color=Colors.TEXT_PRIMARY,
+            fg_color="transparent",
             anchor='w'
         )
         self.label.pack(fill='x', pady=(0, Spacing.SM))
@@ -78,6 +79,7 @@ class CTkLabeledComboBox(CTkBaseComponent):
             values=self.values,
             textvariable=self.textvariable,
             command=self.command,
+            placeholder_text=f"Seleccionar {self.label_text.lower()}...",
         )
         self.combobox.pack(fill='x', expand=True)
     

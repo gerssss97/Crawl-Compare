@@ -155,9 +155,9 @@ async def comparar_multiperiodo(
             if not hotel_web or not hotel_web.habitacion:
                 raise ValueError(f"Error scrapeando periodo {idx}")
 
-            # Fuzzy matching SOLO en primer periodo
-            if idx == 1:
-                print("→ Realizando fuzzy matching (primer periodo)...")
+            # Fuzzy matching en el primer periodo exitoso (idx==1 o si el anterior falló)
+            if habitacion_web_matcheada is None:
+                print("→ Realizando fuzzy matching...")
                 habitacion_web_matcheada, mensaje_match = obtener_mejor_match_con_breakfast(
                     habitacion_unificada.nombre,
                     hotel_web.habitacion

@@ -13,12 +13,13 @@ class CTkCustomDropdown(ctk.CTkFrame):
     - No permite editar el texto
     """
 
-    def __init__(self, parent, values=None, textvariable=None, command=None, **kwargs):
+    def __init__(self, parent, values=None, textvariable=None, command=None, placeholder_text="Seleccionar...", **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
 
         self.values = values or []
         self.textvariable = textvariable
         self.command = command
+        self._placeholder_text = placeholder_text
         self._dropdown_open = False
         self._dropdown_window = None
 
@@ -26,21 +27,27 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.main_frame.pack(fill="x")
 
-        # Entry (no editable)
-        self.entry = ctk.CTkEntry(
+        # Frame que simula un entry (sin canvas interno que cause redibujados)
+        self.entry = ctk.CTkFrame(
             self.main_frame,
-            placeholder_text="Seleccionar...",
-            font=(Typography.FAMILY, Typography.BODY),
             fg_color=Colors.SURFACE,
             border_color=Colors.BORDER,
-            text_color=Colors.TEXT_PRIMARY,
-            placeholder_text_color=Colors.TEXT_DISABLED,
             corner_radius=Spacing.RADIUS_MD,
             border_width=1,
-            height=40,
+            cursor="hand2",
         )
         self.entry.pack(side="left", fill="x", expand=True, padx=(0, Spacing.SM))
-        self.entry.configure(state="readonly")
+
+        self._display_label = ctk.CTkLabel(
+            self.entry,
+            text=placeholder_text,
+            font=(Typography.FAMILY, Typography.BODY),
+            text_color=Colors.TEXT_DISABLED,
+            fg_color="transparent",
+            anchor="w",
+            height=40,
+        )
+        self._display_label.pack(fill="x", padx=Spacing.SM)
 
         # Botón dropdown
         self.button = ctk.CTkButton(
@@ -52,11 +59,30 @@ class CTkCustomDropdown(ctk.CTkFrame):
             hover_color=Colors.PRIMARY,
             text_color=Colors.TEXT_PRIMARY,
             corner_radius=Spacing.RADIUS_MD,
-            command=self._toggle_dropdown,
+            command=self._on_button_click,
         )
         self.button.pack(side="right", padx=(Spacing.SM, 0))
 
-        self.entry.bind("<Button-1>", lambda _: self._toggle_dropdown())
+        self.entry.bind("<Button-1>", lambda _: self._toggle_dropdown(), add="+")
+        self._display_label.bind("<Button-1>", lambda _: self._toggle_dropdown(), add="+")
+
+        # Sincronizar el entry cuando la StringVar cambia externamente
+        if self.textvariable:
+            self.textvariable.trace_add("write", self._on_textvariable_changed)
+
+    def _on_button_click(self):
+        self._toggle_dropdown()
+
+    def _on_textvariable_changed(self, *args):
+        value = self.textvariable.get()
+        self._set_display(value)
+
+    def _set_display(self, value):
+        """Actualiza el label de display con el valor o el placeholder."""
+        if value:
+            self._display_label.configure(text=value, text_color=Colors.TEXT_PRIMARY)
+        else:
+            self._display_label.configure(text=self._placeholder_text, text_color=Colors.TEXT_DISABLED)
 
     def _toggle_dropdown(self):
         if self._dropdown_open:
@@ -106,21 +132,34 @@ class CTkCustomDropdown(ctk.CTkFrame):
             )
             btn.pack(fill="x", pady=2)
 
-        self._dropdown_window.bind("<FocusOut>", lambda e: self._close_dropdown())
-        self._dropdown_window.focus()
+        # Cerrar al hacer click fuera del dropdown (no con FocusOut, que se dispara
+        # inmediatamente cuando el botón roba el foco cerrando el dropdown al instante)
+        self.winfo_toplevel().bind("<Button-1>", self._on_click_outside, add="+")
+
+    def _on_click_outside(self, event):
+        """Cierra el dropdown si el click fue fuera de la ventana del dropdown."""
+        if self._dropdown_window is None:
+            return
+        # Verificar si el click fue dentro de la ventana del dropdown
+        win = self._dropdown_window
+        wx, wy = win.winfo_rootx(), win.winfo_rooty()
+        ww, wh = win.winfo_width(), win.winfo_height()
+        if not (wx <= event.x_root <= wx + ww and wy <= event.y_root <= wy + wh):
+            self._close_dropdown()
 
     def _close_dropdown(self):
+        self.winfo_toplevel().unbind("<Button-1>")
         if self._dropdown_window:
             self._dropdown_window.destroy()
             self._dropdown_window = None
         self._dropdown_open = False
 
     def _select_option(self, value):
-        if self.textvariable:
-            self.textvariable.set(value)
-        self.entry.delete(0, "end")
-        self.entry.insert(0, value)
         self._close_dropdown()
+        if self.textvariable:
+            self.textvariable.set(value)  # dispara _on_textvariable_changed → _set_display
+        else:
+            self._set_display(value)
         if self.command:
             self.command(value)
 
@@ -128,11 +167,11 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self.values = values
 
     def get(self):
-        return self.entry.get()
+        text = self._display_label.cget("text")
+        return "" if text == self._placeholder_text else text
 
     def set(self, value):
-        self.entry.delete(0, "end")
-        self.entry.insert(0, value)
+        self._set_display(value)
         if self.textvariable:
             self.textvariable.set(value)
 
