@@ -1,4 +1,5 @@
 import asyncio
+from typing import Callable, Optional
 from crawl4ai import AsyncWebCrawler
 from dotenv import load_dotenv
 from .config import BASE_URL, CSS_SELECTOR
@@ -14,7 +15,13 @@ from .utils.scraper_utils import (
 load_dotenv()
 
 
-async def crawl_alvear(fecha_ingreso,fecha_egreso,adultos,niños) -> Optional[HotelWeb] :
+async def crawl_alvear(
+    fecha_ingreso,
+    fecha_egreso,
+    adultos,
+    niños,
+    on_scrape_step: Optional[Callable[[str], None]] = None,
+) -> Optional[HotelWeb]:
     browser_config = get_browser_config()
     llm_strategy = get_llm_strategy()
     session_id = "hotel_crawl_session"
@@ -47,6 +54,7 @@ async def crawl_alvear(fecha_ingreso,fecha_egreso,adultos,niños) -> Optional[Ho
             CSS_SELECTOR,
             llm_strategy,
             session_id,
+            on_scrape_step=on_scrape_step,
         )
         #llm_strategy.show_usage()
     return hotel

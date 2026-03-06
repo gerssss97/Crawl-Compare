@@ -1,9 +1,8 @@
 import json
 import os
-from typing import List, Set, Tuple
+from typing import List, Set, Tuple, Callable, Optional
 from urllib.parse import urlencode
 import asyncio
-from typing import Optional
 
 from crawl4ai import (
     AsyncWebCrawler,
@@ -165,13 +164,40 @@ async def fetch_and_process_page(
     session_id: str,
     nombre_hotel: str = "Alvear Palace Hotel",
     max_retries: int = 3,
-    delay_between_retries: int = 5
+    delay_between_retries: int = 5,
+    on_scrape_step: Optional[Callable[[str], None]] = None,
 ) -> Optional[HotelWeb]:
-    
+
     url_completa = f"{base_url}?{urlencode(params)}"
     print(f"Loading hotel page: {url_completa}...")
 
-    
+    def _notify(step: str):
+        if on_scrape_step:
+            on_scrape_step(step)
+
+    # Hooks que mapean las etapas internas del crawl a pasos visibles
+    async def _before_goto(page, context, url, **kwargs):
+        _notify("FETCH")
+        return page
+
+    async def _after_goto(page, context, url, response, **kwargs):
+        _notify("SCRAPE")
+        return page
+
+    async def _before_retrieve_html(page, context, **kwargs):
+        _notify("EXTRACT")
+        return page
+
+    async def _before_return_html(page, context, html, **kwargs):
+        _notify("COMPLETE")
+        return page
+
+    _notify("INIT")
+    crawler.crawler_strategy.set_hook("before_goto", _before_goto)
+    crawler.crawler_strategy.set_hook("after_goto", _after_goto)
+    crawler.crawler_strategy.set_hook("before_retrieve_html", _before_retrieve_html)
+    crawler.crawler_strategy.set_hook("before_return_html", _before_return_html)
+
     for intento in range(max_retries):
         try:
         #ejecuta el crawl
@@ -250,6 +276,6 @@ async def fetch_and_process_page(
             if intento < max_retries - 1:
                 await asyncio.sleep(delay_between_retries)
             else:
-                raise Exception(f"Fallaron todos los intentos de extracción: {str(e)}")
+                raise Exception(f"Fallaron todos los intentos de extracción: {str(e)}\nURL: {url_completa}")
 
-    raise Exception("No se pudieron obtener datos completos después de todos los reintentos")
+    raise Exception(f"No se pudieron obtener datos completos después de todos los reintentos\nURL: {url_completa}")

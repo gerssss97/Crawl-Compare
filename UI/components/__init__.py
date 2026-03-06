@@ -17,6 +17,7 @@ from .ctk_date_input import CTkDateInput
 from .ctk_labeled_entry import CTkLabeledEntry
 from .ctk_precio_panel import CTkPrecioPanel
 from .ctk_periodos_panel import CTkPeriodosPanel
+from .ctk_progress_panel import CTkProgressPanel
 
 __all__ = [
     # Legacy
@@ -35,4 +36,5 @@ __all__ = [
     'CTkLabeledEntry',
     'CTkPrecioPanel',
     'CTkPeriodosPanel',
+    'CTkProgressPanel',
 ]

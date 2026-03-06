@@ -45,9 +45,9 @@ class CTkCustomDropdown(ctk.CTkFrame):
             text_color=Colors.TEXT_DISABLED,
             fg_color="transparent",
             anchor="w",
-            height=40,
+            height=36,
         )
-        self._display_label.pack(fill="x", padx=Spacing.SM)
+        self._display_label.pack(fill="x", padx=Spacing.SM, pady=2)
 
         # Botón dropdown
         self.button = ctk.CTkButton(

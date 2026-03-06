@@ -101,13 +101,25 @@ class ControladorComparacion:
             # Ejecutar comparación multi-periodo
             from Core.comparador_multiperiodo import comparar_multiperiodo
 
+            def _on_progress(periodo_actual, total, estado):
+                self.event_bus.emit('comparison_progress', {
+                    'periodo_actual': periodo_actual,
+                    'total': total,
+                    'estado': estado,
+                })
+
+            def _on_scrape_step(step):
+                self.event_bus.emit('scrape_step', {'step': step})
+
             resultado = await comparar_multiperiodo(
                 habitacion_unificada=habitacion_unificada,
                 fecha_entrada=fecha_entrada,
                 fecha_salida=fecha_salida,
                 adultos=adultos,
                 ninos=ninos,
-                hotel=hotel_actual
+                hotel=hotel_actual,
+                on_progress=_on_progress,
+                on_scrape_step=_on_scrape_step,
             )
 
             # Emitir evento de éxito

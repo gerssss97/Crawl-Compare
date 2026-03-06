@@ -51,7 +51,8 @@ class ResultadoPeriodo:
 
     def __init__(self, periodo: Periodo, precio_excel: float | str,
                  precio_web: float, diferencia: float, coincide: bool,
-                 fecha_inicio_real: date = None, fecha_fin_real: date = None):
+                 fecha_inicio_real: date = None, fecha_fin_real: date = None,
+                 error_msg: str = None, error_url: str = None):
         self.periodo = periodo
         self.precio_excel = precio_excel
         self.precio_web = precio_web
@@ -59,6 +60,8 @@ class ResultadoPeriodo:
         self.coincide = coincide
         self.fecha_inicio_real = fecha_inicio_real  # Fecha específica ingresada (overlap con periodo)
         self.fecha_fin_real = fecha_fin_real  # Fecha específica ingresada (overlap con periodo)
+        self.error_msg = error_msg  # Mensaje de error si el scraping falló
+        self.error_url = error_url  # URL que se intentó acceder
 
 
 class ResultadoComparacionMultiperiodo:
@@ -82,7 +85,9 @@ async def comparar_multiperiodo(
     fecha_salida: date,
     adultos: int,
     ninos: int,
-    hotel: HotelExcel
+    hotel: HotelExcel,
+    on_progress=None,  # callable(periodo_actual: int, total: int, estado: str) | None
+    on_scrape_step=None,  # callable(step: str) | None - pasos dentro del scraping
 ) -> ResultadoComparacionMultiperiodo:
     """Compara habitación Excel vs Web para múltiples periodos.
 
@@ -126,9 +131,14 @@ async def comparar_multiperiodo(
     habitacion_web_matcheada = None
     mensaje_match = None
 
+    total_periodos = len(periodos_aplicables)
+
     # Paso 2: Loop secuencial por cada periodo
     for idx, periodo in enumerate(periodos_aplicables, start=1):
-        print(f"\n--- PERIODO {idx}/{len(periodos_aplicables)} ---")
+        print(f"\n--- PERIODO {idx}/{total_periodos} ---")
+
+        if on_progress:
+            on_progress(idx, total_periodos, f"Scrapeando periodo {idx}/{total_periodos}...")
 
         try:
             # Calcular fechas específicas para scraping (overlap entre reserva y periodo)
@@ -149,7 +159,8 @@ async def comparar_multiperiodo(
                 ninos,
                 force_fresh=False,     # Cambia a True para scraping fresco
                 use_pickle=False,      # False para multi-periodo
-                force_pickle=False      # MODO TESTING: Carga pickle directo
+                force_pickle=False,    # MODO TESTING: Carga pickle directo
+                on_scrape_step=on_scrape_step,
             )
 
             if not hotel_web or not hotel_web.habitacion:
@@ -158,6 +169,8 @@ async def comparar_multiperiodo(
             # Fuzzy matching en el primer periodo exitoso (idx==1 o si el anterior falló)
             if habitacion_web_matcheada is None:
                 print("→ Realizando fuzzy matching...")
+                if on_progress:
+                    on_progress(idx, total_periodos, f"Periodo {idx}: buscando habitacion...")
                 habitacion_web_matcheada, mensaje_match = obtener_mejor_match_con_breakfast(
                     habitacion_unificada.nombre,
                     hotel_web.habitacion
@@ -215,6 +228,10 @@ async def comparar_multiperiodo(
                 coincide = True  # No comparamos leyendas
                 print(f"→ Precio Excel es leyenda: {precio_excel}")
 
+            estado_periodo = "OK" if coincide else "DISCREPANCIA"
+            if on_progress:
+                on_progress(idx, total_periodos, f"Periodo {idx}: {estado_periodo}")
+
             # Guardar resultado del periodo con fechas específicas
             resultados_periodos.append(ResultadoPeriodo(
                 periodo=periodo,
@@ -228,12 +245,23 @@ async def comparar_multiperiodo(
 
         except Exception as e:
             # Error en periodo individual - continuar con los demás
-            print(f"⚠️ ERROR en periodo {idx}: {str(e)}")
+            error_str = str(e)
+            print(f"ERROR en periodo {idx}: {error_str}")
             print("→ Continuando con siguiente periodo...")
+            if on_progress:
+                on_progress(idx, total_periodos, f"Periodo {idx}: error")
 
             # Calcular fechas específicas incluso en error (para mostrarlas en tabla)
             fecha_scrape_inicio = max(fecha_entrada, periodo.fecha_inicio)
             fecha_scrape_fin = min(fecha_salida, periodo.fecha_fin)
+
+            # Extraer URL del mensaje de error si está presente
+            error_url = None
+            error_msg_clean = error_str
+            if "\nURL: " in error_str:
+                partes = error_str.split("\nURL: ", 1)
+                error_msg_clean = partes[0]
+                error_url = partes[1].strip()
 
             # Agregar resultado con error
             resultados_periodos.append(ResultadoPeriodo(
@@ -243,7 +271,9 @@ async def comparar_multiperiodo(
                 diferencia=0.0,
                 coincide=False,
                 fecha_inicio_real=fecha_scrape_inicio,
-                fecha_fin_real=fecha_scrape_fin
+                fecha_fin_real=fecha_scrape_fin,
+                error_msg=error_msg_clean,
+                error_url=error_url,
             ))
 
         # Delay entre requests para evitar IP ban (excepto en último periodo)

@@ -34,7 +34,7 @@ class GestorDatos:
             raise ValueError(f"[ERROR] No se encontró una coincidencia para el combo", habitacion_excel)
         return 
 
-    async def obtener_hotel_web(self, fecha_ingreso, fecha_egreso, adultos, niños, force_fresh=False, use_pickle=True, force_pickle=False):
+    async def obtener_hotel_web(self, fecha_ingreso, fecha_egreso, adultos, niños, force_fresh=False, use_pickle=True, force_pickle=False, on_scrape_step=None):
         """Obtiene datos del hotel web, con control granular de caché.
 
         Args:
@@ -95,7 +95,7 @@ class GestorDatos:
         fecha_ingreso_iso = datetime.strptime(fecha_ingreso, "%d-%m-%Y").strftime("%Y-%m-%d")
         fecha_egreso_iso = datetime.strptime(fecha_egreso, "%d-%m-%Y").strftime("%Y-%m-%d")
 
-        self.__hotel_web = await crawl_alvear(fecha_ingreso_iso, fecha_egreso_iso, adultos, niños)
+        self.__hotel_web = await crawl_alvear(fecha_ingreso_iso, fecha_egreso_iso, adultos, niños, on_scrape_step=on_scrape_step)
         self.__habitaciones_web = self.__hotel_web.habitacion
 
         # Guardar en archivo pickle (solo si use_pickle=True)
