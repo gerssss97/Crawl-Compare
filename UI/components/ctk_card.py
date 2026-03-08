@@ -79,12 +79,21 @@ class CTkCard(CTkBaseComponent):
             pady=(Spacing.CARD_PADDING, Spacing.SM)
         )
         
+        # Ícono con fuente del sistema para emojis a color
+        if self.icon:
+            icon_label = ctk.CTkLabel(
+                title_frame,
+                text=self.icon,
+                font=("Segoe UI", Typography.SMALL),
+                text_color=Colors.TEXT_SECONDARY,
+                anchor='w'
+            )
+            icon_label.pack(side='left', padx=(0, Spacing.XS))
+
         # Texto del título
-        title_text = f"{self.icon} {self.title_text}" if self.icon else self.title_text
-        
         title_label = ctk.CTkLabel(
             title_frame,
-            text=title_text,
+            text=self.title_text,
             font=(Typography.FAMILY, Typography.SMALL, Typography.BOLD),
             text_color=Colors.TEXT_SECONDARY,
             anchor='w'

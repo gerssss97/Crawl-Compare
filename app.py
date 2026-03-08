@@ -21,7 +21,8 @@ if __name__ == "__main__":
     if raiz_proyecto not in sys.path:
         sys.path.insert(0, raiz_proyecto)
 
-from UI.interfaz import run_interfaz
+import customtkinter as ctk
+from UI.interfaz_ctk import CrawlCompareGUI
 
 
 def main():
@@ -32,7 +33,9 @@ def main():
     print()
 
     try:
-        run_interfaz()
+        root = ctk.CTk()
+        CrawlCompareGUI(root)
+        root.mainloop()
     except KeyboardInterrupt:
         print("\n\nAplicación cerrada por el usuario.")
         sys.exit(0)

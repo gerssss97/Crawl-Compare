@@ -1,28 +1,12 @@
+import customtkinter as ctk
 from Core.gestor_datos import *
-
-# ============================================================
-# CONFIGURACION DE UI
-# True  = nueva interfaz CustomTkinter
-# False = interfaz legacy tkinter
-# ============================================================
-USE_CUSTOMTKINTER = True
-
-if USE_CUSTOMTKINTER:
-    import customtkinter as ctk
-    from UI.interfaz_ctk import CrawlCompareGUI
-else:
-    import tkinter as tk
-    from UI.interfaz import InterfazApp as CrawlCompareGUI
+from UI.interfaz_ctk import CrawlCompareGUI
 
 
 def run_app():
-    """Lanza la interfaz seleccionada por el toggle."""
-    if USE_CUSTOMTKINTER:
-        root = ctk.CTk()
-        app = CrawlCompareGUI(root)
-    else:
-        root = tk.Tk()
-        app = CrawlCompareGUI(root)
+    """Lanza la interfaz CustomTkinter."""
+    root = ctk.CTk()
+    app = CrawlCompareGUI(root)
     root.mainloop()
 
 
