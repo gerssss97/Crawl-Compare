@@ -4,6 +4,7 @@ class Spacing:
     """Espaciados estandarizados del sistema."""
     
     # Espaciados base
+    XXS = 2
     XS = 4
     SM = 8
     MD = 16

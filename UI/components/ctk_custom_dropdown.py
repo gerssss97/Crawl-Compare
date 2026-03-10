@@ -13,7 +13,7 @@ class CTkCustomDropdown(ctk.CTkFrame):
     - No permite editar el texto
     """
 
-    def __init__(self, parent, values=None, textvariable=None, command=None, placeholder_text="Seleccionar...", **kwargs):
+    def __init__(self, parent, values=None, textvariable=None, command=None, placeholder_text="Seleccionar...", width=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
 
         self.values = values or []
@@ -22,10 +22,11 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self._placeholder_text = placeholder_text
         self._dropdown_open = False
         self._dropdown_window = None
+        self._fixed_width = width
 
         # Frame principal con entrada y botón
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.main_frame.pack(fill="x")
+        self.main_frame.pack(fill="x" if width is None else "none")
 
         # Frame que simula un entry (sin canvas interno que cause redibujados)
         self.entry = ctk.CTkFrame(
@@ -36,7 +37,13 @@ class CTkCustomDropdown(ctk.CTkFrame):
             border_width=1,
             cursor="hand2",
         )
-        self.entry.pack(side="left", fill="x", expand=True, padx=(0, Spacing.SM))
+        if width is not None:
+            entry_width = width - 40 - Spacing.XXS
+            self.entry.configure(width=entry_width)
+            self.entry.pack(side="left", padx=(0, Spacing.XXS))
+            self.entry.pack_propagate(False)
+        else:
+            self.entry.pack(side="left", fill="x", expand=True, padx=(0, Spacing.XXS))
 
         self._display_label = ctk.CTkLabel(
             self.entry,
@@ -47,7 +54,7 @@ class CTkCustomDropdown(ctk.CTkFrame):
             anchor="w",
             height=36,
         )
-        self._display_label.pack(fill="x", padx=Spacing.SM, pady=2)
+        self._display_label.pack(fill="x", padx=(Spacing.SM, Spacing.SM), pady=2)
 
         # Botón dropdown
         self.button = ctk.CTkButton(
@@ -61,7 +68,7 @@ class CTkCustomDropdown(ctk.CTkFrame):
             corner_radius=Spacing.RADIUS_MD,
             command=self._on_button_click,
         )
-        self.button.pack(side="right", padx=(Spacing.SM, 0))
+        self.button.pack(side="right", padx=(Spacing.XXS, 0))
 
         self.entry.bind("<Button-1>", lambda _: self._toggle_dropdown(), add="+")
         self._display_label.bind("<Button-1>", lambda _: self._toggle_dropdown(), add="+")
@@ -109,12 +116,15 @@ class CTkCustomDropdown(ctk.CTkFrame):
 
         self._dropdown_window = ctk.CTkToplevel(self)
         self._dropdown_window.wm_overrideredirect(True)
-        self._dropdown_window.configure(fg_color=Colors.SURFACE)
-        self._dropdown_window.geometry(f"{width_ctk}x300+{x}+{y}")
+        self._dropdown_window.configure(fg_color=Colors.SUCCESS)
+        item_height = 42
+        max_height = 100
+        height = min(len(self.values) * item_height, max_height)
+        self._dropdown_window.geometry(f"{width_ctk}x{height}+{x}+{y}")
 
         scroll_frame = ctk.CTkScrollableFrame(
             self._dropdown_window,
-            fg_color=Colors.SURFACE,
+            fg_color=Colors.WARNING,
             scrollbar_button_color=Colors.BORDER,
             scrollbar_button_hover_color=Colors.PRIMARY,
         )
@@ -124,7 +134,7 @@ class CTkCustomDropdown(ctk.CTkFrame):
             btn = ctk.CTkButton(
                 scroll_frame,
                 text=value,
-                fg_color="transparent",
+                fg_color=Colors.SUCCESS,
                 hover_color=Colors.PRIMARY_LIGHT,
                 text_color=Colors.TEXT_PRIMARY,
                 anchor="w",

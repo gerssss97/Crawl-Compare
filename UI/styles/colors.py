@@ -21,7 +21,7 @@ class Colors:
     # Neutrales
     BACKGROUND = "#F8FAFC"        # Fondo app
     SURFACE = "#FFFFFF"           # Cards/Paneles blancos
-    BORDER = "#E2E8F0"            # Bordes
+    BORDER = "#CBD5E1"            # Bordes
     
     TEXT_PRIMARY = "#1E293B"      # Texto principal (casi negro)
     TEXT_SECONDARY = "#64748B"    # Texto secundario (gris medio)

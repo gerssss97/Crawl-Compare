@@ -121,6 +121,7 @@ class ControladorPrecios:
         # Si no hay periodos aplicables, mostrar advertencia y resetear precio
         if not periodos_aplicables:
             self.estado_app.precio.set("(ninguna seleccionada)")
+            self.estado_app.periodos_precio = []
             self.event_bus.emit('precios_actualizados', {
                 'tipo': 'sin_periodos',
                 'mensaje': 'No hay periodos definidos para estas fechas'
@@ -167,6 +168,9 @@ class ControladorPrecios:
                 else:
                     # Todos son leyendas
                     self.estado_app.precio.set(precios_data[0]['precio'])
+
+        # Guardar en state para que otros componentes (ej: modal email) los lean
+        self.estado_app.periodos_precio = precios_data
 
         # Emitir evento con los precios calculados
         self.event_bus.emit('precios_actualizados', {

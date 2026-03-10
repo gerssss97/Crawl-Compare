@@ -113,13 +113,57 @@ class ModalEmail(ctk.CTkToplevel):
             anchor="w",
         ).pack(fill="x", padx=14, pady=(10, 2))
 
+        row = ctk.CTkFrame(dest_frame, fg_color="transparent")
+        row.pack(fill="x", padx=14, pady=(0, 8))
+
         ctk.CTkLabel(
-            dest_frame,
-            text=f"Para: {self.DESTINATARIO}",
+            row,
+            text="Para:",
             font=(Typography.FAMILY, Typography.SMALL),
             text_color=Colors.TEXT_SECONDARY,
+            width=36,
             anchor="w",
-        ).pack(fill="x", padx=14, pady=(0, 8))
+        ).pack(side="left")
+
+        self._entry_destinatario = ctk.CTkEntry(
+            row,
+            font=(Typography.FAMILY, Typography.SMALL),
+            fg_color=Colors.BACKGROUND,
+            border_color=Colors.BORDER,
+            text_color=Colors.TEXT_PRIMARY,
+            height=28,
+            corner_radius=Spacing.RADIUS_SM,
+        )
+        self._entry_destinatario.insert(0, self.DESTINATARIO)
+        self._entry_destinatario.pack(side="left", fill="x", expand=True, padx=(6, 0))
+
+        self._lbl_error_dest = ctk.CTkLabel(
+            dest_frame,
+            text="",
+            font=(Typography.FAMILY, 11),
+            text_color="#DC2626",
+            anchor="w",
+        )
+        self._lbl_error_dest.pack(fill="x", padx=14, pady=(0, 6))
+
+        def _email_valido(valor):
+            return "@" in valor and "." in valor.split("@")[-1]
+
+        def _on_blur(_):
+            valor = self._entry_destinatario.get().strip()
+            if not valor:
+                self._lbl_error_dest.configure(text="El destinatario no puede estar vacio.")
+                self._entry_destinatario.configure(border_color="#DC2626")
+            elif not _email_valido(valor):
+                self._lbl_error_dest.configure(text="Formato de email invalido (ej: nombre@dominio.com)")
+                self._entry_destinatario.configure(border_color="#DC2626")
+
+        def _on_key(_):
+            self._lbl_error_dest.configure(text="")
+            self._entry_destinatario.configure(border_color=Colors.BORDER)
+
+        self._entry_destinatario.bind("<FocusOut>", _on_blur)
+        self._entry_destinatario.bind("<Key>", _on_key)
 
     def _crear_banners(self, parent):
         resultado = getattr(self._state, "resultado_multiperiodo", None)
@@ -155,10 +199,17 @@ class ModalEmail(ctk.CTkToplevel):
         ).pack(fill="x")
 
         hotel = self._state.hotel.get() or "Hotel"
+        edificio = self._state.edificio.get() if self._state.edificio.get() else None
         hab = self._state.habitacion.get() or "Habitacion"
+
+        if edificio:
+            texto_hab = f"{hotel}  |  {edificio}  |  {hab}"
+        else:
+            texto_hab = f"{hotel}  |  {hab}"
+
         lbl = ctk.CTkLabel(
             inner,
-            text=f"{hotel}  -  {hab}",
+            text=texto_hab,
             font=(Typography.FAMILY, Typography.SMALL),
             text_color="#1E40AF",
             anchor="w",
@@ -168,6 +219,41 @@ class ModalEmail(ctk.CTkToplevel):
         )
         lbl.pack(fill="x")
         inner.bind("<Configure>", lambda e, l=lbl: l.configure(wraplength=max(1, e.width)), add="+")
+
+        # Periodos con sus precios
+        periodos_precio = getattr(self._state, "periodos_precio", [])
+        if periodos_precio:
+            ctk.CTkFrame(inner, fg_color="#BFDBFE", height=1).pack(fill="x", pady=(8, 6))
+            for pp in periodos_precio:
+                periodo = pp.get("periodo")
+                precio = pp.get("precio")
+                nombre_grupo = pp.get("nombre_grupo")
+
+                nombre_periodo = nombre_grupo or (periodo.nombre if periodo else "Periodo desconocido")
+
+                if isinstance(precio, (int, float)):
+                    precio_str = f"${precio:,.2f}"
+                else:
+                    precio_str = str(precio) if precio else "Sin precio"
+
+                if periodo:
+                    rango_str = f"{periodo.fecha_inicio.strftime('%d/%m')} - {periodo.fecha_fin.strftime('%d/%m/%Y')}"
+                    linea = f"{nombre_periodo}  ({rango_str})  →  {precio_str}"
+                else:
+                    linea = f"{nombre_periodo}  →  {precio_str}"
+
+                lbl_p = ctk.CTkLabel(
+                    inner,
+                    text=linea,
+                    font=(Typography.FAMILY, Typography.SMALL),
+                    text_color="#1E40AF",
+                    anchor="w",
+                    justify="left",
+                    wraplength=1,
+                    width=1,
+                )
+                lbl_p.pack(fill="x", pady=1)
+                inner.bind("<Configure>", lambda e, l=lbl_p: l.configure(wraplength=max(1, e.width)), add="+")
 
     def _crear_banner_resultados(self, parent, resultado):
         banner = ctk.CTkFrame(
@@ -291,7 +377,7 @@ class ModalEmail(ctk.CTkToplevel):
         return email_text
 
     def _crear_toolbar(self, parent, email_text):
-        FUENTES = ["Arial", "Helvetica", "Georgia", "Courier New", "Verdana", "Times New Roman"]
+        FUENTES = ["Inter", "Arial", "Helvetica", "Georgia", "Courier New", "Verdana", "Times New Roman"]
         TAMANIOS = [9, 10, 11, 12, 13, 14, 16, 18, 20, 24]
         _fuente = [Typography.FAMILY]
         _tamanio = [13]
@@ -328,20 +414,28 @@ class ModalEmail(ctk.CTkToplevel):
             else:
                 email_text.tag_add(tag, start, end)
 
-        def _actualizar_tags():
-            f, t = _fuente[0], _tamanio[0]
-            email_text.tag_configure("bold", font=(f, t, "bold"))
-            email_text.tag_configure("italic", font=(f, t, "italic"))
+        def _aplicar_formato(tipo, valor):
+            """Aplica fuente o tamaño solo al texto seleccionado via tag dinámico."""
+            try:
+                start = email_text.index(tk.SEL_FIRST)
+                end = email_text.index(tk.SEL_LAST)
+            except tk.TclError:
+                return  # sin selección, no hace nada
+
+            tag_name = f"fmt_{tipo}_{valor}".replace(" ", "_")
+            if tipo == "fuente":
+                email_text.tag_configure(tag_name, font=(valor, _tamanio[0]))
+            else:  # tamanio
+                email_text.tag_configure(tag_name, font=(_fuente[0], int(valor)))
+            email_text.tag_add(tag_name, start, end)
 
         def _cambiar_fuente(f):
             _fuente[0] = f
-            email_text.configure(font=(f, _tamanio[0]))
-            _actualizar_tags()
+            _aplicar_formato("fuente", f)
 
         def _cambiar_tamanio(t):
             _tamanio[0] = int(t)
-            email_text.configure(font=(_fuente[0], _tamanio[0]))
-            _actualizar_tags()
+            _aplicar_formato("tamanio", t)
 
         toolbar = ctk.CTkFrame(parent, fg_color="#F8FAFC", corner_radius=0, height=44)
         toolbar.pack(fill="x")
@@ -351,12 +445,17 @@ class ModalEmail(ctk.CTkToplevel):
         _btn("I", lambda: _toggle("italic")).pack(side="left", padx=3, pady=8)
         _btn("U", lambda: _toggle("underline")).pack(side="left", padx=3, pady=8)
 
-        ctk.CTkFrame(toolbar, fg_color=Colors.BORDER, width=1, height=24).pack(side="left", padx=8, pady=10)
+        ctk.CTkFrame(toolbar, fg_color=Colors.BORDER, width=2, height=28).pack(side="left", padx=8, pady=10)
 
-        CTkCustomDropdown(toolbar, values=FUENTES, command=_cambiar_fuente, placeholder_text=Typography.FAMILY).pack(side="left", padx=3, pady=8)
-        CTkCustomDropdown(toolbar, values=[str(t) for t in TAMANIOS], command=_cambiar_tamanio, placeholder_text="13").pack(side="left", padx=3, pady=8)
+        dd_fuente = CTkCustomDropdown(toolbar, values=FUENTES, command=_cambiar_fuente, placeholder_text=Typography.FAMILY, width=160)
+        dd_fuente.set(Typography.FAMILY)
+        dd_fuente.pack(side="left", padx=3, pady=8)
 
-        ctk.CTkFrame(toolbar, fg_color=Colors.BORDER, width=1, height=24).pack(side="left", padx=8, pady=10)
+        dd_tamanio = CTkCustomDropdown(toolbar, values=[str(t) for t in TAMANIOS], command=_cambiar_tamanio, placeholder_text="13", width=90)
+        dd_tamanio.set("13")
+        dd_tamanio.pack(side="left", padx=(6, 3), pady=8)
+
+        ctk.CTkFrame(toolbar, fg_color=Colors.BORDER, width=2, height=28).pack(side="left", padx=8, pady=10)
 
         _btn("Deshacer", lambda: email_text.edit_undo() if True else None).pack(side="left", padx=3, pady=8)
         _btn("Rehacer", lambda: email_text.edit_redo() if True else None).pack(side="left", padx=3, pady=8)
@@ -444,6 +543,14 @@ class ModalEmail(ctk.CTkToplevel):
             messagebox.showerror("Error", "El contenido no puede estar vacio.", parent=self)
             return
 
+        destinatario = self._entry_destinatario.get().strip()
+        if not destinatario or "@" not in destinatario or "." not in destinatario.split("@")[-1]:
+            msg = "El destinatario no puede estar vacio." if not destinatario else "Formato de email invalido (ej: nombre@dominio.com)"
+            self._lbl_error_dest.configure(text=msg)
+            self._entry_destinatario.configure(border_color="#DC2626")
+            self._entry_destinatario.focus_set()
+            return
+
         self._btn_enviar.configure(state="disabled", text="Enviando...")
         self.update()
 
@@ -453,7 +560,7 @@ class ModalEmail(ctk.CTkToplevel):
                     hotel=self._state.hotel.get(),
                     resultado_multiperiodo=self._state.resultado_multiperiodo,
                     remitente=self.REMITENTE,
-                    destinatario=self.DESTINATARIO,
+                    destinatario=destinatario,
                     texto_override=contenido,
                 )
                 self.after(0, lambda: (

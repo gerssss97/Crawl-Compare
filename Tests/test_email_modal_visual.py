@@ -48,7 +48,18 @@ def main():
     # Inyectar datos de prueba en el state
     app.state.hotel.set("Palacio Duhau - Park Hyatt Buenos Aires")
     app.state.habitacion.set("dbl/sgl suite king palace w/bb")
-    app.state.resultado_multiperiodo = _hacer_resultado_fake()
+    resultado = _hacer_resultado_fake()
+    app.state.resultado_multiperiodo = resultado
+
+    # Simular los periodos/precios que calcularía ControladorPrecios
+    rp = resultado.periodos[0]
+    app.state.periodos_precio = [
+        {
+            "periodo": rp.periodo,
+            "precio": rp.precio_excel,
+            "nombre_grupo": rp.periodo.nombre,
+        }
+    ]
 
     # Abrir modal directamente
     app._abrir_ventana_email()
