@@ -1,5 +1,6 @@
 """Dropdown personalizado que funciona correctamente con CTk."""
 
+import tkinter as tk
 import customtkinter as ctk
 from UI.styles import Colors, Typography, Spacing
 
@@ -23,6 +24,7 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self._dropdown_open = False
         self._dropdown_window = None
         self._fixed_width = width
+        self._bind_ids = {}  # event → binding ID para desvinculación selectiva
 
         # Frame principal con entrada y botón
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -108,19 +110,17 @@ class CTkCustomDropdown(ctk.CTkFrame):
         x = self.winfo_rootx()
         y = self.winfo_rooty() + self.winfo_height() + 2
 
-        # winfo_width() devuelve píxeles reales ya escalados por CTk.
-        # CTkToplevel geometry() también aplica scaling, así que dividimos
-        # para compensar y que el ancho final coincida exactamente con el widget.
-        scaling = self._get_widget_scaling()
-        width_ctk = int(self.winfo_width() / scaling)
+        # winfo_width() devuelve píxeles reales. tk.Toplevel geometry() también trabaja
+        # en píxeles reales (sin scaling de CTk), así que lo usamos directamente.
+        width_px = self.winfo_width()
 
-        self._dropdown_window = ctk.CTkToplevel(self)
+        # tk.Toplevel en vez de CTkToplevel: evita el minsize 200x200 que CTkToplevel impone
+        self._dropdown_window = tk.Toplevel(self.winfo_toplevel())
         self._dropdown_window.wm_overrideredirect(True)
-        self._dropdown_window.configure(fg_color=Colors.SUCCESS)
-        item_height = 42
-        max_height = 100
-        height = min(len(self.values) * item_height, max_height)
-        self._dropdown_window.geometry(f"{width_ctk}x{height}+{x}+{y}")
+        self._dropdown_window.resizable(False, False)  # evita que winfo_reqheight expanda la ventana
+        self._dropdown_window.configure(background=Colors.SUCCESS)
+        # Geometría inicial off-screen para medir contenido sin flash visible
+        self._dropdown_window.geometry(f"{width_px}x1+-9999+-9999")
 
         scroll_frame = ctk.CTkScrollableFrame(
             self._dropdown_window,
@@ -142,15 +142,37 @@ class CTkCustomDropdown(ctk.CTkFrame):
             )
             btn.pack(fill="x", pady=2)
 
-        # Cerrar al hacer click fuera del dropdown (no con FocusOut, que se dispara
-        # inmediatamente cuando el botón roba el foco cerrando el dropdown al instante)
-        self.winfo_toplevel().bind("<Button-1>", self._on_click_outside, add="+")
+        # Medir altura real sumando botones (scroll_frame.winfo_reqheight es correcto,
+        # pero win.winfo_reqheight=268 expande la ventana si no la fijamos con resizable=False)
+        self._dropdown_window.update_idletasks()
+        max_height_px = 200
+        content_height_px = scroll_frame.winfo_reqheight()
+        height_px_final = min(content_height_px, max_height_px)
+        self._dropdown_window.geometry(f"{width_px}x{height_px_final}+{x}+{y}")
+
+        # Cerrar al hacer click o scroll fuera del dropdown (no con FocusOut, que se
+        # dispara inmediatamente cuando el botón roba el foco cerrando el dropdown).
+        # Se guardan los IDs para desvinculación selectiva (no borrar bindings de otros dropdowns).
+        root = self.winfo_toplevel()
+        self._bind_ids["<Button-1>"] = root.bind("<Button-1>", self._on_click_outside, add="+")
+        self._bind_ids["<MouseWheel>"] = root.bind("<MouseWheel>", self._on_scroll_outside, add="+")
+        self._bind_ids["<Button-4>"] = root.bind("<Button-4>", self._on_scroll_outside, add="+")
+        self._bind_ids["<Button-5>"] = root.bind("<Button-5>", self._on_scroll_outside, add="+")
 
     def _on_click_outside(self, event):
         """Cierra el dropdown si el click fue fuera de la ventana del dropdown."""
         if self._dropdown_window is None:
             return
-        # Verificar si el click fue dentro de la ventana del dropdown
+        win = self._dropdown_window
+        wx, wy = win.winfo_rootx(), win.winfo_rooty()
+        ww, wh = win.winfo_width(), win.winfo_height()
+        if not (wx <= event.x_root <= wx + ww and wy <= event.y_root <= wy + wh):
+            self._close_dropdown()
+
+    def _on_scroll_outside(self, event):
+        """Cierra el dropdown si el scroll ocurrió fuera de la ventana del dropdown."""
+        if self._dropdown_window is None:
+            return
         win = self._dropdown_window
         wx, wy = win.winfo_rootx(), win.winfo_rooty()
         ww, wh = win.winfo_width(), win.winfo_height()
@@ -158,7 +180,10 @@ class CTkCustomDropdown(ctk.CTkFrame):
             self._close_dropdown()
 
     def _close_dropdown(self):
-        self.winfo_toplevel().unbind("<Button-1>")
+        root = self.winfo_toplevel()
+        for event, bid in self._bind_ids.items():
+            root.unbind(event, bid)
+        self._bind_ids.clear()
         if self._dropdown_window:
             self._dropdown_window.destroy()
             self._dropdown_window = None

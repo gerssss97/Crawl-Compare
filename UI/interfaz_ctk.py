@@ -179,30 +179,57 @@ class CrawlCompareGUI:
         self.progress_panel.grid(row=1, column=0, sticky="ew", padx=Spacing.LG, pady=(Spacing.SM, 0))
         self.progress_panel.grid_remove()  # oculto hasta que comience la comparacion
 
-        # Resultados debajo del panel de progreso, dentro del mismo scroll
+        # Contenedor externo transparente: apila título + caja de resultados
         resultados_outer = ctk.CTkFrame(
             self._panel_izq,
-            fg_color="transparent",
+            fg_color=Colors.SURFACE,
             corner_radius=0,
+            border_width=0,
         )
         resultados_outer.grid(row=2, column=0, sticky="nsew", padx=Spacing.LG, pady=(Spacing.SM, Spacing.LG))
         resultados_outer.columnconfigure(0, weight=1)
-        resultados_outer.rowconfigure(1, weight=1)   # VistaResultados crece
+        resultados_outer.rowconfigure(1, weight=1)
 
-        ctk.CTkLabel(
+        # Fila 0: título con fondo grisado (CTkFrame propio, esquinas arriba redondeadas)
+        titulo_frame = ctk.CTkFrame(
             resultados_outer,
+            fg_color=Colors.BACKGROUND,
+            bg_color=Colors.SURFACE,
+            corner_radius=Spacing.RADIUS_MD,
+            border_width=1,
+            border_color=Colors.BORDER,
+            overwrite_preferred_drawing_method="polygon_shapes",
+        )
+        titulo_frame.grid(row=0, column=0, sticky="ew", pady=(0, 0))
+        titulo_frame.columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            titulo_frame,
             text="RESULTADOS DE LA COMPARACION",
             font=(Typography.FAMILY, Typography.SMALL, Typography.BOLD),
             text_color=Colors.TEXT_SECONDARY,
             anchor="w",
-        ).grid(row=0, column=0, sticky="ew", pady=(0, Spacing.XS))
+        ).grid(row=0, column=0, sticky="ew", padx=Spacing.CARD_PADDING, pady=Spacing.SM)
+
+        # Fila 1: caja de resultados con borde propio en los 4 lados
+        caja_resultados = ctk.CTkFrame(
+            resultados_outer,
+            fg_color=Colors.SURFACE,
+            bg_color=Colors.SURFACE,
+            corner_radius=Spacing.RADIUS_MD,
+            border_width=1,
+            border_color=Colors.BORDER,
+            overwrite_preferred_drawing_method="polygon_shapes",
+        )
+        caja_resultados.grid(row=1, column=0, sticky="nsew", pady=(Spacing.XS, 0))
+        caja_resultados.columnconfigure(0, weight=1)
+        caja_resultados.rowconfigure(0, weight=1)
 
         self.vista_resultados = VistaResultados(
-            resultados_outer,
+            caja_resultados,
             fonts=self.fonts,
             bg=Colors.SURFACE,
         )
-        self.vista_resultados.grid(row=1, column=0, sticky="nsew")
+        self.vista_resultados.grid(row=0, column=0, sticky="nsew", padx=Spacing.SM, pady=Spacing.SM)
 
         # Alias de compatibilidad con codigo legacy
         self.resultado = self.vista_resultados.obtener_widget_text()

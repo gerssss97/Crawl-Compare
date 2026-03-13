@@ -32,11 +32,11 @@ class VistaResultados(tk.Frame):
 
     def _configurar_ui(self):
         """Configura la interfaz de la vista."""
-        bg_color = '#F5F5F5'
-        self.configure(bg=bg_color)
+        bg_color = self.cget('bg')
+        self.configure(bg=bg_color, bd=0)
 
         # Frame contenedor
-        frame_resultado = tk.Frame(self, bg=bg_color)
+        frame_resultado = tk.Frame(self, bg=bg_color, bd=0)
         frame_resultado.grid(row=0, column=0, sticky='nsew')
         frame_resultado.rowconfigure(0, weight=1)
         frame_resultado.columnconfigure(0, weight=1)
@@ -47,7 +47,11 @@ class VistaResultados(tk.Frame):
             height=25,
             width=100,
             font=self.fonts.resultado,
-            wrap="word"
+            wrap="word",
+            bd=0,
+            relief="flat",
+            padx=10,
+            pady=8,
         )
         self._text.grid(row=0, column=0, sticky="nsew")
 
