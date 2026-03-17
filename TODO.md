@@ -1,0 +1,2 @@
+- arreglar scroll panel derecho. invisibiliza boton envio email
+- fix scroll panel resultados vs panel izquierdo
