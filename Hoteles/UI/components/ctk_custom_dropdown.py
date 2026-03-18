@@ -14,7 +14,7 @@ class CTkCustomDropdown(ctk.CTkFrame):
     - No permite editar el texto
     """
 
-    def __init__(self, parent, values=None, textvariable=None, command=None, placeholder_text="Seleccionar...", width=None, **kwargs):
+    def __init__(self, parent, values=None, textvariable=None, command=None, placeholder_text="Seleccionar...", width=None, max_visible=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
 
         self.values = values or []
@@ -24,6 +24,7 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self._dropdown_open = False
         self._dropdown_window = None
         self._fixed_width = width
+        self._max_visible = max_visible
         self._bind_ids = {}  # event → binding ID para desvinculación selectiva
 
         # Frame principal con entrada y botón
@@ -142,12 +143,29 @@ class CTkCustomDropdown(ctk.CTkFrame):
             )
             btn.pack(fill="x", pady=2)
 
-        # Medir altura real sumando botones (scroll_frame.winfo_reqheight es correcto,
-        # pero win.winfo_reqheight=268 expande la ventana si no la fijamos con resizable=False)
+        # Medir overhead del CTkScrollableFrame: la diferencia entre la ventana y el
+        # canvas viewport real (corner_radius, padding interno, etc. se comen píxeles).
+        # Paso 1: darle un tamaño generoso off-screen para que se layoutee completo
+        self._dropdown_window.geometry(f"{width_px}x500+-9999+-9999")
         self._dropdown_window.update_idletasks()
-        max_height_px = 200
+
+        # Paso 2: medir el overhead = ventana - canvas viewport
+        parent_canvas = scroll_frame._parent_canvas
+        overhead = self._dropdown_window.winfo_height() - parent_canvas.winfo_height()
+
+        # Paso 3: la altura final = contenido + overhead (para que el canvas muestre todo)
         content_height_px = scroll_frame.winfo_reqheight()
-        height_px_final = min(content_height_px, max_height_px)
+        # Máximo visible: se mide desde los botones reales (no hardcodeado).
+        children = scroll_frame.winfo_children()
+        if self._max_visible and len(children) > self._max_visible:
+            # Sumar la altura de los primeros max_visible botones + su pady
+            max_content_px = sum(c.winfo_reqheight() + 4 for c in children[:self._max_visible])
+            max_height_px = max_content_px + overhead
+        else:
+            max_height_px = content_height_px + overhead
+        height_px_final = min(content_height_px + overhead, max_height_px)
+
+        # Paso 4: posicionar en la ubicación real
         self._dropdown_window.geometry(f"{width_px}x{height_px_final}+{x}+{y}")
 
         # Cerrar al hacer click o scroll fuera del dropdown (no con FocusOut, que se

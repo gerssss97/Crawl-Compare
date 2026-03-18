@@ -31,7 +31,7 @@ class CTkLabeledComboBox(CTkBaseComponent):
     """
     
     def __init__(self, parent, label, icon=None, textvariable=None,
-                 values=None, state="normal", command=None, **kwargs):
+                 values=None, state="normal", command=None, max_visible=None, **kwargs):
         """Inicializa el ComboBox con label.
         
         Args:
@@ -50,7 +50,8 @@ class CTkLabeledComboBox(CTkBaseComponent):
         self.values = values or []
         self.state_value = state
         self.command = command
-        
+        self.max_visible = max_visible
+
         # Frame transparente (no queremos fondo)
         kwargs.setdefault('fg_color', "transparent")
         kwargs.setdefault('corner_radius', 0)
@@ -80,6 +81,7 @@ class CTkLabeledComboBox(CTkBaseComponent):
             textvariable=self.textvariable,
             command=self.command,
             placeholder_text=f"Seleccionar {self.label_text.lower()}...",
+            max_visible=self.max_visible,
         )
         self.combobox.pack(fill='x', expand=True)
     

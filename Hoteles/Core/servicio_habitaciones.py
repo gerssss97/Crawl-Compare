@@ -2,8 +2,9 @@
 
 from Models.habitacion_unificada import HabitacionUnificada
 from Models.hotelExcel import HabitacionExcel, HotelExcel, Periodo
+from Core.modelo_gaps import Gap, GapAnalysis
 from typing import List, Dict
-from datetime import date
+from datetime import date, timedelta
 
 
 def unificar_habitaciones(habitaciones: List[HabitacionExcel]) -> List[HabitacionUnificada]:
@@ -139,3 +140,59 @@ def calcular_dias_por_periodo(
             resultado[periodo.id] = dias
 
     return resultado
+
+
+def detectar_gaps(
+    fecha_entrada: date,
+    fecha_salida: date,
+    periodos_aplicables: List[Periodo]
+) -> List[Gap]:
+    """Detecta períodos sin cobertura entre fechas solicitadas."""
+    if not periodos_aplicables:
+        return [Gap(fecha_entrada, fecha_salida)]
+
+    gaps = []
+    periodos_ordenados = sorted(periodos_aplicables, key=lambda p: p.fecha_inicio)
+
+    # Gap antes del primer período
+    if periodos_ordenados[0].fecha_inicio > fecha_entrada:
+        gaps.append(Gap(
+            fecha_entrada,
+            periodos_ordenados[0].fecha_inicio - timedelta(days=1)
+        ))
+
+    # Gaps entre períodos consecutivos
+    for i in range(len(periodos_ordenados) - 1):
+        fin_actual = periodos_ordenados[i].fecha_fin
+        inicio_siguiente = periodos_ordenados[i + 1].fecha_inicio
+
+        if inicio_siguiente > fin_actual + timedelta(days=1):
+            gaps.append(Gap(
+                fin_actual + timedelta(days=1),
+                inicio_siguiente - timedelta(days=1)
+            ))
+
+    # Gap después del último período
+    if periodos_ordenados[-1].fecha_fin < fecha_salida:
+        gaps.append(Gap(
+            periodos_ordenados[-1].fecha_fin + timedelta(days=1),
+            fecha_salida
+        ))
+
+    return gaps
+
+
+def analizar_cobertura(
+    fecha_entrada: date,
+    fecha_salida: date,
+    hotel: HotelExcel
+) -> GapAnalysis:
+    """Función unificada que infiere periodos Y detecta gaps en un solo paso."""
+    periodos_aplicables = inferir_periodos_desde_fechas(fecha_entrada, fecha_salida, hotel)
+    gaps = detectar_gaps(fecha_entrada, fecha_salida, periodos_aplicables)
+    return GapAnalysis(
+        fecha_entrada=fecha_entrada,
+        fecha_salida=fecha_salida,
+        periodos_aplicables=periodos_aplicables,
+        gaps=gaps
+    )

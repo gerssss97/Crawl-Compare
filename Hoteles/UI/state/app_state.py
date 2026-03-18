@@ -55,6 +55,10 @@ class AppState:
         self.resultado_multiperiodo = None  # ResultadoComparacionMultiperiodo de la última comparación
         self.periodos_precio = []  # Lista de dicts {periodo, precio, nombre_grupo} del último cálculo
 
+        # ===== Gap analysis (cobertura de periodos) =====
+        self.gap_analysis_actual = None  # GapAnalysis | None
+        self.gap_confirmado = False  # True si usuario confirmó continuar con gaps
+
         # Configurar traces para emitir eventos
         self._setup_traces()
 
@@ -105,3 +109,5 @@ class AppState:
         self.periodos_var.set("")
         self.habitacion_web = None
         self.periodos_precio = []
+        self.gap_analysis_actual = None
+        self.gap_confirmado = False

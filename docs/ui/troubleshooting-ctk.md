@@ -131,69 +131,70 @@ Siempre que crees un `CTkToplevel` flotante (dropdown, tooltip, popup) desde un 
 
 ## CTkCustomDropdown — Altura dinámica del popup
 
-**Estado**: 🔬 En investigación
+**Estado**: ✅ Resuelto
 
 **Archivo afectado**: [UI/components/ctk_custom_dropdown.py](../../Hoteles/UI/components/ctk_custom_dropdown.py)
 
-### Objetivo
+### Síntoma
 
-Que el dropdown tenga exactamente la altura del contenido, sin espacio fantasma al final.
+La última opción del dropdown siempre se cortaba a la mitad, sin importar cuántas opciones hubiera.
 
-### Intentos realizados y descubrimientos
+### Causa
 
-#### 1. `item_height = 38` hardcodeado (código original)
-- Calculaba `height = len(values) * 38` antes de crear los items.
-- Problemático con distintos tamaños de fuente. Reemplazado.
+`CTkScrollableFrame` tiene estructura interna con overhead invisible:
 
-#### 2. `scroll_frame.winfo_reqheight()` después de `update_idletasks()`
-- **Valor correcto**: 3 items → 123px, 5 items → 205px. Varía bien con el contenido.
-- **Problema**: la ventana igual quedaba grande porque se expandía sola.
-
-#### 3. `scroll_frame._parent_frame.winfo_reqheight()`
-- `_parent_frame` NO es el frame del contenido. Contiene: Canvas + CTkScrollbar + CTkLabel.
-- Su `reqheight` era siempre 268 (fijo). Descartado.
-
-#### 4. `CTkToplevel` con `wm_minsize(1,1)`
-- `CTkToplevel` impone internamente un tamaño mínimo de 200×200.
-- `wm_minsize(1,1)` antes o después de `update_idletasks()` no lo pisa.
-- `wm_geometry()` confirmó siempre `200x200`.
-
-#### 5. Cambio a `tk.Toplevel` (tkinter puro)
-- Solucionó el minsize 200×200. El geometry SÍ se respeta: `835x123` ✓
-- Pero la última opción seguía cortada visualmente.
-
-#### 6. Diagnóstico con prints
 ```
-[DD] values=3 scroll_frame.reqh=123 win.reqh=268
-  scroll_frame child: CTkButton reqh=35  ← botones directamente en scroll_frame
-  scroll_frame child: CTkButton reqh=35
-  scroll_frame child: CTkButton reqh=35
+tk.Toplevel (ventana)
+└── CTkScrollableFrame
+    └── _parent_frame (CTkFrame, corner_radius=6)  ← agrega ~12px (6 top + 6 bottom)
+        ├── _parent_canvas (Canvas)                ← agrega ~6px de padding interno
+        │   └── tkinter.Frame (scroll_frame)       ← acá van los botones
+        └── _scrollbar (CTkScrollbar)
 ```
-- `scroll_frame.winfo_reqheight()` = 123 ← correcto
-- `win.winfo_reqheight()` = 268 ← expansivo, este es el problema
-- Los botones están **directamente** en `scroll_frame.winfo_children()` (no dentro del canvas)
 
-#### 7. `resizable(False, False)` en `tk.Toplevel`
-- Intento de evitar que `win.winfo_reqheight=268` expanda la ventana.
-- No funcionó — última opción sigue cortada.
+Si se usaba `scroll_frame.winfo_reqheight()` como altura de la ventana (ej: 144px), el canvas viewport real terminaba siendo `144 - 18 = 126px`, cortando ~18px de contenido (media opción).
 
-### Hipótesis actual
+El overhead total medido: **18px** (con `corner_radius=6`, `border_width=0`).
 
-`CTkScrollableFrame` expande su canvas interno **después** del render final (fuera del ciclo de `update_idletasks()`), empujando contenido que queda fuera del clip visible.
+### Solución
 
-### Estado actual del código
+Medir el overhead dinámicamente y sumarlo a la altura del contenido:
 
-`tk.Toplevel` + `resizable(False, False)` + `scroll_frame.winfo_reqheight()`.
-El geometry se aplica correctamente según `wm_geometry()`, pero visualmente la última opción aparece cortada.
+```python
+# 1. Dar tamaño generoso off-screen para que el layout se complete
+self._dropdown_window.geometry(f"{width_px}x500+-9999+-9999")
+self._dropdown_window.update_idletasks()
 
-### Próximos pasos sugeridos
+# 2. Medir overhead = ventana - canvas viewport
+parent_canvas = scroll_frame._parent_canvas
+overhead = self._dropdown_window.winfo_height() - parent_canvas.winfo_height()
 
-| Opción | Descripción | Recomendación |
-|--------|-------------|---------------|
-| **A** | Usar `CTkFrame` simple en vez de `CTkScrollableFrame` cuando `content_height_px <= max_height_px`. Solo usar scroll cuando haya overflow real. Elimina el overhead del canvas y el problema de `win.reqheight=268`. | ⭐ Recomendada |
-| **B** | Canvas tkinter puro + frame interno manual, altura calculada exactamente. | Alternativa robusta |
-| **C** | Aplicar geometry definitivo con `after(1, lambda: ...)` para que ocurra después del render completo del canvas. | Parche rápido |
-| **D** | Investigar si `CTkScrollableFrame` tiene parámetro de altura mínima configurable. | Por investigar |
+# 3. Altura final = contenido + overhead
+content_height_px = scroll_frame.winfo_reqheight()
+height_px_final = min(content_height_px + overhead, max_height_px)
+
+# 4. Posicionar en ubicación real
+self._dropdown_window.geometry(f"{width_px}x{height_px_final}+{x}+{y}")
+```
+
+**Por qué funciona**: al darle 500px de espacio, la ventana y el canvas se layoutean completamente. La diferencia `ventana - canvas` nos da los píxeles exactos que consume la estructura interna del `CTkScrollableFrame`. Al sumarlos, el canvas viewport coincide exactamente con el contenido.
+
+**Por qué es dinámico**: no hardcodea los 18px. Si cambia el `corner_radius`, `border_width`, o CTk cambia su padding interno, se recalcula automáticamente.
+
+### Intentos anteriores (descartados)
+
+| # | Intento | Resultado |
+|---|---------|-----------|
+| 1 | `item_height = 38` hardcodeado | Fallaba con distintas fuentes |
+| 2 | `scroll_frame.winfo_reqheight()` directo | Valor correcto pero no cuenta el overhead → última opción cortada |
+| 3 | `_parent_frame.winfo_reqheight()` | Siempre 268 (valor fijo inflado). Descartado |
+| 4 | `CTkToplevel` + `wm_minsize(1,1)` | CTkToplevel impone minsize 200×200, no se puede pisar |
+| 5 | `tk.Toplevel` (tkinter puro) | Resolvió minsize, pero el overhead seguía cortando |
+| 6 | `resizable(False, False)` | No resolvió el overhead |
+
+### Regla general
+
+Cuando uses `CTkScrollableFrame` y necesites controlar su altura exacta, siempre sumar el overhead interno. El overhead se obtiene midiendo `ventana_height - canvas_height` después de un layout completo.
 
 ---
 

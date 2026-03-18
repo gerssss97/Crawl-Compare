@@ -101,6 +101,8 @@ class CrawlCompareGUI:
         self.event_bus.on("comparison_completed", self._on_comparison_completed)
         self.event_bus.on("comparison_error", self._on_comparison_error)
         self.event_bus.on("precios_actualizados", self._on_precios_actualizados)
+        self.event_bus.on("gaps_detected", self._on_gaps_detected)
+        self.event_bus.on("mostrar_modal_gaps", self._on_mostrar_modal_gaps)
 
     # =========================================================
     # Construccion de la interfaz
@@ -244,6 +246,7 @@ class CrawlCompareGUI:
             card.content_frame,
             label="Hotel",
             textvariable=self.state.hotel,
+            max_visible=3,
         )
         self.hotel_combo.pack(fill="x", pady=(0, Spacing.FORM_GAP))
         self.hotel_combo.combobox.configure(command=self._on_hotel_changed)
@@ -253,6 +256,7 @@ class CrawlCompareGUI:
             card.content_frame,
             label="Edificio",
             textvariable=self.state.edificio,
+            max_visible=3,
         )
         self.edificio_combo.combobox.configure(command=self._on_edificio_changed)
         # No se empaqueta todavia
@@ -262,6 +266,7 @@ class CrawlCompareGUI:
             card.content_frame,
             label="Habitacion",
             textvariable=self.state.habitacion,
+            max_visible=4,
         )
         self.habitacion_combo.pack(fill="x")
         self.habitacion_combo.combobox.configure(command=self._on_habitacion_changed)
@@ -650,10 +655,30 @@ class CrawlCompareGUI:
     def _on_precios_actualizados(self, data):
         """Actualiza el panel de precios segun el evento recibido."""
         tipo = data.get("tipo")
+        gap_analysis = data.get("gap_analysis")
         if tipo in ("sin_fechas", "sin_periodos"):
             self.precio_panel._mostrar_mensaje(data["mensaje"])
         elif tipo == "precios_calculados":
-            self.precio_panel.mostrar_precios_multiples(data["precios"])
+            self.precio_panel.mostrar_precios_multiples(data["precios"], gap_analysis)
+
+    def _on_gaps_detected(self, data):
+        """Handler cuando se detectan gaps. El panel de precios ya muestra la advertencia visual."""
+        pass
+
+    def _on_mostrar_modal_gaps(self, data):
+        """Muestra modal de confirmación cuando el usuario intenta comparar con gaps."""
+        from UI.components.ctk_modal_advertencia_gaps import CtkModalAdvertenciaGaps
+
+        gap_analysis = data['gap_analysis']
+
+        def on_gap_response(confirmo):
+            if confirmo:
+                self.state.gap_confirmado = True
+                self.controlador_comparacion.ejecutar_comparacion_async()
+            else:
+                self.state.gap_confirmado = False
+
+        self.root.after(0, lambda: CtkModalAdvertenciaGaps(self.root, gap_analysis, on_gap_response))
 
     # =========================================================
     # Funcionalidad de email

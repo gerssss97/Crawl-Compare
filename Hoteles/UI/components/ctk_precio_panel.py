@@ -74,9 +74,9 @@ class CTkPrecioPanel(CTkCard):
         )
         label.pack(expand=True, pady=40)
     
-    def mostrar_precios_multiples(self, precios_data):
+    def mostrar_precios_multiples(self, precios_data, gap_analysis=None):
         """Muestra múltiples precios organizados por periodo.
-        
+
         Args:
             precios_data (list): Lista de dicts con estructura:
                 {
@@ -84,15 +84,20 @@ class CTkPrecioPanel(CTkCard):
                     'precio': float | str,  # Precio numérico o texto
                     'nombre_grupo': str  # Nombre del grupo de periodo
                 }
+            gap_analysis: GapAnalysis opcional — si tiene gaps, muestra advertencia visual
         """
         # Limpiar contenido
         for widget in self.content_frame.winfo_children():
             widget.destroy()
-        
+
         if not precios_data:
             self._mostrar_mensaje("(Ingrese fechas para ver precios)")
             return
-        
+
+        # Advertencia visual si hay gaps
+        if gap_analysis and gap_analysis.tiene_gaps:
+            self._mostrar_advertencia_gaps(gap_analysis)
+
         # Crear scrollable frame si hay muchos períodos
         if len(precios_data) > 3:
             scroll_frame = ctk.CTkScrollableFrame(
@@ -105,10 +110,38 @@ class CTkPrecioPanel(CTkCard):
             container = scroll_frame
         else:
             container = self.content_frame
-        
+
         # Crear entrada por cada periodo
         for item in precios_data:
             self._crear_precio_item(container, item)
+
+    def _mostrar_advertencia_gaps(self, gap_analysis):
+        """Muestra un banner de advertencia de cobertura parcial en el panel."""
+        advertencia_frame = ctk.CTkFrame(
+            self.content_frame,
+            fg_color="#FFF3CD",
+            corner_radius=Spacing.RADIUS_MD,
+            border_width=1,
+            border_color="#FFCA28",
+        )
+        advertencia_frame.pack(fill='x', pady=(0, Spacing.SM))
+
+        ctk.CTkLabel(
+            advertencia_frame,
+            text="⚠️  Cobertura parcial — hay fechas sin precio Excel",
+            font=(Typography.FAMILY, Typography.SMALL, Typography.BOLD),
+            text_color="#856404",
+            anchor='w',
+        ).pack(fill='x', padx=Spacing.SM, pady=(Spacing.XS, 0))
+
+        ctk.CTkLabel(
+            advertencia_frame,
+            text=gap_analysis.get_gap_description(),
+            font=(Typography.FAMILY, Typography.SMALL),
+            text_color="#856404",
+            anchor='w',
+            justify='left',
+        ).pack(fill='x', padx=Spacing.SM, pady=(0, Spacing.XS))
     
     def _crear_precio_item(self, parent, item):
         """Crea un item de precio individual.
