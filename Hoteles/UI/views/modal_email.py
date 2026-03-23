@@ -25,6 +25,7 @@ class ModalEmail(ctk.CTkToplevel):
             state: AppState — provee hotel, habitacion y resultado_multiperiodo
         """
         super().__init__(parent)
+        self.transient("")  # desvincula relacion transient con el padre
         self._state = state
 
         self._configurar_ventana()
@@ -41,7 +42,20 @@ class ModalEmail(ctk.CTkToplevel):
         self.geometry("860x680")
         self.minsize(700, 560)
         self.resizable(True, True)
-        self.grab_set()
+        self.after(100, self.grab_set)
+        self.after(150, self._ocultar_boton_minimizar)
+
+    def _ocultar_boton_minimizar(self):
+        """Oculta el boton minimizar de la barra de titulo via API de Windows."""
+        import ctypes
+        hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+        GWL_STYLE = -16
+        WS_MINIMIZEBOX = 0x00020000
+        style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
+        ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style & ~WS_MINIMIZEBOX)
+        # Fuerza redibujado de la barra de titulo
+        SWP_FLAGS = 0x0027  # SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED
+        ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_FLAGS)
 
     def _generar_texto_default(self):
         resultado = getattr(self._state, "resultado_multiperiodo", None)
@@ -58,8 +72,9 @@ class ModalEmail(ctk.CTkToplevel):
 
     def _construir_ui(self, texto_default):
         self._crear_header()
-        scroll = ctk.CTkScrollableFrame(self, fg_color=Colors.BACKGROUND, corner_radius=0)
-        scroll.pack(fill="both", expand=True)
+        self._scroll_frame = ctk.CTkScrollableFrame(self, fg_color=Colors.BACKGROUND, corner_radius=0)
+        self._scroll_frame.pack(fill="both", expand=True, padx=0, pady=0)
+        scroll = self._scroll_frame
 
         content = ctk.CTkFrame(scroll, fg_color="transparent")
         content.pack(fill="x", padx=28, pady=24)
@@ -116,15 +131,6 @@ class ModalEmail(ctk.CTkToplevel):
         row = ctk.CTkFrame(dest_frame, fg_color="transparent")
         row.pack(fill="x", padx=14, pady=(0, 8))
 
-        ctk.CTkLabel(
-            row,
-            text="Para:",
-            font=(Typography.FAMILY, Typography.SMALL),
-            text_color=Colors.TEXT_SECONDARY,
-            width=36,
-            anchor="w",
-        ).pack(side="left")
-
         self._entry_destinatario = ctk.CTkEntry(
             row,
             font=(Typography.FAMILY, Typography.SMALL),
@@ -135,7 +141,7 @@ class ModalEmail(ctk.CTkToplevel):
             corner_radius=Spacing.RADIUS_SM,
         )
         self._entry_destinatario.insert(0, self.DESTINATARIO)
-        self._entry_destinatario.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        self._entry_destinatario.pack(fill="x")
 
         self._lbl_error_dest = ctk.CTkLabel(
             dest_frame,
@@ -171,6 +177,9 @@ class ModalEmail(ctk.CTkToplevel):
         banners_row = ctk.CTkFrame(parent, fg_color="transparent")
         banners_row.pack(fill="x", pady=(0, 16))
 
+        banners_row.grid_columnconfigure(0, weight=1, uniform="banners")
+        banners_row.grid_columnconfigure(1, weight=1, uniform="banners")
+
         self._crear_banner_busqueda(banners_row)
         if resultado:
             self._crear_banner_resultados(banners_row, resultado)
@@ -182,7 +191,7 @@ class ModalEmail(ctk.CTkToplevel):
             corner_radius=Spacing.RADIUS_SM,
             border_width=0,
         )
-        banner.pack(side="left", fill="both", expand=True, padx=(0, 6))
+        banner.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
 
         ctk.CTkFrame(banner, fg_color=Colors.PRIMARY, corner_radius=0, width=4).pack(side="left", fill="y")
 
@@ -255,6 +264,8 @@ class ModalEmail(ctk.CTkToplevel):
                 lbl_p.pack(fill="x", pady=1)
                 inner.bind("<Configure>", lambda e, l=lbl_p: l.configure(wraplength=max(1, e.width)), add="+")
 
+        return banner
+
     def _crear_banner_resultados(self, parent, resultado):
         banner = ctk.CTkFrame(
             parent,
@@ -262,7 +273,7 @@ class ModalEmail(ctk.CTkToplevel):
             corner_radius=Spacing.RADIUS_SM,
             border_width=0,
         )
-        banner.pack(side="left", fill="both", expand=True, padx=(6, 0))
+        banner.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
         ctk.CTkFrame(banner, fg_color=Colors.WARNING, corner_radius=0, width=4).pack(side="left", fill="y")
 
@@ -327,6 +338,8 @@ class ModalEmail(ctk.CTkToplevel):
             lbl_hw.pack(fill="x")
             inner.bind("<Configure>", lambda e, l=lbl_hw: l.configure(wraplength=max(1, e.width)), add="+")
 
+        return banner
+
     def _crear_editor(self, parent, texto_default):
         """Crea el editor de email con toolbar. Retorna el widget tk.Text."""
         ctk.CTkLabel(
@@ -344,7 +357,7 @@ class ModalEmail(ctk.CTkToplevel):
             border_width=1,
             border_color=Colors.BORDER,
         )
-        editor_frame.pack(fill="both", expand=True)
+        editor_frame.pack(fill="x")
 
         email_text = tk.Text(
             editor_frame,
@@ -365,8 +378,17 @@ class ModalEmail(ctk.CTkToplevel):
         self._crear_toolbar(editor_frame, email_text)
         ctk.CTkFrame(editor_frame, fg_color=Colors.BORDER, height=1).pack(fill="x")
 
-        email_text.pack(fill="both", expand=True)
+        email_text.pack(fill="x")
+
         email_text.insert(tk.END, texto_default)
+
+        def _actualizar_altura(_=None):
+            lineas = int(email_text.index(tk.END).split(".")[0]) - 1
+            email_text.configure(height=max(10, lineas))
+
+        email_text.bind("<KeyRelease>", _actualizar_altura)
+        email_text.bind("<Configure>", _actualizar_altura)
+        _actualizar_altura()
 
         email_text.tag_configure("bold", font=(Typography.FAMILY, 13, "bold"))
         email_text.tag_configure("italic", font=(Typography.FAMILY, 13, "italic"))
@@ -447,11 +469,11 @@ class ModalEmail(ctk.CTkToplevel):
 
         ctk.CTkFrame(toolbar, fg_color=Colors.BORDER, width=2, height=28).pack(side="left", padx=8, pady=10)
 
-        dd_fuente = CTkCustomDropdown(toolbar, values=FUENTES, command=_cambiar_fuente, placeholder_text=Typography.FAMILY, width=160)
+        dd_fuente = CTkCustomDropdown(toolbar, values=FUENTES, command=_cambiar_fuente, placeholder_text=Typography.FAMILY, width=160, max_visible=4)
         dd_fuente.set(Typography.FAMILY)
         dd_fuente.pack(side="left", padx=3, pady=8)
 
-        dd_tamanio = CTkCustomDropdown(toolbar, values=[str(t) for t in TAMANIOS], command=_cambiar_tamanio, placeholder_text="13", width=90)
+        dd_tamanio = CTkCustomDropdown(toolbar, values=[str(t) for t in TAMANIOS], command=_cambiar_tamanio, placeholder_text="13", width=90, max_visible=4)
         dd_tamanio.set("13")
         dd_tamanio.pack(side="left", padx=(6, 3), pady=8)
 

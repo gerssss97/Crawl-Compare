@@ -263,6 +263,27 @@ async def comparar_multiperiodo(
                 error_msg_clean = partes[0]
                 error_url = partes[1].strip()
 
+            # Si el scraper no embebió la URL en el error, la construimos nosotros
+            # con los mismos params que usa crawler.py (hardcodeado hasta que el
+            # scraper devuelva la URL que visitó)
+            if not error_url:
+                from urllib.parse import urlencode
+                _params = {
+                    "adult": adultos,
+                    "child": ninos,
+                    "arrive": fecha_scrape_inicio.strftime("%Y-%m-%d"),
+                    "depart": fecha_scrape_fin.strftime("%Y-%m-%d"),
+                    "chain": 24447,
+                    "hotel": 6933,
+                    "currency": "USD",
+                    "level": "hotel",
+                    "locale": "en-US",
+                    "productcurrency": "USD",
+                    "rooms": 1,
+                    "src": 30,
+                }
+                error_url = "https://be.synxis.com/?" + urlencode(_params)
+
             # Agregar resultado con error
             resultados_periodos.append(ResultadoPeriodo(
                 periodo=periodo,

@@ -116,8 +116,8 @@ class CrawlCompareGUI:
         self._content_frame = ctk.CTkFrame(self.root, fg_color=Colors.BACKGROUND)
         self._content_frame.pack(fill="both", expand=True)
 
-        self._content_frame.grid_columnconfigure(0, weight=55, minsize=480)
-        self._content_frame.grid_columnconfigure(1, weight=45, minsize=360)
+        self._content_frame.grid_columnconfigure(0, weight=55, minsize=480, uniform="cols")
+        self._content_frame.grid_columnconfigure(1, weight=45, minsize=360, uniform="cols")
         self._content_frame.grid_rowconfigure(0, weight=1)
 
         self._crear_panel_izquierdo()
@@ -150,10 +150,11 @@ class CrawlCompareGUI:
             corner_radius=0,
         )
         panel_izq_outer.grid(row=0, column=0, sticky="nsew")
-        panel_izq_outer.grid_rowconfigure(0, weight=1)
+        panel_izq_outer.grid_rowconfigure(0, weight=3)   # form + progress (scrollable) — 60%
+        panel_izq_outer.grid_rowconfigure(1, weight=2)   # resultados — 40%
         panel_izq_outer.grid_columnconfigure(0, weight=1)
 
-        # Panel scrollable: formulario + resultados en una sola columna
+        # Panel scrollable: solo formulario + progress
         self._panel_izq = ctk.CTkScrollableFrame(
             panel_izq_outer,
             fg_color=Colors.SURFACE,
@@ -163,7 +164,6 @@ class CrawlCompareGUI:
         self._panel_izq.grid_columnconfigure(0, weight=1)
         self._panel_izq.grid_rowconfigure(0, weight=0)   # form: alto fijo
         self._panel_izq.grid_rowconfigure(1, weight=0)   # progress: alto fijo
-        self._panel_izq.grid_rowconfigure(2, weight=1)   # resultados: crece
 
         # Contenido dentro del scrollable
         form_frame = ctk.CTkFrame(self._panel_izq, fg_color="transparent")
@@ -182,19 +182,19 @@ class CrawlCompareGUI:
         self.progress_panel.grid_remove()  # oculto hasta que comience la comparacion
 
         # Contenedor externo transparente: apila título + caja de resultados
-        resultados_outer = ctk.CTkFrame(
-            self._panel_izq,
+        self._resultados_outer = ctk.CTkFrame(
+            panel_izq_outer,
             fg_color=Colors.SURFACE,
             corner_radius=0,
             border_width=0,
         )
-        resultados_outer.grid(row=2, column=0, sticky="nsew", padx=Spacing.LG, pady=(Spacing.SM, Spacing.LG))
-        resultados_outer.columnconfigure(0, weight=1)
-        resultados_outer.rowconfigure(1, weight=1)
+        self._resultados_outer.grid(row=1, column=0, sticky="nsew", padx=Spacing.LG, pady=(Spacing.SM, Spacing.LG))
+        self._resultados_outer.columnconfigure(0, weight=1)
+        self._resultados_outer.rowconfigure(1, weight=1)
 
         # Fila 0: título con fondo grisado (CTkFrame propio, esquinas arriba redondeadas)
         titulo_frame = ctk.CTkFrame(
-            resultados_outer,
+            self._resultados_outer,
             fg_color=Colors.BACKGROUND,
             bg_color=Colors.SURFACE,
             corner_radius=Spacing.RADIUS_MD,
@@ -214,7 +214,7 @@ class CrawlCompareGUI:
 
         # Fila 1: caja de resultados con borde propio en los 4 lados
         caja_resultados = ctk.CTkFrame(
-            resultados_outer,
+            self._resultados_outer,
             fg_color=Colors.SURFACE,
             bg_color=Colors.SURFACE,
             corner_radius=Spacing.RADIUS_MD,
@@ -374,7 +374,7 @@ class CrawlCompareGUI:
         )
         panel_der.grid(row=0, column=1, sticky="nsew")
 
-        container = ctk.CTkFrame(panel_der, fg_color="transparent")
+        container = ctk.CTkScrollableFrame(panel_der, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=Spacing.LG, pady=Spacing.LG)
 
         # Panel de precio
@@ -689,7 +689,7 @@ class CrawlCompareGUI:
         if self._btn_email is not None:
             return
         self._btn_email = ctk.CTkButton(
-            self.periodos_panel.content_frame,
+            self._resultados_outer,
             text="Enviar Email",
             font=(Typography.FAMILY, Typography.SMALL, Typography.BOLD),
             fg_color=Colors.SUCCESS,
@@ -699,7 +699,7 @@ class CrawlCompareGUI:
             height=36,
             command=self._abrir_ventana_email,
         )
-        self._btn_email.pack(fill="x", pady=(Spacing.SM, 0))
+        self._btn_email.grid(row=2, column=0, sticky="ew", pady=(Spacing.SM, 0))
 
     def _abrir_ventana_email(self):
         """Abre el modal de email."""

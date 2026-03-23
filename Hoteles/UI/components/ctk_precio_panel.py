@@ -94,10 +94,6 @@ class CTkPrecioPanel(CTkCard):
             self._mostrar_mensaje("(Ingrese fechas para ver precios)")
             return
 
-        # Advertencia visual si hay gaps
-        if gap_analysis and gap_analysis.tiene_gaps:
-            self._mostrar_advertencia_gaps(gap_analysis)
-
         # Crear scrollable frame si hay muchos períodos
         if len(precios_data) > 3:
             scroll_frame = ctk.CTkScrollableFrame(
@@ -115,16 +111,20 @@ class CTkPrecioPanel(CTkCard):
         for item in precios_data:
             self._crear_precio_item(container, item)
 
-    def _mostrar_advertencia_gaps(self, gap_analysis):
-        """Muestra un banner de advertencia de cobertura parcial en el panel."""
+        # Advertencia visual si hay gaps — al final, debajo de los periodos
+        if gap_analysis and gap_analysis.tiene_gaps:
+            self._mostrar_advertencia_gaps_en(container, gap_analysis)
+
+    def _mostrar_advertencia_gaps_en(self, parent, gap_analysis):
+        """Muestra un banner de advertencia de cobertura parcial al final de los periodos."""
         advertencia_frame = ctk.CTkFrame(
-            self.content_frame,
+            parent,
             fg_color="#FFF3CD",
             corner_radius=Spacing.RADIUS_MD,
             border_width=1,
             border_color="#FFCA28",
         )
-        advertencia_frame.pack(fill='x', pady=(0, Spacing.SM))
+        advertencia_frame.pack(fill='x', pady=(Spacing.SM, 0))
 
         ctk.CTkLabel(
             advertencia_frame,

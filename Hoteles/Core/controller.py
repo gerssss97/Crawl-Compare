@@ -152,10 +152,19 @@ def generar_texto_email_multiperiodo(hotel, resultado_multiperiodo):
             diferencia_str = "N/A"
 
         precio_web_str = f"${res_periodo.precio_web:.2f}"
-        estado = "OK" if res_periodo.coincide else "⚠️ DIFF"
+        if res_periodo.precio_excel == "Error":
+            estado = "❌ ERROR"
+        else:
+            estado = "OK" if res_periodo.coincide else "⚠️ DIFF"
 
         fila = f"{nombre_periodo:<25} | {fechas_str:<20} | {precio_excel_str:<10} | {precio_web_str:<10} | {diferencia_str:<12} {estado}\n"
         texto += fila
+
+        if res_periodo.precio_excel == "Error":
+            if res_periodo.error_msg:
+                texto += f"  → Error: {res_periodo.error_msg}\n"
+            if res_periodo.error_url:
+                texto += f"  → URL:   {res_periodo.error_url}\n"
 
     texto += "=" * 80 + "\n\n"
 

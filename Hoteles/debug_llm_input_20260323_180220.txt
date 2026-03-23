@@ -1,0 +1,110 @@
+================================================================================
+DEBUG: CONTENIDO ENVIADO AL LLM
+================================================================================
+
+Caracteres: 2,837
+Palabras: 414
+Tokens estimados: 709
+URL: https://be.synxis.com/?adult=1&child=0&arrive=2026-10-01&depart=2026-12-24&chain=24447&hotel=6933&currency=USD&level=hotel&locale=en-US&productcurrency=USD&rooms=1&src=30
+
+================================================================================
+CONTENIDO MARKDOWN:
+================================================================================
+
+## Deluxe Suite
+1 King bed
+Sleeps 3
+Deluxe Suite. 1 bedroom. 60sqm/645 sqft SGL/DBL occ. 1 queen/king or 2 twin beds. Marble baths
+[Room Details](https://be.synxis.com/<#>)
+### [Leaders Club Exclusive](https://be.synxis.com/<#>)
+  * Free cancellation up to 3:00 PM 2 days before arrival
+
+
+Leaders Club Exclusive
+Member rate
+$1,154
+Per Night
+Excluding taxes and fees
+Book NowDeluxe Suite Leaders Club Exclusive
+### [Breakfast Inclusive](https://be.synxis.com/<#>)
+  * Free cancellation up to 3:00 PM 2 days before arrival
+
+
+Breakfast inclusive Free WIFI Access to Spa & Fitness Center Access to the Business Center
+$1,154
+Per Night
+Excluding taxes and fees
+Book NowDeluxe Suite Breakfast Inclusive
+## Deluxe Lounge Suite
+1 King bed
+Sleeps 2
+Deluxe Lounge Suite.Kg or Tw. City view 55 to 60 SQM/ 592 to 645SQFT. High floor
+[Room Details](https://be.synxis.com/<#>)
+### [Leaders Club Exclusive](https://be.synxis.com/<#>)
+  * Free cancellation up to 3:00 PM 2 days before arrival
+
+
+Leaders Club Exclusive
+Member rate
+$1,391
+Per Night
+Excluding taxes and fees
+Book NowDeluxe Lounge Suite Leaders Club Exclusive
+### [Breakfast Inclusive](https://be.synxis.com/<#>)
+  * Free cancellation up to 3:00 PM 2 days before arrival
+
+
+Breakfast inclusive Free WIFI Access to Spa & Fitness Center Access to the Business Center
+$1,391
+Per Night
+Excluding taxes and fees
+Book NowDeluxe Lounge Suite Breakfast Inclusive
+## Junior Suite Le Mirador
+1 King bed
+Sleeps 2
+430 to 538 sq ftsquare feet
+Junior Suite Le Mirador 1 king or 2 twins 45-50 sqm or 430-538 sqf. High floor.
+[Room Details](https://be.synxis.com/<#>)
+### [Leaders Club Exclusive](https://be.synxis.com/<#>)
+  * Free cancellation up to 3:00 PM 2 days before arrival
+
+
+Leaders Club Exclusive
+Member rate
+$1,685
+Per Night
+Excluding taxes and fees
+Book NowJunior Suite Le Mirador Leaders Club Exclusive
+### [Breakfast Inclusive](https://be.synxis.com/<#>)
+  * Free cancellation up to 3:00 PM 2 days before arrival
+
+
+Breakfast inclusive Free WIFI Access to Spa & Fitness Center Access to the Business Center
+$1,685
+Per Night
+Excluding taxes and fees
+Book NowJunior Suite Le Mirador Breakfast Inclusive
+## Governor Suite
+Various Bed Types
+Sleeps 2
+Governor Suite-SGL or DBL occ. Corner 1 king or 2 twin beds -73 sqmt/786 sqft
+[Room Details](https://be.synxis.com/<#>)
+### [Leaders Club Exclusive](https://be.synxis.com/<#>)
+  * Free cancellation up to 3:00 PM 2 days before arrival
+
+
+Leaders Club Exclusive
+Member rate
+$2,336
+Per Night
+Excluding taxes and fees
+Book NowGovernor Suite Leaders Club Exclusive
+### [Breakfast Inclusive](https://be.synxis.com/<#>)
+  * Free cancellation up to 3:00 PM 2 days before arrival
+
+
+Breakfast inclusive Free WIFI Access to Spa & Fitness Center Access to the Business Center
+$2,336
+Per Night
+Excluding taxes and fees
+Book NowGovernor Suite Breakfast Inclusive
