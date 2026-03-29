@@ -144,19 +144,19 @@ class CrawlCompareGUI:
     def _crear_panel_izquierdo(self):
         """Crea el panel izquierdo con el formulario y los resultados (scrollable)."""
         # Contenedor externo que ocupa toda la celda del grid
-        panel_izq_outer = ctk.CTkFrame(
+        self._panel_izq_outer = ctk.CTkFrame(
             self._content_frame,
             fg_color=Colors.SURFACE,
             corner_radius=0,
         )
-        panel_izq_outer.grid(row=0, column=0, sticky="nsew")
-        panel_izq_outer.grid_rowconfigure(0, weight=3)   # form + progress (scrollable) — 60%
-        panel_izq_outer.grid_rowconfigure(1, weight=2)   # resultados — 40%
-        panel_izq_outer.grid_columnconfigure(0, weight=1)
+        self._panel_izq_outer.grid(row=0, column=0, sticky="nsew")
+        self._panel_izq_outer.grid_rowconfigure(0, weight=1)   # form + progress se lleva todo el espacio extra
+        self._panel_izq_outer.grid_rowconfigure(1, weight=0)   # resultados: solo su alto natural (compacto)
+        self._panel_izq_outer.grid_columnconfigure(0, weight=1)
 
         # Panel scrollable: solo formulario + progress
         self._panel_izq = ctk.CTkScrollableFrame(
-            panel_izq_outer,
+            self._panel_izq_outer,
             fg_color=Colors.SURFACE,
             corner_radius=0,
         )
@@ -164,6 +164,25 @@ class CrawlCompareGUI:
         self._panel_izq.grid_columnconfigure(0, weight=1)
         self._panel_izq.grid_rowconfigure(0, weight=0)   # form: alto fijo
         self._panel_izq.grid_rowconfigure(1, weight=0)   # progress: alto fijo
+
+        _sb_izq = self._panel_izq._scrollbar
+        _parent_canvas = self._panel_izq._parent_canvas
+
+        # Fix 1: auto-ocultar scrollbar cuando el contenido cabe en el viewport.
+        # CTkScrollableFrame siempre renderiza la scrollbar; hookeamos yscrollcommand
+        # para mostrarla/ocultarla dinámicamente según si hay overflow real.
+        def _auto_hide_izq(lo, hi):
+            _sb_izq.set(lo, hi)
+            should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
+            _parent_canvas.after(0, _sb_izq.grid if should_show else _sb_izq.grid_remove)
+
+        _parent_canvas.configure(yscrollcommand=_auto_hide_izq)
+
+        # Fix 2: velocidad uniforme al scrollear sobre la scrollbar (delta/40 lento → delta/6 normal).
+        def _fix_scrollbar_wheel(event):
+            _parent_canvas.yview_scroll(int(-event.delta / 6), "units")
+            return "break"
+        _sb_izq._canvas.bind("<MouseWheel>", _fix_scrollbar_wheel)
 
         # Contenido dentro del scrollable
         form_frame = ctk.CTkFrame(self._panel_izq, fg_color="transparent")
@@ -183,7 +202,7 @@ class CrawlCompareGUI:
 
         # Contenedor externo transparente: apila título + caja de resultados
         self._resultados_outer = ctk.CTkFrame(
-            panel_izq_outer,
+            self._panel_izq_outer,
             fg_color=Colors.SURFACE,
             corner_radius=0,
             border_width=0,
@@ -377,6 +396,30 @@ class CrawlCompareGUI:
         container = ctk.CTkScrollableFrame(panel_der, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=Spacing.LG, pady=Spacing.LG)
 
+        # Fix 1: auto-ocultar scrollbar cuando el contenido cabe en el viewport.
+        # CTkScrollableFrame siempre muestra la scrollbar — hookeamos yscrollcommand
+        # para decidir nosotros. lo/hi son fracciones [0-1] del contenido visible:
+        # lo=0, hi=1 → todo visible → ocultamos. Margen 0.5% absorbe DPI rounding.
+        # after(0) difiere el grid_remove/grid al siguiente tick para evitar re-entry.
+        _sb_der = container._scrollbar
+        _canvas_der = container._parent_canvas
+
+        def _auto_hide_der(lo, hi):
+            _sb_der.set(lo, hi)
+            should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
+            _canvas_der.after(0, _sb_der.grid if should_show else _sb_der.grid_remove)
+
+        _canvas_der.configure(yscrollcommand=_auto_hide_der)
+
+        # Fix 2: velocidad uniforme al scrollear sobre la scrollbar.
+        # Sin esto, la scrollbar usa delta/40 (lento) en vez de delta/6 (normal).
+        # Idéntico al fix ya aplicado en _panel_izq.
+        def _fix_scrollbar_wheel_der(event):
+            _canvas_der.yview_scroll(int(-event.delta / 6), "units")
+            return "break"
+
+        container._scrollbar._canvas.bind("<MouseWheel>", _fix_scrollbar_wheel_der)
+
         # Panel de precio
         self.precio_panel = CTkPrecioPanel(
             container,
@@ -554,6 +597,8 @@ class CrawlCompareGUI:
             self.resultado.delete("1.0", tk.END)
             self.resultado.insert(tk.END, "Iniciando comparacion...\n")
             self.btn_ejecutar.configure(state="disabled")
+            self._panel_izq_outer.grid_rowconfigure(0, weight=1)  # 50%
+            self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
             self._total_periodos_progreso = 0
             # El panel se inicializa con 1 periodo temporal; se ajustara
             # al recibir el primer comparison_progress con el total real.
@@ -613,6 +658,8 @@ class CrawlCompareGUI:
                 self.root.after(1500, self.progress_panel.ocultar)
 
                 self.vista_resultados.mostrar_resultado_multiperiodo(resultado_data)
+                self._panel_izq_outer.grid_rowconfigure(0, weight=1)  # 50%
+                self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
                 self.state.resultado_multiperiodo = resultado_data
                 if resultado_data.tiene_discrepancias:
                     self._mostrar_email_btn()
@@ -625,6 +672,8 @@ class CrawlCompareGUI:
                 for linea in mensaje.split("\n"):
                     tag = ("bold",) if ("Habitacion web" in linea or "diferencia" in linea or "coinciden" in linea) else ()
                     self.resultado.insert(tk.END, linea + "\n", tag)
+                self._panel_izq_outer.grid_rowconfigure(0, weight=1)  # 50%
+                self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
                 if coincide:
                     self._mostrar_email_btn()
         self.root.after(0, _actualizar)
@@ -650,6 +699,8 @@ class CrawlCompareGUI:
             else:
                 self.resultado.insert(tk.END, "Error: ", ("bold",))
                 self.resultado.insert(tk.END, f"{error_msg}\n")
+            self._panel_izq_outer.grid_rowconfigure(0, weight=1)  # 50%
+            self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
         self.root.after(0, _actualizar)
 
     def _on_precios_actualizados(self, data):

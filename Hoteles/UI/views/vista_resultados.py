@@ -44,7 +44,7 @@ class VistaResultados(tk.Frame):
         # Text widget con altura ajustable
         self._text = tk.Text(
             frame_resultado,
-            height=25,
+            height=4,
             width=100,
             font=self.fonts.resultado,
             wrap="word",

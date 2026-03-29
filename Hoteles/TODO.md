@@ -1,11 +1,5 @@
-- arreglar scroll panel derecho. invisibiliza boton envio email. poner el boton de enviar el email mas arriba y lesto.
-- en redaccion de email
-    - resumen busqueda vs resultados comparacion no ocupan el mismo ancho.
-    - los dropdowns de tipo letra y tamaño no tienen la correcta cantidad de datos a visualizar
-    - ver de reajustar el scroll del panel de contenido de email. (mismo problema en resultados de la comparacion)
-
-errores:
-
+- mover barra de carga al panel de comparacion de precios
+- al aparecer la scrollbar del menu de seleccion de habitacion, se encoge todo horizontalmente. si vuelve a desaparecer, se ensancha.
 Habitación Excel: sgl/dbl junior suite le mirador w/breakfast served at restaurant
 Periodo         | Fechas        |        Excel |          Web | Estado  
 ------------------------------------------------------------------------------------------

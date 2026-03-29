@@ -74,6 +74,14 @@ class ModalEmail(ctk.CTkToplevel):
         self._crear_header()
         self._scroll_frame = ctk.CTkScrollableFrame(self, fg_color=Colors.BACKGROUND, corner_radius=0)
         self._scroll_frame.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # Fix: scrollbar usa delta/40 (lento), CTkScrollableFrame usa delta/6 (normal).
+        _canvas = self._scroll_frame._parent_canvas
+        def _fix_scrollbar_wheel(event):
+            _canvas.yview_scroll(int(-event.delta / 6), "units")
+            return "break"
+        self._scroll_frame._scrollbar._canvas.bind("<MouseWheel>", _fix_scrollbar_wheel)
+
         scroll = self._scroll_frame
 
         content = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -359,21 +367,18 @@ class ModalEmail(ctk.CTkToplevel):
         )
         editor_frame.pack(fill="x")
 
-        email_text = tk.Text(
+        email_text = ctk.CTkTextbox(
             editor_frame,
             wrap="word",
             font=(Typography.FAMILY, 13),
-            fg=Colors.TEXT_PRIMARY,
-            bg=Colors.SURFACE,
-            relief="flat",
-            bd=0,
-            padx=16,
-            pady=14,
-            spacing1=2,
-            spacing3=2,
-            height=16,
-            undo=True,
+            text_color=Colors.TEXT_PRIMARY,
+            fg_color=Colors.BACKGROUND,
+            corner_radius=0,
+            border_width=0,
+            height=250,
+            activate_scrollbars=False,
         )
+        email_text._textbox.configure(undo=True, spacing1=2, spacing3=2, padx=16, pady=14)
 
         self._crear_toolbar(editor_frame, email_text)
         ctk.CTkFrame(editor_frame, fg_color=Colors.BORDER, height=1).pack(fill="x")
@@ -383,16 +388,18 @@ class ModalEmail(ctk.CTkToplevel):
         email_text.insert(tk.END, texto_default)
 
         def _actualizar_altura(_=None):
-            lineas = int(email_text.index(tk.END).split(".")[0]) - 1
-            email_text.configure(height=max(10, lineas))
+            lineas = int(email_text._textbox.index(tk.END).split(".")[0]) - 1
+            email_text.configure(height=max(250, lineas * 22))
 
         email_text.bind("<KeyRelease>", _actualizar_altura)
         email_text.bind("<Configure>", _actualizar_altura)
         _actualizar_altura()
 
-        email_text.tag_configure("bold", font=(Typography.FAMILY, 13, "bold"))
-        email_text.tag_configure("italic", font=(Typography.FAMILY, 13, "italic"))
-        email_text.tag_configure("underline", underline=True)
+        email_text._textbox.unbind("<MouseWheel>")
+
+        email_text._textbox.tag_configure("bold", font=(Typography.FAMILY, 13, "bold"))
+        email_text._textbox.tag_configure("italic", font=(Typography.FAMILY, 13, "italic"))
+        email_text._textbox.tag_configure("underline", underline=True)
 
         self._crear_barra_chars(editor_frame, email_text)
 
@@ -422,13 +429,13 @@ class ModalEmail(ctk.CTkToplevel):
 
         def _toggle(tag):
             try:
-                start = email_text.index(tk.SEL_FIRST)
-                end = email_text.index(tk.SEL_LAST)
+                start = email_text._textbox.index(tk.SEL_FIRST)
+                end = email_text._textbox.index(tk.SEL_LAST)
             except tk.TclError:
                 return
-            ranges = email_text.tag_ranges(tag)
+            ranges = email_text._textbox.tag_ranges(tag)
             tiene = any(
-                email_text.compare(ranges[i], "<=", start) and email_text.compare(ranges[i + 1], ">=", end)
+                email_text._textbox.compare(ranges[i], "<=", start) and email_text._textbox.compare(ranges[i + 1], ">=", end)
                 for i in range(0, len(ranges), 2)
             )
             if tiene:
@@ -439,16 +446,16 @@ class ModalEmail(ctk.CTkToplevel):
         def _aplicar_formato(tipo, valor):
             """Aplica fuente o tamaño solo al texto seleccionado via tag dinámico."""
             try:
-                start = email_text.index(tk.SEL_FIRST)
-                end = email_text.index(tk.SEL_LAST)
+                start = email_text._textbox.index(tk.SEL_FIRST)
+                end = email_text._textbox.index(tk.SEL_LAST)
             except tk.TclError:
                 return  # sin selección, no hace nada
 
             tag_name = f"fmt_{tipo}_{valor}".replace(" ", "_")
             if tipo == "fuente":
-                email_text.tag_configure(tag_name, font=(valor, _tamanio[0]))
+                email_text._textbox.tag_configure(tag_name, font=(valor, _tamanio[0]))
             else:  # tamanio
-                email_text.tag_configure(tag_name, font=(_fuente[0], int(valor)))
+                email_text._textbox.tag_configure(tag_name, font=(_fuente[0], int(valor)))
             email_text.tag_add(tag_name, start, end)
 
         def _cambiar_fuente(f):
@@ -479,8 +486,8 @@ class ModalEmail(ctk.CTkToplevel):
 
         ctk.CTkFrame(toolbar, fg_color=Colors.BORDER, width=2, height=28).pack(side="left", padx=8, pady=10)
 
-        _btn("Deshacer", lambda: email_text.edit_undo() if True else None).pack(side="left", padx=3, pady=8)
-        _btn("Rehacer", lambda: email_text.edit_redo() if True else None).pack(side="left", padx=3, pady=8)
+        _btn("Deshacer", lambda: email_text._textbox.edit_undo() if True else None).pack(side="left", padx=3, pady=8)
+        _btn("Rehacer", lambda: email_text._textbox.edit_redo() if True else None).pack(side="left", padx=3, pady=8)
 
     def _crear_barra_chars(self, parent, email_text):
         char_bar = ctk.CTkFrame(parent, fg_color="#F8FAFC", corner_radius=0, height=28)

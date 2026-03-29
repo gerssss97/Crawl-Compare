@@ -4,6 +4,8 @@ Problemas conocidos, causas y soluciones encontradas durante el desarrollo.
 
 > Antes de debuggear un problema de UI, revisá esta guía para ver si ya fue investigado.
 
+> **Referencia oficial**: Si el problema no está documentado acá, consultar la documentación de CustomTkinter en https://customtkinter.tomschimansky.com para confirmar features, parámetros soportados y limitaciones de widgets antes de proponer soluciones.
+
 ---
 
 ## Índice
@@ -17,6 +19,9 @@ Problemas conocidos, causas y soluciones encontradas durante el desarrollo.
 - [CTkCustomDropdown — Texto del listado se clipea por la izquierda](#ctkcustomdropdown--texto-del-listado-se-clipea-por-la-izquierda)
 - [Layout — Dos columnas de igual ancho y alto](#layout--dos-columnas-de-igual-ancho-y-alto)
 - [CTkToplevel — Botón minimizar bloqueado por grab_set()](#ctktoplevel--botón-minimizar-bloqueado-por-grab_set)
+- [Rendering — tk.Text rectangular dentro de CTkFrame redondeado (Modal Email)](#rendering--tktext-rectangular-dentro-de-ctkframe-redondeado-modal-email)
+- [Scroll / MouseWheel — Scroll lento al pasar el mouse sobre la scrollbar](#scroll--mousewheel--scroll-lento-al-pasar-el-mouse-sobre-la-scrollbar)
+- [Scroll / Scrollbar — CTkScrollableFrame muestra scrollbar aunque el contenido cabe](#scroll--scrollbar--ctkscrollableframe-muestra-scrollbar-aunque-el-contenido-cabe)
 
 ---
 
@@ -543,6 +548,224 @@ self.after(150, self._ocultar_boton_minimizar)
 ### Regla general
 
 En modales `CTkToplevel` en Windows donde el botón minimizar queda bloqueado: ocultarlo con `WS_MINIMIZEBOX` via ctypes. Es más honesto que dejarlo visible pero roto.
+
+---
+
+## Rendering — Widget rectangular dentro de CTkFrame redondeado (Modal Email)
+
+**Estado**: 🔬 Pendiente — esquinas del hijo rectangular siguen visibles dentro del frame redondeado
+
+**Archivos afectados**: [UI/views/modal_email.py](../../Hoteles/UI/views/modal_email.py)
+
+### Síntoma
+
+El editor de email (toolbar + área de texto) tiene esquinas rectas que sobresalen del frame contenedor redondeado. Cualquier widget hijo rectangular se renderiza por encima de las esquinas curvas del padre CTkFrame.
+
+### Causa raíz
+
+**Tkinter/CustomTkinter no soporta `overflow: hidden` ni z-index.** Confirmado en la [documentación oficial de CTk](https://customtkinter.tomschimansky.com). Los CTkFrame dibujan sus esquinas redondeadas en un canvas, pero los widgets hijos se renderizan encima sin clipping. No hay forma nativa de que el padre recorte a sus hijos.
+
+### Intentos (descartados)
+
+| # | Intento | Resultado |
+|---|---------|-----------|
+| 1 | Cambiar `fg_color` del `editor_frame` contenedor | No visible — el widget de texto tapa completamente al frame |
+| 2 | Shadow frame wrapeando al editor (`corner_radius` en shadow, `corner_radius=0` en editor) | Esquinas rectas del editor se asoman por las esquinas redondeadas del shadow |
+| 3 | `corner_radius=0` en editor_frame + padding `(2,4)` en shadow | Padding insuficiente para radio 10 (mínimo seguro: `R × 0.29 ≈ 3px`) |
+| 4 | Aumentar padding del shadow a `5px` con `corner_radius=12` | Esquinas ya no se asoman pero el "borde" de 5px queda visualmente grueso, no parece sombra |
+| 5 | Reemplazar `tk.Text` por `ctk.CTkTextbox` | Resuelve el error de `tag_config` con font, pero la toolbar (`CTkFrame corner_radius=0`) sigue siendo rectangular y se asoma por las esquinas del padre |
+
+### Estado actual
+
+Se migró de `tk.Text` a `ctk.CTkTextbox` (mejora de compatibilidad con CTk). El editor_frame usa borde simple sin shadow frame. Las esquinas del frame son redondeadas pero los hijos internos (toolbar, textbox) se asoman en las esquinas.
+
+### Migración tk.Text → CTkTextbox (referencia)
+
+La migración se hizo y se mantiene independientemente de las esquinas, porque CTkTextbox es más consistente con el resto de la UI.
+
+| Aspecto | `tk.Text` | `ctk.CTkTextbox` |
+|---------|-----------|-------------------|
+| Esquinas | Siempre rectas | Soporta `corner_radius` |
+| `height` | En **líneas** | En **píxeles** |
+| Color fondo | `bg=` | `fg_color=` |
+| Color texto | `fg=` | `text_color=` |
+| Borde | `relief=`, `bd=` | `border_width=`, `border_color=` |
+| Métodos directos | Todos los de tk.Text | `insert`, `get`, `delete`, `tag_add`, `tag_remove`, `tag_config`, `bind` |
+| Métodos via `._textbox` | N/A | `index`, `tag_ranges`, `compare`, `edit_undo`, `edit_redo` |
+| `font` en `tag_config` | ✅ Funciona | ❌ Prohibido — usar `._textbox.tag_configure()` |
+
+### Posibles caminos a explorar
+
+- Canvas con clipping region manual (dibujar contenido en un canvas con clip path)
+- `overrideredirect` + render custom completo
+- Aceptar esquinas rectas y usar borde simple (estado actual)
+
+---
+
+---
+
+## Scroll / MouseWheel — Scroll lento al pasar el mouse sobre la scrollbar
+
+**Estado**: ✅ Resuelto
+
+**Archivos afectados**: [UI/interfaz_ctk.py](../../Hoteles/UI/interfaz_ctk.py), [UI/views/modal_email.py](../../Hoteles/UI/views/modal_email.py)
+
+### Síntoma
+
+Al posicionar el mouse sobre la scrollbar de un `CTkScrollableFrame` y scrollear, el scroll es ~7x más lento que al scrollear con el mouse sobre el contenido. Al sacar el mouse de la scrollbar, vuelve a la velocidad normal.
+
+### Causa
+
+`CTkScrollableFrame` tiene dos handlers de `<MouseWheel>` con fórmulas de sensibilidad distintas:
+
+| Handler | Quién lo registra | Fórmula (Windows) | Delta=120 → unidades |
+|---------|-------------------|-------------------|---------------------|
+| `bind_all("<MouseWheel>")` | `CTkScrollableFrame` | `event.delta / 6` | **20 unidades** |
+| `_mouse_scroll_event` | `CTkScrollbar._canvas` | `event.delta / 40` | **3 unidades** |
+
+El `bind_all` del scrollable frame tiene una guardia `check_if_master_is_canvas()` que sube recursivamente por la jerarquía de `.master`. La scrollbar es **hermana** del canvas (ambas son hijas de `_parent_frame`), no hija. Entonces cuando el evento cae sobre la scrollbar, la guardia nunca encuentra el canvas y retorna `False` → el `bind_all` **no dispara**.
+
+Solo queda activo el handler propio de la scrollbar, que usa `delta/40` → scroll 7x más lento.
+
+```
+_parent_frame
+├── _parent_canvas  (row=1, col=0)  ← check_if_master_is_canvas busca esto
+└── _scrollbar      (row=1, col=1)  ← sibling, no pasa por _parent_canvas al subir
+    └── _canvas (CTkCanvas)         ← aquí cae el evento MouseWheel
+```
+
+### Intento fallido
+
+Bindear sobre el `CTkScrollbar` directamente no funciona — el evento `<MouseWheel>` cae sobre el `_canvas` **interno** del CTkScrollbar (CTkCanvas), no sobre el widget wrapper:
+
+```python
+# ❌ No intercepta el evento — cae en _canvas interno, no en el CTkScrollbar
+self._panel_izq._scrollbar.bind("<MouseWheel>", lambda e: "break")
+```
+
+### Solución
+
+Bindear sobre el `_canvas` interno del `CTkScrollbar`, redirigir al `_parent_canvas` con la misma fórmula que usa el `CTkScrollableFrame` (`delta/6`), y cancelar el handler lento con `return "break"`:
+
+```python
+_sb_canvas = self._panel_izq._scrollbar._canvas
+_parent_canvas = self._panel_izq._parent_canvas
+
+def _fix_scrollbar_wheel(event):
+    _parent_canvas.yview_scroll(int(-event.delta / 6), "units")
+    return "break"  # cancela el handler lento de la scrollbar (delta/40)
+
+_sb_canvas.bind("<MouseWheel>", _fix_scrollbar_wheel)
+```
+
+Aplicar inmediatamente después de crear el `CTkScrollableFrame`, antes de agregar contenido.
+
+### Regla general
+
+Si un `CTkScrollableFrame` tiene scroll lento sobre la scrollbar, el problema es la diferencia de sensibilidad entre los dos handlers. La fix siempre es: bindear sobre `_scrollbar._canvas` (no sobre `_scrollbar`), y redirigir al `_parent_canvas` con `delta/6`.
+
+---
+
+---
+
+## Scroll / Scrollbar — CTkScrollableFrame muestra scrollbar aunque el contenido cabe
+
+**Estado**: ✅ Resuelto
+
+**Archivos afectados**: [UI/interfaz_ctk.py](../../Hoteles/UI/interfaz_ctk.py) — `_panel_izq` (panel selección de reserva) y panel derecho de resultados
+
+### Síntoma
+
+Un `CTkScrollableFrame` muestra su scrollbar vertical aunque el contenido entra perfectamente en el viewport. Además:
+- Al scrollear con la rueda sobre el contenido no pasa nada (parece que no funciona)
+- Al posicionar el mouse sobre la scrollbar y scrollear, sí se mueve — pero hay más espacio virtual "arriba" que "abajo"
+
+### Causa
+
+`CTkScrollableFrame` **siempre renderiza su scrollbar**, no tiene lógica de auto-ocultamiento. La scrollbar aparece incluso cuando `scrollregion == viewport`.
+
+El phantom overflow de 1-2px se explica así: `CTkScrollableFrame` dimensiona su ventana interna (`canvas_window`) al menos tan grande como el viewport del canvas. Con hijos que usan `expand=True`, el frame interno solicita exactamente esa altura. Por diferencias de DPI scaling entre píxeles reales y unidades CTk, el `scrollregion` puede quedar 1-2px por encima del viewport → la scrollbar aparece pero prácticamente no hay nada que scrollear.
+
+El efecto "más espacio arriba que abajo": el contenido está al inicio pero hay 1-2px de espacio virtual al fondo. El thumb de la scrollbar parece "lleno" (ocupa casi todo el track) pero la posición yview no está exactamente en 0.
+
+El "wheel no funciona sobre el contenido": `bind_all` sí dispara pero `yview_scroll(20, "units")` sobre 1-2px de overflow se clampea a 0 → nada se mueve → el usuario percibe que el scroll está roto.
+
+### Por qué no basta con reemplazar `CTkScrollableFrame` por `CTkFrame`
+
+La solución obvia (reemplazar por `CTkFrame`) elimina el phantom scrollbar **pero también elimina el scroll cuando el contenido genuinamente desborda** (ej: CTkPrecioPanel con muchos periodos de precio). La solución debe preservar ambos comportamientos.
+
+### Solución — hook en `yscrollcommand` con auto-hide vía `grid_remove`/`grid`
+
+Tk llama a `yscrollcommand` en cada actualización de posición, pasando dos fracciones `lo` y `hi` que representan qué porción del contenido total es actualmente visible:
+
+```
+contenido = 1000px, viewport = 600px, posición al tope:
+  lo = 0/1000  = 0.0   (tope del área visible / contenido total)
+  hi = 600/1000 = 0.6   (fondo del área visible / contenido total)
+
+cuando todo cabe (sin overflow):
+  lo = 0.0, hi = 1.0   ← la scrollbar no hace falta
+```
+
+Hookeamos `yscrollcommand` para decidir si la scrollbar debe mostrarse:
+
+```python
+_sb_der = container._scrollbar
+_canvas_der = container._parent_canvas
+
+def _auto_hide_der(lo, hi):
+    _sb_der.set(lo, hi)                                          # actualizar posición normal
+    should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
+    _canvas_der.after(0, _sb_der.grid if should_show else _sb_der.grid_remove)
+
+_canvas_der.configure(yscrollcommand=_auto_hide_der)
+```
+
+**Tabla de decisión:**
+
+| Situación | lo | hi | `should_show` |
+|---|---|---|---|
+| Todo visible, sin overflow | 0.0 | 1.0 | False — oculta ✓ |
+| Phantom overflow DPI (1-2px) | 0.0 | 0.998 | False — oculta ✓ |
+| Overflow real, vista al tope | 0.0 | 0.7 | True — muestra ✓ |
+| Overflow real, vista al fondo | 0.3 | 1.0 | True — muestra ✓ |
+
+**Por qué `grid_remove` / `grid` y no `pack_forget`:** `CTkScrollableFrame` organiza sus internos con `grid` (`_parent_canvas` en col=0, `_scrollbar` en col=1). `grid_remove()` elimina la scrollbar del grid pero **recuerda sus opciones** → `grid()` sin argumentos la restaura exactamente donde estaba. `pack_forget()` no aplica porque el layout interno es grid.
+
+**Por qué `after(0, ...)`:** `_auto_hide_der` se llama desde el sistema interno de scroll de Tk. Modificar el layout (grid_remove/grid) dentro de ese callback puede causar re-entradas. Diferir con `after(0)` lo ejecuta en el siguiente ciclo del event loop, evitando el conflicto.
+
+**Margen de 0.005 / 0.995:** absorbe el DPI rounding de 1-2px. Para un viewport de 600px, un overflow de hasta 3px se trata como "sin overflow". Overflow genuino de más de ~3px siempre supera el umbral y muestra la scrollbar.
+
+### Aplicar junto con el fix de velocidad de scrollbar
+
+Conviene aplicar ambos fixes juntos (auto-hide + velocidad uniforme):
+
+```python
+container = ctk.CTkScrollableFrame(panel_der, fg_color="transparent")
+container.pack(fill="both", expand=True, padx=Spacing.LG, pady=Spacing.LG)
+
+# Fix 1: auto-ocultar scrollbar cuando el contenido cabe en el viewport
+_sb_der = container._scrollbar
+_canvas_der = container._parent_canvas
+
+def _auto_hide_der(lo, hi):
+    _sb_der.set(lo, hi)
+    should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
+    _canvas_der.after(0, _sb_der.grid if should_show else _sb_der.grid_remove)
+
+_canvas_der.configure(yscrollcommand=_auto_hide_der)
+
+# Fix 2: velocidad uniforme al scrollear sobre la scrollbar (ver sección anterior)
+def _fix_scrollbar_wheel_der(event):
+    _canvas_der.yview_scroll(int(-event.delta / 6), "units")
+    return "break"
+
+container._scrollbar._canvas.bind("<MouseWheel>", _fix_scrollbar_wheel_der)
+```
+
+### Regla general
+
+`CTkScrollableFrame` nunca auto-oculta su scrollbar. Si necesitás que la scrollbar aparezca solo cuando el contenido genuinamente desborda, siempre aplicá el hook en `yscrollcommand` con el patrón `grid_remove`/`grid` y umbral 0.005/0.995.
 
 ---
 

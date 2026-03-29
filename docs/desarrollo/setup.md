@@ -62,6 +62,10 @@ pydantic==2.10.6
 # Excel parsing
 openpyxl>=3.1.0
 
+# UI (CustomTkinter)
+# Docs: https://customtkinter.tomschimansky.com
+customtkinter>=5.2.0
+
 # Fuzzy matching
 rapidfuzz>=3.13.0
 
