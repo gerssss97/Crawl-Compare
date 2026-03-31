@@ -163,7 +163,6 @@ class CrawlCompareGUI:
         self._panel_izq.grid(row=0, column=0, sticky="nsew")
         self._panel_izq.grid_columnconfigure(0, weight=1)
         self._panel_izq.grid_rowconfigure(0, weight=0)   # form: alto fijo
-        self._panel_izq.grid_rowconfigure(1, weight=0)   # progress: alto fijo
 
         _sb_izq = self._panel_izq._scrollbar
         _parent_canvas = self._panel_izq._parent_canvas
@@ -174,7 +173,48 @@ class CrawlCompareGUI:
         def _auto_hide_izq(lo, hi):
             _sb_izq.set(lo, hi)
             should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
-            _parent_canvas.after(0, _sb_izq.grid if should_show else _sb_izq.grid_remove)
+
+            def _aplicar():
+                tag = "SHOW" if should_show else "HIDE"
+
+                # --- mediciones ANTES ---
+                w_outer    = self._panel_izq_outer.winfo_width()
+                req_outer  = self._panel_izq_outer.winfo_reqwidth()
+                w_pframe   = self._panel_izq._parent_frame.winfo_width()
+                req_pframe = self._panel_izq._parent_frame.winfo_reqwidth()
+                w_canvas   = _parent_canvas.winfo_width()
+                w_sb       = _sb_izq.winfo_width()
+
+                print(f"\n[SB-IZQ] {tag} | lo={float(lo):.4f} hi={float(hi):.4f}")
+                print(f"  ANTES   outer={w_outer:4d}(req={req_outer:4d}) | _pframe={w_pframe:4d}(req={req_pframe:4d}) | canvas={w_canvas:4d} | sb={w_sb:4d}")
+
+                # --- acción ---
+                if should_show:
+                    _sb_izq.grid()
+                else:
+                    _sb_izq.grid_remove()
+
+                # --- mediciones DESPUÉS (siguiente tick, cuando tk ya aplicó el layout) ---
+                def _medir_despues():
+                    w_outer2    = self._panel_izq_outer.winfo_width()
+                    req_outer2  = self._panel_izq_outer.winfo_reqwidth()
+                    w_pframe2   = self._panel_izq._parent_frame.winfo_width()
+                    req_pframe2 = self._panel_izq._parent_frame.winfo_reqwidth()
+                    w_canvas2   = _parent_canvas.winfo_width()
+                    w_sb2       = _sb_izq.winfo_width()
+
+                    print(f"  DESPUES outer={w_outer2:4d}(req={req_outer2:4d}) | _pframe={w_pframe2:4d}(req={req_pframe2:4d}) | canvas={w_canvas2:4d} | sb={w_sb2:4d}")
+
+                    delta_outer  = w_outer2  - w_outer
+                    delta_pframe = w_pframe2 - w_pframe
+                    delta_req    = req_pframe2 - req_pframe
+
+                    if delta_outer != 0:
+                        print(f"  *** LAYOUT SHIFT en outer: {delta_outer:+d}px | _pframe: {delta_pframe:+d}px | req_pframe: {delta_req:+d}px ***")
+
+                _parent_canvas.after(0, _medir_despues)
+
+            _parent_canvas.after(0, _aplicar)
 
         _parent_canvas.configure(yscrollcommand=_auto_hide_izq)
 
@@ -193,13 +233,6 @@ class CrawlCompareGUI:
         self._crear_form_fechas(form_frame)
         self._crear_boton_ejecutar(form_frame)
 
-        # Panel de progreso (oculto hasta que comience la comparacion)
-        self.progress_panel = CTkProgressPanel(
-            self._panel_izq,
-        )
-        self.progress_panel.grid(row=1, column=0, sticky="ew", padx=Spacing.LG, pady=(Spacing.SM, 0))
-        self.progress_panel.grid_remove()  # oculto hasta que comience la comparacion
-
         # Contenedor externo transparente: apila título + caja de resultados
         self._resultados_outer = ctk.CTkFrame(
             self._panel_izq_outer,
@@ -209,9 +242,14 @@ class CrawlCompareGUI:
         )
         self._resultados_outer.grid(row=1, column=0, sticky="nsew", padx=Spacing.LG, pady=(Spacing.SM, Spacing.LG))
         self._resultados_outer.columnconfigure(0, weight=1)
-        self._resultados_outer.rowconfigure(1, weight=1)
+        self._resultados_outer.rowconfigure(2, weight=1)
 
-        # Fila 0: título con fondo grisado (CTkFrame propio, esquinas arriba redondeadas)
+        # Fila 0: progress panel (oculto hasta que comience la comparacion)
+        self.progress_panel = CTkProgressPanel(self._resultados_outer)
+        self.progress_panel.grid(row=0, column=0, sticky="ew", pady=(0, Spacing.XS))
+        # grid_remove() ya se llama en CTkProgressPanel.__init__
+
+        # Fila 1: título con fondo grisado (CTkFrame propio, esquinas arriba redondeadas)
         titulo_frame = ctk.CTkFrame(
             self._resultados_outer,
             fg_color=Colors.BACKGROUND,
@@ -221,7 +259,7 @@ class CrawlCompareGUI:
             border_color=Colors.BORDER,
             overwrite_preferred_drawing_method="polygon_shapes",
         )
-        titulo_frame.grid(row=0, column=0, sticky="ew", pady=(0, 0))
+        titulo_frame.grid(row=1, column=0, sticky="ew", pady=(0, 0))
         titulo_frame.columnconfigure(0, weight=1)
         ctk.CTkLabel(
             titulo_frame,
@@ -241,7 +279,7 @@ class CrawlCompareGUI:
             border_color=Colors.BORDER,
             overwrite_preferred_drawing_method="polygon_shapes",
         )
-        caja_resultados.grid(row=1, column=0, sticky="nsew", pady=(Spacing.XS, 0))
+        caja_resultados.grid(row=2, column=0, sticky="nsew", pady=(Spacing.XS, 0))
         caja_resultados.columnconfigure(0, weight=1)
         caja_resultados.rowconfigure(0, weight=1)
 
@@ -750,7 +788,7 @@ class CrawlCompareGUI:
             height=36,
             command=self._abrir_ventana_email,
         )
-        self._btn_email.grid(row=2, column=0, sticky="ew", pady=(Spacing.SM, 0))
+        self._btn_email.grid(row=3, column=0, sticky="ew", pady=(Spacing.SM, 0))
 
     def _abrir_ventana_email(self):
         """Abre el modal de email."""
