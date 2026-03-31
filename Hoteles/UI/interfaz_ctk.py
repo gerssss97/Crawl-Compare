@@ -167,52 +167,24 @@ class CrawlCompareGUI:
         _sb_izq = self._panel_izq._scrollbar
         _parent_canvas = self._panel_izq._parent_canvas
 
-        # Fix 1: auto-ocultar scrollbar cuando el contenido cabe en el viewport.
-        # CTkScrollableFrame siempre renderiza la scrollbar; hookeamos yscrollcommand
-        # para mostrarla/ocultarla dinámicamente según si hay overflow real.
+        # Fix 1: auto-ocultar scrollbar con overlay (place), sin tocar el grid.
+        # grid_remove/grid cambia el req de _parent_frame → uniform recalcula →
+        # el panel salta de ancho. Sacamos la scrollbar del grid UNA sola vez y
+        # la reposicionamos con place() sobre el canvas cuando hay overflow real.
+        # Así _parent_frame siempre tiene una sola columna → req estable → sin shift.
+        _sb_izq.grid_remove()
+        _sb_w = max(_sb_izq.winfo_reqwidth(), 12)
+        _sb_izq.configure(width=_sb_w)   # CTk.place() no acepta width — se fija acá
+
         def _auto_hide_izq(lo, hi):
             _sb_izq.set(lo, hi)
             should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
 
             def _aplicar():
-                tag = "SHOW" if should_show else "HIDE"
-
-                # --- mediciones ANTES ---
-                w_outer    = self._panel_izq_outer.winfo_width()
-                req_outer  = self._panel_izq_outer.winfo_reqwidth()
-                w_pframe   = self._panel_izq._parent_frame.winfo_width()
-                req_pframe = self._panel_izq._parent_frame.winfo_reqwidth()
-                w_canvas   = _parent_canvas.winfo_width()
-                w_sb       = _sb_izq.winfo_width()
-
-                print(f"\n[SB-IZQ] {tag} | lo={float(lo):.4f} hi={float(hi):.4f}")
-                print(f"  ANTES   outer={w_outer:4d}(req={req_outer:4d}) | _pframe={w_pframe:4d}(req={req_pframe:4d}) | canvas={w_canvas:4d} | sb={w_sb:4d}")
-
-                # --- acción ---
                 if should_show:
-                    _sb_izq.grid()
+                    _sb_izq.place(relx=1.0, rely=0.0, relheight=1.0, anchor="ne")
                 else:
-                    _sb_izq.grid_remove()
-
-                # --- mediciones DESPUÉS (siguiente tick, cuando tk ya aplicó el layout) ---
-                def _medir_despues():
-                    w_outer2    = self._panel_izq_outer.winfo_width()
-                    req_outer2  = self._panel_izq_outer.winfo_reqwidth()
-                    w_pframe2   = self._panel_izq._parent_frame.winfo_width()
-                    req_pframe2 = self._panel_izq._parent_frame.winfo_reqwidth()
-                    w_canvas2   = _parent_canvas.winfo_width()
-                    w_sb2       = _sb_izq.winfo_width()
-
-                    print(f"  DESPUES outer={w_outer2:4d}(req={req_outer2:4d}) | _pframe={w_pframe2:4d}(req={req_pframe2:4d}) | canvas={w_canvas2:4d} | sb={w_sb2:4d}")
-
-                    delta_outer  = w_outer2  - w_outer
-                    delta_pframe = w_pframe2 - w_pframe
-                    delta_req    = req_pframe2 - req_pframe
-
-                    if delta_outer != 0:
-                        print(f"  *** LAYOUT SHIFT en outer: {delta_outer:+d}px | _pframe: {delta_pframe:+d}px | req_pframe: {delta_req:+d}px ***")
-
-                _parent_canvas.after(0, _medir_despues)
+                    _sb_izq.place_forget()
 
             _parent_canvas.after(0, _aplicar)
 
@@ -245,9 +217,10 @@ class CrawlCompareGUI:
         self._resultados_outer.rowconfigure(2, weight=1)
 
         # Fila 0: progress panel (oculto hasta que comience la comparacion)
-        self.progress_panel = CTkProgressPanel(self._resultados_outer)
-        self.progress_panel.grid(row=0, column=0, sticky="ew", pady=(0, Spacing.XS))
-        # grid_remove() ya se llama en CTkProgressPanel.__init__
+        self.progress_panel = CTkProgressPanel(
+            self._resultados_outer,
+            grid_kwargs={"row": 0, "column": 0, "sticky": "ew", "pady": (0, Spacing.XS)},
+        )
 
         # Fila 1: título con fondo grisado (CTkFrame propio, esquinas arriba redondeadas)
         titulo_frame = ctk.CTkFrame(

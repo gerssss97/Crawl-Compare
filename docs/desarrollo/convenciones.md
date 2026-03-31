@@ -581,6 +581,49 @@ class HabitacionExcel(BaseModel):
 
 ## Componentes UI — Reglas de Uso
 
+### Visibilidad dinámica: mostrar() / ocultar()
+
+Si un componente puede aparecer y desaparecer en runtime **sin ocupar espacio** cuando está oculto, debe encapsular su propia lógica de grid:
+
+- Recibe `grid_kwargs: dict` en el constructor y lo guarda en `self._grid_kwargs`
+- Expone `mostrar()` → llama `self.grid(**self._grid_kwargs)`
+- Expone `ocultar()` → llama `self.grid_forget()`
+- **No** llamar `.grid()` en el constructor: el componente arranca sin slot registrado
+
+```python
+# ✅ Correcto — el componente encapsula su posición
+class MiPanel(ctk.CTkFrame):
+    def __init__(self, master, grid_kwargs: dict | None = None, **kwargs):
+        super().__init__(master, **kwargs)
+        self._grid_kwargs = grid_kwargs or {}
+
+    def mostrar(self):
+        self.grid(**self._grid_kwargs)
+
+    def ocultar(self):
+        self.grid_forget()
+
+# En la interfaz:
+self.panel = MiPanel(
+    parent,
+    grid_kwargs={"row": 0, "column": 0, "sticky": "ew", "pady": (0, 4)},
+)
+# panel arranca invisible, sin ocupar espacio
+self.panel.mostrar()   # aparece ocupando su slot
+self.panel.ocultar()   # desaparece, libera espacio
+
+# ❌ Incorrecto — la interfaz maneja el grid directamente
+self.panel.grid(row=0, column=0)
+self.panel.grid_remove()   # no libera espacio
+self.panel.grid_forget()   # pierde la config del slot
+```
+
+**Razón**: `grid_remove()` oculta el widget pero reserva el espacio del row. `grid_forget()` libera el espacio pero borra la config del slot. Al encapsular con `mostrar()`/`ocultar()` + `_grid_kwargs`, el componente maneja el ciclo completo internamente y la interfaz solo llama métodos semánticos.
+
+> Ver gotcha técnico de `grid_remove()` en el constructor: [troubleshooting-ctk.md — Layout: grid_remove() en constructor no tiene efecto](../ui/troubleshooting-ctk.md#layout--grid_remove-en-constructor-no-tiene-efecto)
+
+---
+
 ### Siempre usar `CTkCustomDropdown` para listas de opciones
 
 **NUNCA** usar `ctk.CTkOptionMenu`, `ctk.CTkComboBox` ni ningún dropdown nativo de CustomTkinter.

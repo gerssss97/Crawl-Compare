@@ -30,16 +30,17 @@ class CTkProgressPanel(ctk.CTkFrame):
         panel.ocultar()
     """
 
-    def __init__(self, master, **kwargs):
+    def __init__(self, master, grid_kwargs: dict | None = None, **kwargs):
         kwargs.setdefault("fg_color", "transparent")
         kwargs.setdefault("corner_radius", 0)
         kwargs.setdefault("border_width", 0)
         super().__init__(master, **kwargs)
 
+        self._grid_kwargs = grid_kwargs or {}
         self._total_periodos = 1
         self._periodo_actual = 0
         self._construir()
-        self.grid_remove()  # oculto por defecto
+        # No llamar grid() aquí: el componente empieza sin slot registrado
 
     def _construir(self):
         self.grid_columnconfigure(0, weight=1)
@@ -85,13 +86,21 @@ class CTkProgressPanel(ctk.CTkFrame):
     # API publica
     # ------------------------------------------------------------------
 
+    def mostrar(self):
+        """Muestra el panel ocupando su slot en el grid."""
+        self.grid(**self._grid_kwargs)
+
+    def ocultar(self):
+        """Oculta el panel y libera su espacio en el grid."""
+        self.grid_forget()
+
     def iniciar(self, total_periodos: int):
         self._total_periodos = max(total_periodos, 1)
         self._periodo_actual = 0
         self._progress.set(0)
         self._progress.configure(progress_color=Colors.PRIMARY)
         self._lbl_estado.configure(text_color=Colors.TEXT_SECONDARY, text="Iniciando comparacion...")
-        self.grid()
+        self.mostrar()
 
     def actualizar(self, periodo_actual: int, total: int, estado: str):
         self._periodo_actual = periodo_actual
@@ -131,6 +140,3 @@ class CTkProgressPanel(ctk.CTkFrame):
     def mostrar_error(self, mensaje: str = "Error en la comparacion"):
         self._progress.configure(progress_color=Colors.ERROR)
         self._lbl_estado.configure(text=mensaje, text_color=Colors.ERROR)
-
-    def ocultar(self):
-        self.grid_remove()

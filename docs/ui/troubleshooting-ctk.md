@@ -22,6 +22,8 @@ Problemas conocidos, causas y soluciones encontradas durante el desarrollo.
 - [Rendering — tk.Text rectangular dentro de CTkFrame redondeado (Modal Email)](#rendering--tktext-rectangular-dentro-de-ctkframe-redondeado-modal-email)
 - [Scroll / MouseWheel — Scroll lento al pasar el mouse sobre la scrollbar](#scroll--mousewheel--scroll-lento-al-pasar-el-mouse-sobre-la-scrollbar)
 - [Scroll / Scrollbar — CTkScrollableFrame muestra scrollbar aunque el contenido cabe](#scroll--scrollbar--ctkscrollableframe-muestra-scrollbar-aunque-el-contenido-cabe)
+- [Layout — CTkScrollableFrame cambia el ancho del contenido al aparecer/desaparecer la scrollbar](#layout--ctkscrollableframe-cambia-el-ancho-del-contenido-al-aparerecerdesaparecer-la-scrollbar)
+- [Layout — grid_remove() en constructor no tiene efecto](#layout--grid_remove-en-constructor-no-tiene-efecto)
 
 ---
 
@@ -766,6 +768,202 @@ container._scrollbar._canvas.bind("<MouseWheel>", _fix_scrollbar_wheel_der)
 ### Regla general
 
 `CTkScrollableFrame` nunca auto-oculta su scrollbar. Si necesitás que la scrollbar aparezca solo cuando el contenido genuinamente desborda, siempre aplicá el hook en `yscrollcommand` con el patrón `grid_remove`/`grid` y umbral 0.005/0.995.
+
+---
+
+## Layout — CTkScrollableFrame cambia el ancho del contenido al aparecer/desaparecer la scrollbar
+
+**Estado**: ✅ Resuelto — Opción B (place overlay, ver más abajo)
+
+**Archivo afectado**: `Hoteles/UI/interfaz_ctk.py` — `_crear_panel_izquierdo()`
+
+### Síntoma
+
+El panel izquierdo (formulario de inputs) cambia su ancho visualmente cuando aparece o desaparece la scrollbar vertical. Ocurre en dos situaciones:
+- Al seleccionar un hotel con edificio: los nuevos inputs hacen que el contenido crezca → scrollbar aparece → panel se redimensiona
+- Al hacer resize vertical de la ventana: el contenido entra o no → scrollbar aparece/desaparece → panel salta
+
+### Estructura interna de CTkScrollableFrame
+
+```
+_parent_frame (CTkFrame) — este es el widget real en el layout externo
+  ├── col=0, weight=1 → _parent_canvas   (row=1)
+  └── col=1, sin minsize → _scrollbar    (row=1)
+```
+
+`CTkScrollableFrame` hereda de `tkinter.Frame` pero ese frame vive **dentro del `_parent_canvas`**, no en el layout externo. El widget que realmente ocupa espacio en el grid del padre es `_parent_frame`.
+
+### Causa raíz identificada
+
+El `_content_frame` tiene `uniform="cols"` en sus columnas:
+
+```python
+self._content_frame.grid_columnconfigure(0, weight=55, minsize=480, uniform="cols")
+self._content_frame.grid_columnconfigure(1, weight=45, minsize=360, uniform="cols")
+```
+
+`uniform` hace que ambas columnas se recalculen juntas cada vez que el contenido natural de cualquiera de ellas cambia. Cuando la scrollbar desaparece vía `grid_remove()`, el contenido natural del panel izquierdo "encoge" → tkinter recalcula → `uniform` redistribuye **ambas columnas** → el `_parent_frame` cambia de ancho.
+
+Confirmado con datos de diagnóstico:
+```
+show=True  | _parent_frame=1155  _parent_canvas=1139  _scrollbar=24
+show=False | _parent_frame=1408  _parent_canvas=1392  _scrollbar=24
+```
+El `_parent_frame` salta de 1155 a 1408px — es el frame externo, no algo interno al CTkScrollableFrame. El `minsize=16` en col=1 del `_parent_frame` interno estaba funcionando correctamente (nunca se perdió), pero el problema era un nivel más arriba.
+
+### Intentos fallidos
+
+**Intento 1 — `configure(width=0)` en la scrollbar**
+```python
+# ❌ CTk redistribuye el espacio igual al hacer width=0
+_sb_izq.configure(width=0 if not should_show else _sb_izq_width)
+```
+CTk no respeta `width=0` como "reservar espacio".
+
+**Intento 2 — `grid_columnconfigure(1, minsize=...)` en `_parent_frame` interno**
+```python
+# ❌ El minsize se aplica bien y nunca se pierde, pero el problema
+#    está un nivel más arriba (en _content_frame con uniform="cols")
+self._panel_izq._parent_frame.grid_columnconfigure(1, minsize=_sb_izq_width)
+```
+El minsize funcionó correctamente (confirmado con prints), pero no resuelve el layout shift porque la causa es el `uniform` del contenedor externo.
+
+**Intento 3 — Sacar `uniform="cols"` del `_content_frame`**
+```python
+# ❌ Rompe la proporción visual 55/45 — los paneles quedan ~30/70
+self._content_frame.grid_columnconfigure(0, weight=55, minsize=480)
+self._content_frame.grid_columnconfigure(1, weight=45, minsize=360)
+```
+Sin `uniform`, el `weight` no reparte el espacio de forma proporcional cuando los contenidos tienen tamaños naturales distintos. Los paneles pierden la proporción visual deseada.
+
+### Por qué oscila: el chicken-and-egg de layout
+
+El análisis con prints confirma que es un problema de **orden de cálculo**:
+
+```
+panel necesita width → ¿cabe el contenido? → ¿aparece scrollbar?
+       ↑                                              ↓
+       └──── uniform recalcula ←── scrollbar cambia req ←┘
+```
+
+`grid_remove` / `grid` cambia el `req` de `_parent_frame` entre 300px (sin scrollbar) y 324px (con scrollbar). Ese delta de 24px se propaga hacia arriba hasta `_content_frame`, donde el `uniform="cols"` redistribuye **ambas columnas**, causando que el panel salte entre 1155px y 1408px. El mismo loop ocurre al seleccionar un hotel: agregar inputs crece el contenido → scrollbar aparece → req cambia → uniform redistribuye → panel se ensancha → contenido cabe → scrollbar desaparece → loop.
+
+**Causa raíz:** cualquier técnica basada en `grid_remove`/`grid` tiene este problema porque inevitablemente cambia el `req` del contenedor padre.
+
+### Opción A — Color trick (siempre en grid, colores transparentes)
+
+La scrollbar **permanece en grid** en todo momento, conservando su col=1 de 24px. Cuando hay que "ocultarla", se configura con los mismos colores que el fondo. El `req` del `_parent_frame` nunca cambia → `uniform` nunca recalcula.
+
+```python
+BG = Colors.SURFACE
+
+def _aplicar():
+    if should_show:
+        _sb_izq.configure(fg_color=SCROLLBAR_BG, button_color=SCROLLBAR_THUMB,
+                          button_hover_color=SCROLLBAR_THUMB_HOVER)
+    else:
+        _sb_izq.configure(fg_color=BG, button_color=BG, button_hover_color=BG)
+```
+
+✅ Req estable, sin layout shift  
+❌ Siempre hay 24px "muertos" a la derecha del panel cuando no hay scroll  
+❌ El usuario puede hacer click en el área aunque sea invisible
+
+### Opción B — Place trick (overlay, fuera del grid) ← aplicada
+
+La scrollbar se saca del grid **una sola vez** al init con `grid_remove()`. Se reposiciona con `place()` flotando sobre el canvas cuando hay overflow. El grid de `_parent_frame` queda con una sola columna activa → `req` siempre estable → sin layout shift.
+
+```python
+_sb_izq.grid_remove()   # una sola vez, al init
+_sb_w = max(_sb_izq.winfo_reqwidth(), 12)
+_sb_izq.configure(width=_sb_w)  # CTk.place() prohíbe pasar width — se fija acá
+
+def _auto_hide_izq(lo, hi):
+    _sb_izq.set(lo, hi)
+    should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
+
+    def _aplicar():
+        if should_show:
+            _sb_izq.place(relx=1.0, rely=0.0, relheight=1.0, anchor="ne")
+        else:
+            _sb_izq.place_forget()
+
+    _parent_canvas.after(0, _aplicar)
+
+_parent_canvas.configure(yscrollcommand=_auto_hide_izq)
+```
+
+> **CTK quirk:** `CTkBaseClass.place()` lanza `ValueError` si recibís `width` o `height` como kwargs — los quiere en `configure()` o en el constructor. `relwidth`/`relheight` sí se aceptan porque son del geometry manager de Tk, no de CTK.
+
+✅ Req estable, sin layout shift  
+✅ Canvas usa el 100% del ancho (sin gap permanente)  
+❌ Scrollbar overlayea ~24px del contenido en el borde derecho al hacer scroll
+
+**Por qué `place()` no afecta el req:** `place` es un geometry manager posicional puro. A diferencia de `grid` y `pack`, no participa en el cálculo del `req` del contenedor padre — el contenedor actúa como si el widget colocado con `place` no existiera a efectos de sizing. Por eso `grid_remove()` al init + `place()`/`place_forget()` después no genera ningún recálculo de `uniform`.
+
+### Solución aplicada ✅
+
+Opción B implementada en `Hoteles/UI/interfaz_ctk.py` → `_crear_panel_izquierdo()`. **Confirmada: sin layout shift al startup ni al seleccionar hotel con edificio.**
+
+#### Pendiente estético
+
+La scrollbar se ve visualmente ancha (24px) porque `winfo_reqwidth()` devuelve el ancho original del widget, dimensionado para vivir en el grid. Al flotar como overlay encima del contenido ese grosor se nota más. Se puede reducir ajustando `_sb_w` directamente:
+
+```python
+_sb_w = 8   # en lugar de max(_sb_izq.winfo_reqwidth(), 12)
+_sb_izq.configure(width=_sb_w)
+```
+
+---
+
+## Layout — grid_remove() en constructor no tiene efecto
+
+**Estado**: ✅ Resuelto
+
+**Archivos afectados**: [UI/components/ctk_progress_panel.py](../../Hoteles/UI/components/ctk_progress_panel.py), [UI/interfaz_ctk.py](../../Hoteles/UI/interfaz_ctk.py)
+
+### Síntoma
+
+Un widget CTk aparece visible al iniciar la app aunque su `__init__` llama a `self.grid_remove()`.
+
+### Causa
+
+`grid_remove()` solo funciona si el widget **ya fue gridd-eado al menos una vez** previamente. Si nunca se llamó `.grid(...)`, `grid_remove()` no tiene efecto y el widget queda visible.
+
+El orden incorrecto era:
+```
+__init__ → super().__init__() → self.grid_remove()   # sin slot registrado → no-op
+interfaz → self.progress_panel.grid(row=0, ...)       # recién acá se registra el slot
+```
+
+### Solución
+
+Usar el patrón `mostrar()`/`ocultar()` con `_grid_kwargs`. El componente arranca **sin slot registrado** y lo registra solo cuando se llama `mostrar()`:
+
+```python
+class MiPanel(ctk.CTkFrame):
+    def __init__(self, master, grid_kwargs: dict | None = None, **kwargs):
+        super().__init__(master, **kwargs)
+        self._grid_kwargs = grid_kwargs or {}
+        # NO llamar grid() aquí
+
+    def mostrar(self):
+        self.grid(**self._grid_kwargs)   # registra slot + muestra
+
+    def ocultar(self):
+        self.grid_forget()               # libera slot y espacio
+```
+
+En la interfaz:
+```python
+self.panel = MiPanel(
+    parent,
+    grid_kwargs={"row": 0, "column": 0, "sticky": "ew"},
+)
+# panel arranca invisible sin ocupar espacio — sin llamadas extra
+```
+
+> Ver convención completa en [convenciones.md — Visibilidad dinámica](../desarrollo/convenciones.md#visibilidad-dinámica-mostrar--ocultar)
 
 ---
 
