@@ -24,3 +24,6 @@ class Spacing:
     RADIUS_SM = 6
     RADIUS_MD = 8
     RADIUS_LG = 12
+
+    # Scrollbars
+    SCROLLBAR_WIDTH = 14

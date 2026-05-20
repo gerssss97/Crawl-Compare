@@ -228,7 +228,8 @@ async def fetch_and_process_page(
             )
 
             # ===== DEBUG: Guardar contenido enviado al LLM =====
-            if result.success:
+            from debug_config import DEBUG_LLM_INPUT
+            if result.success and DEBUG_LLM_INPUT:
                 try:
                     import datetime
                     # Markdown que recibe el LLM

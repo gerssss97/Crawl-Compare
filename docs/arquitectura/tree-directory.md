@@ -8,6 +8,7 @@ Estructura completa del proyecto. Actualizar cuando se agreguen/muevan archivos.
 Hoteles/
 ├── main.py                          # Punto de entrada (toggle USE_CUSTOMTKINTER)
 ├── app.py                           # App wrapper
+├── debug_config.py                  # Flags de debug globales (DEBUG_LLM_INPUT, DEBUG_HABITACIONES_WEB)
 ├── .env                             # Variables de entorno (no en git)
 │
 ├── Core/

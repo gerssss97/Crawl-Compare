@@ -1,5 +1,8 @@
-- mover barra de carga al panel de comparacion de precios
-- al aparecer la scrollbar del menu de seleccion de habitacion, se encoge todo horizontalmente. si vuelve a desaparecer, se ensancha.
+- la scrollbar del panel de resultados de la comparacion se ve distinta que antes, y al hacerle hover aparecen y desaparecen las flechitas. Sin flechitas?
+- se rompieron varias cosas del editor de texto del email.
+- modificar pading barra lateral derecha del panel de periodos y precios
+
+
 Habitación Excel: sgl/dbl junior suite le mirador w/breakfast served at restaurant
 Periodo         | Fechas        |        Excel |          Web | Estado  
 ------------------------------------------------------------------------------------------

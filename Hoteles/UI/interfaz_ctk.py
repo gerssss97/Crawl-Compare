@@ -173,8 +173,7 @@ class CrawlCompareGUI:
         # la reposicionamos con place() sobre el canvas cuando hay overflow real.
         # Así _parent_frame siempre tiene una sola columna → req estable → sin shift.
         _sb_izq.grid_remove()
-        _sb_w = max(_sb_izq.winfo_reqwidth(), 12)
-        _sb_izq.configure(width=_sb_w)   # CTk.place() no acepta width — se fija acá
+        _sb_izq.configure(width=Spacing.SCROLLBAR_WIDTH)   # CTk.place() no acepta width — se fija acá
 
         def _auto_hide_izq(lo, hi):
             _sb_izq.set(lo, hi)
@@ -405,7 +404,7 @@ class CrawlCompareGUI:
         panel_der.grid(row=0, column=1, sticky="nsew")
 
         container = ctk.CTkScrollableFrame(panel_der, fg_color="transparent")
-        container.pack(fill="both", expand=True, padx=Spacing.LG, pady=Spacing.LG)
+        container.pack(fill="both", expand=True, padx=Spacing.LG, pady=(0, Spacing.LG))
 
         # Fix 1: auto-ocultar scrollbar cuando el contenido cabe en el viewport.
         # CTkScrollableFrame siempre muestra la scrollbar — hookeamos yscrollcommand
@@ -413,6 +412,7 @@ class CrawlCompareGUI:
         # lo=0, hi=1 → todo visible → ocultamos. Margen 0.5% absorbe DPI rounding.
         # after(0) difiere el grid_remove/grid al siguiente tick para evitar re-entry.
         _sb_der = container._scrollbar
+        _sb_der.configure(width=Spacing.SCROLLBAR_WIDTH)
         _canvas_der = container._parent_canvas
 
         def _auto_hide_der(lo, hi):
@@ -436,7 +436,7 @@ class CrawlCompareGUI:
             container,
             textvariable=self.state.precio,
         )
-        self.precio_panel.pack(fill="x", pady=(0, Spacing.MD))
+        self.precio_panel.pack(fill="x", pady=(Spacing.LG, Spacing.MD))
 
         # Panel de periodos
         self.periodos_panel = CTkPeriodosPanel(container)
@@ -608,8 +608,8 @@ class CrawlCompareGUI:
             self.resultado.delete("1.0", tk.END)
             self.resultado.insert(tk.END, "Iniciando comparacion...\n")
             self.btn_ejecutar.configure(state="disabled")
-            self._panel_izq_outer.grid_rowconfigure(0, weight=1)  # 50%
-            self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
+            self._panel_izq_outer.grid_rowconfigure(0, weight=0)  # 50%
+            self._panel_izq_outer.grid_rowconfigure(1, weight=2)  # 50%
             self._total_periodos_progreso = 0
             # El panel se inicializa con 1 periodo temporal; se ajustara
             # al recibir el primer comparison_progress con el total real.
@@ -669,7 +669,7 @@ class CrawlCompareGUI:
                 self.root.after(1500, self.progress_panel.ocultar)
 
                 self.vista_resultados.mostrar_resultado_multiperiodo(resultado_data)
-                self._panel_izq_outer.grid_rowconfigure(0, weight=1)  # 50%
+                self._panel_izq_outer.grid_rowconfigure(0, weight=0)  # 50%
                 self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
                 self.state.resultado_multiperiodo = resultado_data
                 if resultado_data.tiene_discrepancias:
@@ -683,7 +683,7 @@ class CrawlCompareGUI:
                 for linea in mensaje.split("\n"):
                     tag = ("bold",) if ("Habitacion web" in linea or "diferencia" in linea or "coinciden" in linea) else ()
                     self.resultado.insert(tk.END, linea + "\n", tag)
-                self._panel_izq_outer.grid_rowconfigure(0, weight=1)  # 50%
+                self._panel_izq_outer.grid_rowconfigure(0, weight=0)  # 50%
                 self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
                 if coincide:
                     self._mostrar_email_btn()

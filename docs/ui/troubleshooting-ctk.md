@@ -24,6 +24,7 @@ Problemas conocidos, causas y soluciones encontradas durante el desarrollo.
 - [Scroll / Scrollbar — CTkScrollableFrame muestra scrollbar aunque el contenido cabe](#scroll--scrollbar--ctkscrollableframe-muestra-scrollbar-aunque-el-contenido-cabe)
 - [Layout — CTkScrollableFrame cambia el ancho del contenido al aparecer/desaparecer la scrollbar](#layout--ctkscrollableframe-cambia-el-ancho-del-contenido-al-aparerecerdesaparecer-la-scrollbar)
 - [Layout — grid_remove() en constructor no tiene efecto](#layout--grid_remove-en-constructor-no-tiene-efecto)
+- [CTkLabel — wraplength dinámico no funciona si width=1 está seteado](#ctklabel--wraplength-dinámico-no-funciona-si-width1-está-seteado)
 
 ---
 
@@ -665,6 +666,45 @@ Aplicar inmediatamente después de crear el `CTkScrollableFrame`, antes de agreg
 ### Regla general
 
 Si un `CTkScrollableFrame` tiene scroll lento sobre la scrollbar, el problema es la diferencia de sensibilidad entre los dos handlers. La fix siempre es: bindear sobre `_scrollbar._canvas` (no sobre `_scrollbar`), y redirigir al `_parent_canvas` con `delta/6`.
+
+---
+
+## CTkLabel — wraplength dinámico no funciona si width=1 está seteado
+
+**Estado**: 🔬 En investigación
+
+**Archivos afectados**: [UI/views/modal_email.py](../../Hoteles/UI/views/modal_email.py)
+
+### Síntoma
+
+Los labels de texto largo en los banners del modal de email (hotel | habitacion, periodos, habitacion web) aparecen **recortados por la derecha**, sin wrappear, tanto al abrir el modal como al redimensionar la ventana.
+
+### Causa confirmada (parcial)
+
+El patrón usado es `wraplength=1` + `width=1` como valores dummy, con actualización dinámica vía `<Configure>` en el frame padre:
+
+```python
+lbl = ctk.CTkLabel(inner, ..., wraplength=1, width=1)
+inner.bind("<Configure>", lambda e, l=lbl: l.configure(wraplength=max(1, e.width)), add="+")
+```
+
+Se confirmó mediante debug que:
+1. El evento `<Configure>` **sí llega** a `inner` con valores correctos (ej. `w=534`)
+2. El `wraplength` **sí se setea** al valor correcto en el label
+
+Sin embargo el texto sigue recortado. Se sospecha que `width=1` restringe el ancho físico del widget independientemente del `wraplength`.
+
+### Intentos
+
+| # | Intento | Resultado |
+|---|---------|-----------|
+| 1 | Eliminar `width=1` de todos los CTkLabel con wraplength dinámico | Texto sigue recortado — en investigación |
+
+### Pendiente
+
+Determinar por qué `wraplength` correcto + `fill="x"` en pack no es suficiente para que el texto wrappee. Posibles causas a investigar:
+- CTkLabel ignora `wraplength` si el widget subyacente (`tk.Label`) tiene un ancho fijo seteado internamente por CTk
+- El `fill="x"` no se propaga correctamente dentro de la jerarquía `banner (grid) → inner (pack side=left)`
 
 ---
 

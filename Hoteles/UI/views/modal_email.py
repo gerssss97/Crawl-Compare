@@ -232,12 +232,13 @@ class ModalEmail(ctk.CTkToplevel):
             anchor="w",
             justify="left",
             wraplength=1,
-            width=1,
         )
         lbl.pack(fill="x")
         inner.bind("<Configure>", lambda e, l=lbl: l.configure(wraplength=max(1, e.width)), add="+")
 
         # Periodos con sus precios
+        inner.bind("<Configure>", lambda e: print(f"inner w={e.width} | lbl winfo_width={lbl.winfo_width()} | lbl wraplength={lbl.cget('wraplength')}"), add="+")
+
         periodos_precio = getattr(self._state, "periodos_precio", [])
         if periodos_precio:
             ctk.CTkFrame(inner, fg_color="#BFDBFE", height=1).pack(fill="x", pady=(8, 6))
@@ -267,7 +268,6 @@ class ModalEmail(ctk.CTkToplevel):
                     anchor="w",
                     justify="left",
                     wraplength=1,
-                    width=1,
                 )
                 lbl_p.pack(fill="x", pady=1)
                 inner.bind("<Configure>", lambda e, l=lbl_p: l.configure(wraplength=max(1, e.width)), add="+")
@@ -324,7 +324,6 @@ class ModalEmail(ctk.CTkToplevel):
                 anchor="w",
                 justify="left",
                 wraplength=1,
-                width=1,
             )
             lbl.pack(fill="x", pady=1)
             inner.bind("<Configure>", lambda e, l=lbl: l.configure(wraplength=max(1, e.width)), add="+")
@@ -341,7 +340,6 @@ class ModalEmail(ctk.CTkToplevel):
                 anchor="w",
                 justify="left",
                 wraplength=1,
-                width=1,
             )
             lbl_hw.pack(fill="x")
             inner.bind("<Configure>", lambda e, l=lbl_hw: l.configure(wraplength=max(1, e.width)), add="+")
