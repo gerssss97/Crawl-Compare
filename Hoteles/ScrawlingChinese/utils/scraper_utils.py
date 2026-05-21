@@ -14,7 +14,7 @@ from crawl4ai import (
 from datetime import date
 from Models.hotelExcel import *
 from Models.hotelWeb import *
-
+from debug_config import DEBUG_CRAWL4AI_VERBOSE, DEBUG_SCRAPING_PIPELINE, DEBUG_LLM_MARKDOWN
 
 
 def get_browser_config() -> BrowserConfig:
@@ -28,7 +28,7 @@ def get_browser_config() -> BrowserConfig:
     return BrowserConfig(
         browser_type="chromium",  # Type of browser to simulate
         headless=False,  # Whether to run in headless mode (no GUI)
-        verbose=True,  # Enable verbose logging
+        verbose=DEBUG_CRAWL4AI_VERBOSE,
 
         # ===== OPTIMIZACIONES DE RENDIMIENTO =====
         # Flags para acelerar carga de página sin perder datos
@@ -90,7 +90,7 @@ def get_llm_strategy() -> LLMExtractionStrategy:
         ),
 
         input_format="markdown",  # Format of the input content
-        verbose=True,  # Enable verbose logging
+        verbose=DEBUG_CRAWL4AI_VERBOSE,
     )
 
 def fechas_validas(fecha_entrada: date, fecha_salida: date) -> bool:
@@ -227,48 +227,80 @@ async def fetch_and_process_page(
                 ),
             )
 
-            # ===== DEBUG: Guardar contenido enviado al LLM =====
-            from debug_config import DEBUG_LLM_INPUT
-            if result.success and DEBUG_LLM_INPUT:
+            # ============================================================
+            # NIVEL 1 — Crawl4AI: ¿llegó la página?
+            # ============================================================
+            if DEBUG_SCRAPING_PIPELINE:
+                html_len = len(result.html) if getattr(result, "html", None) else 0
+                md_obj = getattr(result, "markdown", None)
+                md_len = len(str(md_obj)) if md_obj else 0
+                print(
+                    f"[PIPELINE][L1-Crawl] intento={intento + 1} "
+                    f"success={result.success} "
+                    f"status={getattr(result, 'status_code', 'N/A')} "
+                    f"html_len={html_len} markdown_len={md_len} "
+                    f"error={getattr(result, 'error_message', None)}"
+                )
+
+            # ============================================================
+            # NIVEL 2 — Markdown enviado al LLM (siempre que haya algo)
+            # ============================================================
+            if DEBUG_SCRAPING_PIPELINE and getattr(result, "markdown", None):
+                markdown_content = str(result.markdown)
+                num_chars = len(markdown_content)
+                estimated_tokens = num_chars // 4
+                print(
+                    f"[PIPELINE][L2-Markdown] chars={num_chars:,} "
+                    f"tokens_estimados=~{estimated_tokens:,} "
+                    f"preview={markdown_content[:200]!r}"
+                )
+
+            # Archivo separado (opt-in, default False) — útil para inspeccionar markdown completo
+            if result.success and DEBUG_LLM_MARKDOWN:
                 try:
                     import datetime
-                    # Markdown que recibe el LLM
                     markdown_content = result.markdown if hasattr(result, 'markdown') else result.cleaned_html
-
-                    # Estadísticas
-                    num_chars = len(markdown_content)
-                    num_words = len(markdown_content.split())
+                    num_chars = len(str(markdown_content))
                     estimated_tokens = num_chars // 4
-
-                    # Timestamp para el archivo
                     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                     debug_file = f"debug_llm_input_{timestamp}.txt"
-
-                    # Guardar todo en archivo
                     with open(debug_file, "w", encoding="utf-8") as f:
-                        f.write("="*80 + "\n")
-                        f.write("DEBUG: CONTENIDO ENVIADO AL LLM\n")
-                        f.write("="*80 + "\n\n")
-                        f.write(f"Caracteres: {num_chars:,}\n")
-                        f.write(f"Palabras: {num_words:,}\n")
-                        f.write(f"Tokens estimados: {estimated_tokens:,}\n")
-                        f.write(f"URL: {url_completa}\n")
-                        f.write("\n" + "="*80 + "\n")
-                        f.write("CONTENIDO MARKDOWN:\n")
-                        f.write("="*80 + "\n\n")
-                        f.write(markdown_content)
-
-                    print(f"[DEBUG] Contenido LLM guardado en: {debug_file} ({num_chars:,} chars, ~{estimated_tokens:,} tokens)")
+                        f.write("="*80 + "\nDEBUG: CONTENIDO ENVIADO AL LLM\n" + "="*80 + "\n\n")
+                        f.write(f"Caracteres: {num_chars:,}\nTokens estimados: {estimated_tokens:,}\nURL: {url_completa}\n\n")
+                        f.write("="*80 + "\nCONTENIDO MARKDOWN:\n" + "="*80 + "\n\n")
+                        f.write(str(markdown_content))
+                    print(f"[DEBUG] Contenido LLM guardado en: {debug_file}")
                 except Exception as e:
                     print(f"[DEBUG] Error guardando debug: {e}")
-            # ===== FIN DEBUG =====
-            # Verifica si los datos están completos
+
+            # ============================================================
+            # NIVEL 3 — Respuesta del LLM (Groq)
+            # ============================================================
+            habitaciones_data = None
             if result.success and result.extracted_content:
-                habitaciones_data = json.loads(result.extracted_content)
+                raw = result.extracted_content
+                if DEBUG_SCRAPING_PIPELINE:
+                    preview = raw[:500] + ("..." if len(raw) > 500 else "")
+                    print(f"[PIPELINE][L3-Groq] raw_len={len(raw)} raw_preview={preview!r}")
+                try:
+                    habitaciones_data = json.loads(raw)
+                    if DEBUG_SCRAPING_PIPELINE:
+                        parsed_len = len(habitaciones_data) if hasattr(habitaciones_data, '__len__') else 'N/A'
+                        print(f"[PIPELINE][L3-Groq] json_ok tipo={type(habitaciones_data).__name__} len={parsed_len}")
+                except json.JSONDecodeError as e:
+                    if DEBUG_SCRAPING_PIPELINE:
+                        print(f"[PIPELINE][L3-Groq] ❌ json_invalido: {e}")
+                    habitaciones_data = None
+
                 if habitaciones_data and len(habitaciones_data) > 0:
                     print(f"Datos extraídos exitosamente en el intento {intento + 1}")
                     return await procesar_resultado_scraping(result)
-            
+                elif DEBUG_SCRAPING_PIPELINE:
+                    print(f"[PIPELINE][L3-Groq] ❌ marcado_incompleto habitaciones_data={habitaciones_data!r}")
+            elif DEBUG_SCRAPING_PIPELINE:
+                razon = "result.success=False" if not result.success else "extracted_content vacío"
+                print(f"[PIPELINE][L3-Groq] ⏭️  skipped — {razon}")
+
             print(f"Intento {intento + 1} falló o datos incompletos. Esperando {delay_between_retries} segundos...")
             await asyncio.sleep(delay_between_retries)
 

@@ -8,6 +8,7 @@ Este documento define las convenciones de código del proyecto **Crawl-Compare**
 - [Pattern BaseComponent](#pattern-basecomponent)
 - [Pattern Controlador](#pattern-controlador)
 - [Pattern Modelos Pydantic](#pattern-modelos-pydantic)
+- [Flags de Debug](#flags-de-debug)
 - [Commits Conventional](#commits-conventional)
 - [Resumen de Convenciones](#resumen-de-convenciones)
 
@@ -658,6 +659,54 @@ ctk.CTkComboBox(parent, values=[...]).pack()
 ```
 
 **Razón**: `CTkCustomDropdown` es un workaround que soluciona limitaciones del nativo (ancho al 100%, clickeabilidad completa, estilo consistente con el design system del proyecto). Usar el nativo rompe la consistencia visual y funcional.
+
+---
+
+## Flags de Debug
+
+Todos los flags de debug del proyecto se centralizan en `Hoteles/debug_config.py`. La idea es que cualquier módulo los importe desde ahí y nunca declare sus propios flags locales.
+
+### Convención de nombres
+
+```
+DEBUG_<AREA>_<DETALLE>
+```
+
+El nombre describe **qué loguea**, no **dónde se usa**. Esto sirve porque un mismo flag puede activarse desde varios archivos, pero su efecto (lo que vas a ver en consola/archivo) es siempre el mismo.
+
+| ✅ Correcto | ❌ Incorrecto | Por qué |
+|-------------|---------------|---------|
+| `DEBUG_FUZZY_MATCHING` | `DEBUG_HABITACIONES_WEB` | Describe el algoritmo, no un módulo |
+| `DEBUG_EXCEL_PARSING` | `DEBUG_EXTRACTOR` | Describe qué se parsea, no el nombre de carpeta |
+| `DEBUG_CRAWL4AI_VERBOSE` | `DEBUG_SCRAPER` | Aclara que es el verbose interno de Crawl4AI |
+| `DEBUG_LLM_MARKDOWN` | `DEBUG_LLM_INPUT` | Especifica que loguea markdown, no "input" genérico |
+
+**Áreas en uso**: `SCRAPING_*`, `LLM_*`, `CRAWL4AI_*`, `FUZZY_*`, `EXCEL_*`.
+
+### Flags actuales
+
+| Flag | Default | Qué loguea |
+|------|---------|-----------|
+| `DEBUG_SCRAPING_PIPELINE` | `True` | Pipeline de scraping en 3 niveles (L1-Crawl / L2-Markdown / L3-Groq) en `scraper_utils.py`. Volcado a stdout. |
+| `DEBUG_LLM_MARKDOWN` | `False` | Guarda archivo `debug_llm_input_*.txt` con el markdown enviado a Groq (uno por intento — ruidoso). |
+| `DEBUG_CRAWL4AI_VERBOSE` | `False` | `verbose=True` interno de Crawl4AI (`[INIT]`, `[FETCH]`, etc.) + prints de cache/pickle en `gestor_datos.py`. |
+| `DEBUG_FUZZY_MATCHING` | `False` | Prints del fuzzy matching Excel↔Web en `comparador.py` y `gestor_datos.py`. |
+| `DEBUG_EXCEL_PARSING` | `False` | Prints del parseo de fechas y nombres en `ExtractorDatos/utils.py`. |
+
+### Uso
+
+```python
+# ✅ Correcto — importar desde debug_config
+from debug_config import DEBUG_FUZZY_MATCHING
+
+if DEBUG_FUZZY_MATCHING:
+    print(f"  Score: {score:.2f}")
+
+# ❌ Incorrecto — flag local
+DEBUG = True  # ¿qué loguea? ¿dónde más se usa?
+```
+
+> Ver detalle de cada flag y cuándo activarlo en [debugging.md](debugging.md).
 
 ---
 

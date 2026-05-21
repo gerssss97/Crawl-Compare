@@ -8,7 +8,7 @@ Estructura completa del proyecto. Actualizar cuando se agreguen/muevan archivos.
 Hoteles/
 ├── main.py                          # Punto de entrada (toggle USE_CUSTOMTKINTER)
 ├── app.py                           # App wrapper
-├── debug_config.py                  # Flags de debug globales (DEBUG_LLM_INPUT, DEBUG_HABITACIONES_WEB)
+├── debug_config.py                  # Flags de debug globales (DEBUG_SCRAPING_PIPELINE, DEBUG_LLM_MARKDOWN, DEBUG_CRAWL4AI_VERBOSE, DEBUG_FUZZY_MATCHING, DEBUG_EXCEL_PARSING)
 ├── .env                             # Variables de entorno (no en git)
 │
 ├── Core/
@@ -30,6 +30,14 @@ Hoteles/
 │   ├── extractor_old.py             # Legacy
 │   ├── utils.py                     # Parsing de fechas (print debug)
 │   └── contexto_extraccion.py
+│
+├── Deploy/
+│   ├── build_manifest.py           # Manifest declarativo del bundle (estilo package.json) ⭐
+│   ├── smoke_test.py               # Checks post-build de módulos críticos (--self-test) ⭐
+│   ├── crawl_compare.spec          # Config PyInstaller (lee de build_manifest.py)
+│   ├── startup_check.py            # Checks de entorno al arrancar (.env, Chromium)
+│   ├── build.bat                   # Script de build + corre smoke test post-compilación
+│   └── __init__.py
 │
 ├── ScrawlingChinese/
 │   ├── crawler.py                   # Scraper async (Crawl4AI + DeepSeek-R1) ⭐

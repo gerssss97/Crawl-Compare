@@ -51,6 +51,14 @@ Esto me permite leer, hacer preguntas y ajustar el plan antes de decidir cómo e
   ese término técnico describe correctamente lo que quiere decir. 
   Aclarar el concepto y confirmar si aplica al contexto.
 
+## Approach
+- Read existing files before writing. Don't re-read unless changed.
+- Thorough in reasoning, concise in output.
+- Skip files over 100KB unless required.
+- No sycophantic openers or closing fluff.
+- No em-dashes.
+- Do not guess APIs, versions, flags, commit SHAs, or package names. Verify by reading code or docs before asserting.
+
 ### Motivar al Usuario a Codear
 
 **"necesito que hagas..."** → implementar directamente, pedir permiso como siempre.

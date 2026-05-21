@@ -223,15 +223,32 @@ print(f"✅ Output LLM guardado en: debug_llm_output.json")
 
 ### Logs de Crawl4AI
 
-Activar logs verbosos en `ScrawlingChinese/crawler.py:20`:
+Activar en `debug_config.py`:
 
 ```python
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger('crawl4ai')
-logger.setLevel(logging.DEBUG)
+DEBUG_CRAWL4AI_VERBOSE = True
 ```
+
+Esto habilita simultáneamente:
+- Los logs verbosos de Crawl4AI (`[INIT]`, `[FETCH]`, `[SCRAPE]`, `[LOG]`, `[EXTRACT]`, `[COMPLETE]`) en `BrowserConfig` y `LLMExtractionStrategy`
+- El print de `[DEBUG] obtener_hotel_web llamado con: ...` y los prints de cache/pickle en `Core/gestor_datos.py`
+
+### Pipeline de Scraping (3 niveles)
+
+Para diagnosticar **por qué falla un scrape** (sobre todo dentro del `.exe`, donde no podés meter prints ad-hoc), está `DEBUG_SCRAPING_PIPELINE` (default `True`). Vuelca al stdout — y por lo tanto a `output.log` en el `.exe` — tres niveles del pipeline en `ScrawlingChinese/utils/scraper_utils.py`:
+
+| Nivel | Qué loguea |
+|-------|-----------|
+| **L1-Crawl** | `result.success`, `status_code`, `error_message`, y tamaño del HTML y markdown que devolvió Crawl4AI. Si esto falla, el problema es de browser/red, no del LLM. |
+| **L2-Markdown** | Chars, tokens estimados y preview (200 chars) del markdown que se le pasa a Groq. Sirve para ver si el markdown está vacío o truncado antes del LLM. |
+| **L3-Groq** | Respuesta cruda del LLM (preview de 500 chars), si el JSON parsea correctamente, y la razón exacta por la que se marcó el resultado como "incompleto". |
+
+**Cuándo usarlo**:
+- Falla el scraping en el `.exe` pero anda en dev → activar y revisar `output.log` para ver en qué nivel se rompe.
+- El LLM devuelve datos incompletos → mirá L3-Groq para ver el motivo exacto.
+- Sospechás que el markdown llega vacío → mirá L2-Markdown.
+
+> Para guardar el markdown completo a archivo (no stdout), usar `DEBUG_LLM_MARKDOWN = True` — pero ojo que crea un `debug_llm_input_*.txt` por cada intento. Para diagnóstico puntual en `.exe`, `DEBUG_SCRAPING_PIPELINE` alcanza.
 
 ---
 

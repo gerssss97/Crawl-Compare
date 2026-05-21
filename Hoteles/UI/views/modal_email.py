@@ -545,6 +545,8 @@ class ModalEmail(ctk.CTkToplevel):
             command=self.destroy,
         ).grid(row=0, column=0, sticky="ew", padx=(0, 10))
 
+        self._enviando = False
+
         self._btn_enviar = ctk.CTkButton(
             actions,
             text="Enviar Email",
@@ -565,13 +567,19 @@ class ModalEmail(ctk.CTkToplevel):
     # =========================================================
 
     def _enviar(self):
+        if self._enviando:
+            return
+        self._enviando = True
+
         contenido = self._email_text.get("1.0", tk.END).strip()
         if not contenido:
+            self._enviando = False
             messagebox.showerror("Error", "El contenido no puede estar vacio.", parent=self)
             return
 
         destinatario = self._entry_destinatario.get().strip()
         if not destinatario or "@" not in destinatario or "." not in destinatario.split("@")[-1]:
+            self._enviando = False
             msg = "El destinatario no puede estar vacio." if not destinatario else "Formato de email invalido (ej: nombre@dominio.com)"
             self._lbl_error_dest.configure(text=msg)
             self._entry_destinatario.configure(border_color="#DC2626")
@@ -595,9 +603,10 @@ class ModalEmail(ctk.CTkToplevel):
                     messagebox.showinfo("OK", "Email enviado correctamente."),
                 ))
             except Exception as e:
-                self.after(0, lambda: (
-                    self._btn_enviar.configure(state="normal", text="Enviar Email"),
-                    messagebox.showerror("Error", f"No se pudo enviar:\n{e}", parent=self),
-                ))
+                def _on_error():
+                    self._enviando = False
+                    self._btn_enviar.configure(state="normal", text="Enviar Email")
+                    messagebox.showerror("Error", f"No se pudo enviar:\n{e}", parent=self)
+                self.after(0, _on_error)
 
         threading.Thread(target=_tarea, daemon=True).start()

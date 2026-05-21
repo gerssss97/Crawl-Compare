@@ -8,3 +8,14 @@ __pycache__
 # Skills output
 test-scraper-*.json
 multiperiodo-test-email-*.txt
+
+# PyInstaller build artifacts
+Hoteles/Deploy/build/
+Hoteles/Deploy/dist/
+Hoteles/Deploy/__pycache__/
+*.spec.bak
+
+# Runtime logs
+Hoteles/output.log
+output.log
+debug_llm_input_*.txt

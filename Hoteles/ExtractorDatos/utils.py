@@ -4,6 +4,7 @@ import re
 from typing import Optional
 from Models.hotelExcel import Periodo, HotelExcel, PeriodoGroup
 from openpyxl.utils import range_boundaries
+from debug_config import DEBUG_EXCEL_PARSING
 
 
 
@@ -172,29 +173,29 @@ def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
     Devuelve una lista de tuplas (fecha_inicio: date, fecha_fin: date).
     Si no se puede parsear alguna fecha, se omite el rango completo.
     """
-    print(f"[DEBUG] Procesando texto: {text}")
+    if DEBUG_EXCEL_PARSING: print(f"[DEBUG] Procesando texto: {text}")
     if not text:
         return []
 
     # Dividir la cadena en nombre y rango de fechas
     partes = text.split(":", 1)
-    print(f"[DEBUG] Partes después del split: {partes}")
+    if DEBUG_EXCEL_PARSING: print(f"[DEBUG] Partes después del split: {partes}")
     if len(partes) != 2:
-        return []  
+        return []
 
     nombre = partes[0].strip()
     rango_fechas = partes[1].strip()
-    print(f"[DEBUG] Nombre: {nombre}")
-    print(f"[DEBUG] Rango de fechas: {rango_fechas}")
+    if DEBUG_EXCEL_PARSING: print(f"[DEBUG] Nombre: {nombre}")
+    if DEBUG_EXCEL_PARSING: print(f"[DEBUG] Rango de fechas: {rango_fechas}")
     # Separar las fechas
     split = re.split(r'\s*(?:-|–|—|to|\/)\s*', rango_fechas, maxsplit=1, flags=re.IGNORECASE)
-    print(f"[DEBUG] Split de fechas: {split}")
+    if DEBUG_EXCEL_PARSING: print(f"[DEBUG] Split de fechas: {split}")
     if len(split) != 2:
         return []  # No hay separador de fechas
 
     parte_izq, parte_der = split[0].strip(), split[1].strip()
-    print(f"[DEBUG] Fecha izquierda: {parte_izq}")
-    print(f"[DEBUG] Fecha derecha: {parte_der}")
+    if DEBUG_EXCEL_PARSING: print(f"[DEBUG] Fecha izquierda: {parte_izq}")
+    if DEBUG_EXCEL_PARSING: print(f"[DEBUG] Fecha derecha: {parte_der}")
 
     ## chequeo especial: si la parte izquierda no tiene año, intentar extraerlo de la parte derecha
     if len(parte_izq) <= 2:
@@ -203,10 +204,10 @@ def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
             mes = match.group(2) if match.group(2) else ""
             anio = match.group(3) if match.group(3) else ""
             parte_izq += mes + anio
-            print(f"[DEBUG] Fecha izquierda modificada (añadido año): {parte_izq}")
+            if DEBUG_EXCEL_PARSING: print(f"[DEBUG] Fecha izquierda modificada (añadido año): {parte_izq}")
         else:
-            print(f"[DEBUG] No se encontró patrón para extraer mes y año de la parte derecha")
-        
+            if DEBUG_EXCEL_PARSING: print(f"[DEBUG] No se encontró patrón para extraer mes y año de la parte derecha")
+
     # Parsear las fechas
     fecha_izq = parsear_string_a_fecha(parte_izq)
     fecha_der = parsear_string_a_fecha(parte_der)
@@ -214,7 +215,7 @@ def extraer_fechas_sin_parentesis(text: str) -> list[tuple[date, date]]:
     if fecha_izq and fecha_der:
         return [nombre,(fecha_izq, fecha_der)]
     else:
-        print(f"[WARNING] No se pudieron parsear las fechas para {nombre}")
+        if DEBUG_EXCEL_PARSING: print(f"[WARNING] No se pudieron parsear las fechas para {nombre}")
         return [nombre]  # No se pudieron parsear las fechas pero devolvemos el nombre
 
 

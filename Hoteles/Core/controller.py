@@ -1,11 +1,18 @@
 from .gestor_datos import *
 import os
+import sys
 import smtplib
+from pathlib import Path
 from email.mime.text import MIMEText ##crea msjs con formato adecuado
 from email.mime.multipart import MIMEMultipart
 
 
-gestor = GestorDatos("./Data/Extracto_prueba.xlsx")
+def _excel_path() -> str:
+    if getattr(sys, "frozen", False):
+        return str(Path(sys._MEIPASS) / "Data" / "Extracto_prueba2.xlsx")
+    return str(Path(__file__).parent.parent / "Data" / "Extracto_prueba2.xlsx")
+
+gestor = GestorDatos(_excel_path())
 
 def dar_hoteles_excel():
     return gestor.hoteles_excel_get

@@ -2,7 +2,7 @@ import re
 from Models.hotelExcel import *
 from Models.hotelWeb import *
 from rapidfuzz import fuzz
-from debug_config import DEBUG_HABITACIONES_WEB
+from debug_config import DEBUG_FUZZY_MATCHING
 
 def encontrar_mejor_match(nombre_excel, nombres_web):
     nombre_excel_limpio = limpiar_nombre_excel(nombre_excel)
@@ -78,15 +78,15 @@ def obtener_mejor_match_con_breakfast(combo_elegido, hab_web: HabitacionWeb):
 
     # Buscar mejor match de nombre
     mejor_nombre, _ = encontrar_mejor_match(combo_elegido, nombres_web)
-    if DEBUG_HABITACIONES_WEB:
+    if DEBUG_FUZZY_MATCHING:
         print("MEJOR NOMBRE WEB ", mejor_nombre)
         print("COMBO ELEGIDO", combo_elegido)
     for habitacion in hab_web:
         if habitacion.nombre == mejor_nombre:
-            if DEBUG_HABITACIONES_WEB:
+            if DEBUG_FUZZY_MATCHING:
                 print("HABITACION ENCONTRADA", habitacion.nombre)
             if tiene_breakfast:
-                if DEBUG_HABITACIONES_WEB:
+                if DEBUG_FUZZY_MATCHING:
                     print("FILTRANDO POR BREAKFAST")
                     print_habitacion_web(habitacion)
                 # Filtrar combos que tengan algún indicio de breakfast en el título
@@ -100,16 +100,16 @@ def obtener_mejor_match_con_breakfast(combo_elegido, hab_web: HabitacionWeb):
                         detalles=habitacion.detalles,
                         combos=combos_filtrados
                     )
-                    if DEBUG_HABITACIONES_WEB:
+                    if DEBUG_FUZZY_MATCHING:
                         print("devolvi habitacion con breakfast")
                     # Retorna la misma habitación, pero con los combos filtrados
                     return habitacion, "Se encontró un combo con 'breakfast'. Se muestran solo ese combo."
                 else:
                     return habitacion, "Se buscó un combo con 'breakfast', pero no se encontró ninguno con dicho detalle en la web."
             else:
-                if DEBUG_HABITACIONES_WEB:
+                if DEBUG_FUZZY_MATCHING:
                     print("devolvi habitacion")
                 return habitacion, "Habitacion completa"  # No requiere filtrado
-    if DEBUG_HABITACIONES_WEB:
+    if DEBUG_FUZZY_MATCHING:
         print("NO COINCIDENTES CON", mejor_nombre)
     return None, "No se encontró ninguna habitación que coincida con el nombre proporcionado."

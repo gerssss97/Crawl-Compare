@@ -3,7 +3,7 @@ from ScrawlingChinese.crawler import *
 from Models.hotelExcel import *
 from Models.hotelWeb import *
 from Core.comparador import *
-from debug_config import DEBUG_HABITACIONES_WEB
+from debug_config import DEBUG_FUZZY_MATCHING, DEBUG_CRAWL4AI_VERBOSE
 import pickle
 from datetime import datetime
 from pathlib import Path
@@ -30,7 +30,7 @@ class GestorDatos:
         if not self.__habitaciones_web:
             raise ValueError("No hay datos de habitaciones web cargados al momento de COINCIDIR con el excel")
         self.mejor_habitacion_web, self.mensaje_match = obtener_mejor_match_con_breakfast(habitacion_excel, self.__habitaciones_web)
-        if DEBUG_HABITACIONES_WEB:
+        if DEBUG_FUZZY_MATCHING:
             print("MEJOR HABITACION WEB ", self.mejor_habitacion_web)
         if self.mejor_habitacion_web is None:
             raise ValueError(f"[ERROR] No se encontró una coincidencia para el combo", habitacion_excel)
@@ -51,7 +51,7 @@ class GestorDatos:
         Returns:
             HotelWeb con datos scrapeados
         """
-        print(f"[DEBUG] obtener_hotel_web llamado con: force_fresh={force_fresh}, use_pickle={use_pickle}, force_pickle={force_pickle}")
+        if DEBUG_CRAWL4AI_VERBOSE: print(f"[DEBUG] obtener_hotel_web llamado con: force_fresh={force_fresh}, use_pickle={use_pickle}, force_pickle={force_pickle}")
 
         # MODO TESTING: Si force_pickle=True, cargar pickle SIEMPRE (ignora todo lo demás)
         if force_pickle:

@@ -1,3 +1,21 @@
+import sys
+import io
+
+# Forzar UTF-8 en stdout/stderr — necesario en .exe de PyInstaller en Windows
+if sys.stdout and hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if sys.stderr and hasattr(sys.stderr, 'buffer'):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+from Deploy.startup_check import run_checks
+run_checks()
+
+# Smoke test post-build: si se invoca con --self-test, corre verificaciones
+# de bundling y sale (no levanta la UI). Se ejecuta en build.bat tras compilar.
+if "--self-test" in sys.argv:
+    from Deploy.smoke_test import run_smoke_test
+    run_smoke_test()
+
 import customtkinter as ctk
 from Core.gestor_datos import *
 from UI.interfaz_ctk import CrawlCompareGUI
@@ -17,7 +35,7 @@ if __name__ == "__main__":
 # ============================================================
 # Codigo de test / debug (descomentar segun necesidad)
 # ============================================================
-def _test_datos():
+def _test_carga_datos():
     """Imprime un resumen del Excel para verificar la carga."""
     
      # Test de extracción
