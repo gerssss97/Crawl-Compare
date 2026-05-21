@@ -44,7 +44,7 @@ Guía principal de Claude Code para el proyecto **Crawl-Compare** (Comparador de
     3. Solo después de mi confirmación, usa ExitPlanMode para abrir el modal de opciones
 Esto me permite leer, hacer preguntas y ajustar el plan antes de decidir cómo ejecutarlo.
 - **No abrir el modal de aprobacion automaticamente:**
-    Siempre que propongas nuevo codigo o edicion de alguno ya existente, justificá con el codigo mismo, como quedaría y porque, y NO muestres el modal de aprobacion. Sino mejor preguntame que opino de la edicion, si modificaría algo y porque. En caso de yo estar 100% de acuerdo ahi si podras mostrarme el modal de edicion.
+    Siempre que propongas nuevo codigo o edicion de alguno ya existente o un nuevo PLAN, justificá con el codigo mismo, como quedaría y porque, y NO muestres el modal de aprobacion. Sino mejor preguntame que opino de la edicion, si modificaría algo y porque. En caso de yo estar 100% de acuerdo ahi si podras mostrarme el modal de edicion. Si fuese un plan dejame leer todo lo que haz propuesto, y yo te lo respondo item por item.
 - **Usar lenguaje técnico:** Utiliza terminología técnica precisa en tus explicaciones (e.g., closure, factory function, nullish coalescing, lexical scope, hoisting, memoization, currying, higher-order function, destructuring, spread operator, rest parameters, temporal dead zone, prototype chain, event loop, microtask queue, etc.). Esto facilita el aprendizaje de conceptos avanzados y la comunicación profesional.
 - **Aclarar duda conceptual:** Si el usuario escribe una palabra entre 
   signos de pregunta (`¿concepto?`), significa que no está seguro de si 

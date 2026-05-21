@@ -56,12 +56,18 @@ class ControladorComparacion:
     async def _ejecutar_comparacion(self):
         """Ejecuta comparación multi-periodo asíncrona."""
         try:
-            self.event_bus.emit('comparison_started')
-
-            # Validar
-            if not self.controlador_validacion.validar_todo():
-                self.event_bus.emit('comparison_error', "Validación fallida")
+            # Validar PRIMERO — antes de tocar la UI con comparison_started.
+            # El orquestador decide CÓMO mostrar los errores: emite un evento
+            # para que el handler en el main thread muestre el messagebox.
+            result = self.controlador_validacion.validar_todo()
+            if not result.is_valid:
+                self.event_bus.emit('validation_failed', {
+                    'mensajes': result.mensajes_concatenados(),
+                    'errors': result.errors,
+                })
                 return
+
+            self.event_bus.emit('comparison_started')
 
             # Verificar si hay gaps no confirmados
             gap_analysis = getattr(self.estado_app, 'gap_analysis_actual', None)

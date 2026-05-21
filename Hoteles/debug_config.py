@@ -15,7 +15,7 @@
 # - Nivel 2 (Markdown→LLM): stats del markdown enviado a Groq (volcado a stdout, no archivo)
 # - Nivel 3 (Respuesta Groq): respuesta cruda del LLM, parseo JSON, razón de "incompleto"
 # Útil para diagnosticar por qué falla un intento (especialmente en .exe).
-DEBUG_SCRAPING_PIPELINE = True
+DEBUG_SCRAPING_PIPELINE = False
 
 # Guarda el markdown enviado al LLM como archivo debug_llm_input_*.txt tras cada scrape.
 # OJO: crea un archivo por cada intento. Para debug puntual en .exe usar DEBUG_SCRAPING_PIPELINE

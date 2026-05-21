@@ -6,8 +6,11 @@ logica de negocio, controladores y EventBus intactos.
 
 import customtkinter as ctk
 import tkinter as tk
-from tkinter import messagebox
-from Core.controller import dar_hoteles_excel
+from pathlib import Path
+from tkinter import filedialog, messagebox
+from Core.controller import GestorService, dar_hoteles_excel
+from Core.excel_resolver import resolver_excel_inicial
+from Core.services import ConfigService
 from UI.state.event_bus import EventBus
 from UI.state.app_state import AppState
 from UI.styles.fonts import FontManager
@@ -21,7 +24,7 @@ from UI.components import (
     CTkPeriodosPanel,
     CTkProgressPanel,
 )
-from UI.views import VistaResultados, ModalEmail
+from UI.views import VistaResultados, ModalEmail, ConfigModal
 from UI.controllers import (
     ControladorHotel,
     ControladorValidacion,
@@ -47,6 +50,23 @@ class CrawlCompareGUI:
         self.state = AppState(self.event_bus)
         self.fonts = FontManager(self.root)
 
+        # Config + carga inicial del Excel.
+        # GestorService.cargar puede fallar (Excel corrupto) — diferimos el
+        # mensaje hasta que la UI esté armada para mostrarlo con messagebox.
+        self.config_service = ConfigService()
+        self._error_excel_inicial = None
+        excel_path = resolver_excel_inicial(self.config_service)
+        if excel_path:
+            try:
+                GestorService.cargar(excel_path)
+                self.config_service.set_last_excel_path(excel_path)
+                print(f"[startup] Excel cargado: {excel_path}")
+            except Exception as e:
+                print(f"[startup] Error cargando Excel inicial: {e}")
+                self._error_excel_inicial = (excel_path, str(e))
+        else:
+            print("[startup] Sin Excel — arranque vacío.")
+
         # Aliases de compatibilidad con controladores legacy
         self.seleccion_hotel = self.state.hotel
         self.seleccion_edificio = self.state.edificio
@@ -56,6 +76,22 @@ class CrawlCompareGUI:
         self._configurar_event_listeners()
         self._crear_interfaz()
         self._cargar_hoteles_excel()
+
+        # Si no quedó un Excel cargado, ajustamos la UI a "modo vacío".
+        if not GestorService.esta_cargado():
+            self._aplicar_modo_sin_excel()
+        else:
+            self._actualizar_label_excel(GestorService.get_current_path())
+
+        # Mostrar error diferido (si lo hubo) después de pintar la UI
+        if self._error_excel_inicial:
+            path, err = self._error_excel_inicial
+            self.root.after(100, lambda: messagebox.showerror(
+                "Error cargando Excel",
+                f"No se pudo cargar el archivo configurado:\n{path}\n\n"
+                f"Detalle: {err}\n\n"
+                "Seleccioná un archivo Excel desde la barra superior."
+            ))
 
         # Binding global Shift+Enter
         self.root.bind("<Shift-Return>", lambda e: self._ejecutar_comparacion())
@@ -103,6 +139,8 @@ class CrawlCompareGUI:
         self.event_bus.on("precios_actualizados", self._on_precios_actualizados)
         self.event_bus.on("gaps_detected", self._on_gaps_detected)
         self.event_bus.on("mostrar_modal_gaps", self._on_mostrar_modal_gaps)
+        self.event_bus.on("validation_failed", self._on_validation_failed)
+        self.event_bus.on("hoteles_recargados", self._on_hoteles_recargados)
 
     # =========================================================
     # Construccion de la interfaz
@@ -124,7 +162,7 @@ class CrawlCompareGUI:
         self._crear_panel_derecho()
 
     def _crear_header(self):
-        """Crea la barra de titulo superior."""
+        """Crea la barra de titulo con indicador del Excel y botón de Configuración."""
         header = ctk.CTkFrame(
             self.root,
             fg_color=Colors.HEADER_BG,
@@ -134,12 +172,50 @@ class CrawlCompareGUI:
         header.pack(fill="x", side="top")
         header.pack_propagate(False)
 
+        # Izquierda: título
         ctk.CTkLabel(
             header,
             text="Crawl-Compare - Comparador de Precios",
             font=(Typography.FAMILY, 18, Typography.BOLD),
             text_color=Colors.HEADER_TEXT,
         ).pack(side="left", padx=Spacing.LG, pady=Spacing.MD)
+
+        # Derecha (orden inverso por pack side="right"):
+        #   [label Excel]  [Cambiar]  [⚙]
+
+        # Botón ⚙ Configuración
+        self.btn_config = ctk.CTkButton(
+            header,
+            text="⚙",
+            width=36,
+            height=32,
+            font=(Typography.FAMILY, 18),
+            fg_color="transparent",
+            hover_color="#334155",
+            text_color=Colors.HEADER_TEXT,
+            command=self._abrir_modal_config,
+        )
+        self.btn_config.pack(side="right", padx=(Spacing.XS, Spacing.LG), pady=Spacing.SM)
+
+        # Botón "Cambiar"
+        self.btn_cambiar_excel = ctk.CTkButton(
+            header,
+            text="Cambiar",
+            width=84,
+            height=32,
+            font=(Typography.FAMILY, Typography.SMALL),
+            command=self._on_cambiar_excel,
+        )
+        self.btn_cambiar_excel.pack(side="right", padx=Spacing.XS, pady=Spacing.SM)
+
+        # Label del Excel actual (se inicializa en _actualizar_label_excel)
+        self.label_excel = ctk.CTkLabel(
+            header,
+            text="📁 Cargando…",
+            font=(Typography.FAMILY, Typography.SMALL),
+            text_color=Colors.HEADER_TEXT,
+        )
+        self.label_excel.pack(side="right", padx=(Spacing.LG, Spacing.SM), pady=Spacing.MD)
 
     def _crear_panel_izquierdo(self):
         """Crea el panel izquierdo con el formulario y los resultados (scrollable)."""
@@ -766,6 +842,127 @@ class CrawlCompareGUI:
     def _abrir_ventana_email(self):
         """Abre el modal de email."""
         ModalEmail(self.root, self.state)
+
+    # =========================================================
+    # Selección de Excel y configuración
+    # =========================================================
+
+    def _on_cambiar_excel(self):
+        """Handler del botón 'Cambiar' en la topbar.
+
+        Abre un file picker, intenta cargar el Excel con GestorService.
+        Si falla, mantiene el Excel anterior y notifica al usuario.
+        Si funciona, persiste el path, refresca la UI y emite excel.loaded.
+        """
+        current = GestorService.get_current_path()
+        initialdir = str(Path(current).parent) if current else str(Path.home())
+
+        path = filedialog.askopenfilename(
+            title="Seleccionar archivo Excel",
+            filetypes=[
+                ("Archivos Excel", "*.xlsx"),
+                ("Todos los archivos", "*.*"),
+            ],
+            initialdir=initialdir,
+        )
+        if not path:
+            return
+
+        try:
+            GestorService.cargar(path)
+        except Exception as e:
+            messagebox.showerror(
+                "Error al cargar Excel",
+                f"No se pudo cargar el archivo:\n{path}\n\nDetalle: {e}"
+            )
+            return
+
+        # Carga OK
+        self.config_service.set_last_excel_path(path)
+        self._actualizar_label_excel(path)
+        self.btn_ejecutar.configure(state="normal")
+        # ControladorHotel escucha esto y re-puebla; la UI se entera vía
+        # 'hoteles_recargados'.
+        self.event_bus.emit('excel.loaded', {
+            'path': path,
+            'nombre': Path(path).name,
+        })
+
+    def _actualizar_label_excel(self, path):
+        """Refresca el label del Excel en la topbar.
+
+        Args:
+            path: ruta absoluta al Excel cargado, o None si no hay.
+        """
+        if not hasattr(self, "label_excel"):
+            return
+        if path is None:
+            self.label_excel.configure(
+                text="📁 Sin Excel cargado",
+                text_color=Colors.ERROR,
+            )
+        else:
+            nombre = Path(path).name
+            display = nombre if len(nombre) <= 30 else nombre[:27] + "..."
+            self.label_excel.configure(
+                text=f"📁 {display}",
+                text_color=Colors.HEADER_TEXT,
+            )
+
+    def _abrir_modal_config(self):
+        """Abre el modal de configuración (o lo trae al frente si ya está abierto)."""
+        existente = getattr(self, "_modal_config", None)
+        if existente is not None:
+            try:
+                if existente.winfo_exists():
+                    existente.lift()
+                    existente.focus_force()
+                    return
+            except Exception:
+                pass
+        self._modal_config = ConfigModal(self.root, self.config_service)
+
+    def _aplicar_modo_sin_excel(self):
+        """Configura la UI para el estado 'sin Excel cargado'."""
+        self._actualizar_label_excel(None)
+        if hasattr(self, "btn_ejecutar"):
+            self.btn_ejecutar.configure(state="disabled")
+
+    # =========================================================
+    # Handlers de eventos nuevos
+    # =========================================================
+
+    def _on_validation_failed(self, data):
+        """Muestra el messagebox con todos los errores de validación.
+
+        El orquestador (ControladorComparacion) decidió que la presentación
+        es un messagebox. Se ejecuta en el main thread vía root.after.
+        """
+        mensajes = data.get('mensajes', '') if isinstance(data, dict) else str(data)
+
+        def _mostrar():
+            messagebox.showerror(
+                "Datos incompletos o inválidos",
+                "Revisá los siguientes campos:\n\n" + mensajes,
+            )
+
+        self.root.after(0, _mostrar)
+
+    def _on_hoteles_recargados(self, nombres):
+        """Refresca el combo de hoteles tras cambiar de Excel."""
+        def _aplicar():
+            self.hoteles_excel = self.state.hoteles_excel
+            self.hotel_combo.set_values(nombres or [])
+            self.state.hotel.set("")
+            self.state.edificio.set("")
+            self.state.habitacion.set("")
+            self.periodos_panel.limpiar() if hasattr(self, "periodos_panel") else None
+            # Si el panel de edificio estaba visible, lo ocultamos hasta que
+            # el usuario seleccione un hotel nuevo.
+            if getattr(self, "_edificio_visible", False):
+                self._ocultar_edificio()
+
+        self.root.after(0, _aplicar)
 
 
 def run_interfaz():

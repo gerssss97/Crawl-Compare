@@ -19,3 +19,6 @@ Hoteles/Deploy/__pycache__/
 Hoteles/output.log
 output.log
 debug_llm_input_*.txt
+
+# User config (creado por ConfigService en modo dev)
+Hoteles/config.json

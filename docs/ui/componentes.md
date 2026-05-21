@@ -475,7 +475,7 @@ Widget para entrada de fecha con validación en tiempo real. Formato: DD-MM-AAAA
 ---
 
 Ver también:
-- [../desarrollo/convenciones.md](../desarrollo/convenciones.md) — Pattern BaseComponent completo
+- [../desarrollo/convenciones.md](../desarrollo/convenciones.md) — Pattern BaseComponent + helpers de botones
 - [vistas.md](vistas.md) — VistaResultados (compartida entre ambas familias)
 - [pantallas.md](pantallas.md) — Layout general de la app
 - [../arquitectura/event-driven-mvc.md](../arquitectura/event-driven-mvc.md) — Integración con EventBus

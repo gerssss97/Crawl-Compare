@@ -1,46 +1,96 @@
 from .gestor_datos import *
 import os
-import sys
 import smtplib
-from pathlib import Path
+from typing import Optional
 from email.mime.text import MIMEText ##crea msjs con formato adecuado
 from email.mime.multipart import MIMEMultipart
 
 
-def _excel_path() -> str:
-    if getattr(sys, "frozen", False):
-        return str(Path(sys._MEIPASS) / "Data" / "Extracto_prueba2.xlsx")
-    return str(Path(__file__).parent.parent / "Data" / "Extracto_prueba2.xlsx")
+class GestorService:
+    """Singleton recargable del GestorDatos.
 
-gestor = GestorDatos(_excel_path())
+    Reemplaza la instancia global `gestor` para permitir cambiar el Excel
+    en runtime. Si la recarga falla, la instancia previa queda intacta
+    (la asignación a `_instance` sólo ocurre si el constructor no lanza).
 
+    Quien necesite el gestor debe llamar a ``GestorService.get()`` en el
+    momento de uso, NO importar la instancia (eso traería stale references).
+    """
+
+    _instance: Optional[GestorDatos] = None
+    _current_path: Optional[str] = None
+
+    @classmethod
+    def cargar(cls, path: str) -> GestorDatos:
+        nuevo = GestorDatos(path)
+        cls._instance = nuevo
+        cls._current_path = path
+        return nuevo
+
+    @classmethod
+    def get(cls) -> Optional[GestorDatos]:
+        return cls._instance
+
+    @classmethod
+    def get_current_path(cls) -> Optional[str]:
+        return cls._current_path
+
+    @classmethod
+    def esta_cargado(cls) -> bool:
+        return cls._instance is not None
+
+    @classmethod
+    def reset(cls) -> None:
+        cls._instance = None
+        cls._current_path = None
+
+
+# Funciones legacy — defensivas: devuelven [] cuando no hay Excel cargado.
 def dar_hoteles_excel():
-    return gestor.hoteles_excel_get
+    g = GestorService.get()
+    if g is None:
+        return []
+    return g.hoteles_excel_get
 
 def dar_habitaciones_excel(hotelExcel: HotelExcel, tipo):
-    return gestor.habitaciones_excel_get(hotelExcel, tipo)
+    g = GestorService.get()
+    if g is None:
+        return []
+    return g.habitaciones_excel_get(hotelExcel, tipo)
 
 def dar_tipos_habitacion_excel(HotelExcel: HotelExcel):
-    return gestor.tipos_habitaciones_excel_get(HotelExcel)
+    g = GestorService.get()
+    if g is None:
+        return []
+    return g.tipos_habitaciones_excel_get(HotelExcel)
 
 ## devuelve true si la diferencia es mayor o igual a 1
 async def comparar_habitaciones(habitacion_excel: HabitacionExcel, precio_hab_excel):
-    await gestor.coincidir_excel_web(habitacion_excel) #busca la mejor coincidencia con hab web
+    g = GestorService.get()
+    if g is None:
+        raise RuntimeError("No hay archivo Excel cargado.")
+    await g.coincidir_excel_web(habitacion_excel) #busca la mejor coincidencia con hab web
 
-    precio_web = gestor.mejor_habitacion_web_get.combos[0].precio  # type: ignore
+    precio_web = g.mejor_habitacion_web_get.combos[0].precio  # type: ignore
     diferencia = abs(float(precio_hab_excel) - precio_web) # type: ignore
     print(f"Precio Excel: {precio_hab_excel} - Precio Web: {precio_web} - Diferencia: {diferencia}")
     if diferencia>=1:
         return True
-    else: 
+    else:
         return False
-    
+
 
 def dar_habitacion_web():
-    return gestor.mejor_habitacion_web_get
+    g = GestorService.get()
+    if g is None:
+        return None
+    return g.mejor_habitacion_web_get
 
 def dar_mensaje():
-    return gestor.mensaje_get
+    g = GestorService.get()
+    if g is None:
+        return None
+    return g.mensaje_get
 
 async def dar_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fresh=False, use_pickle=True, force_pickle=False, on_scrape_step=None):
     """Obtiene datos del hotel web.
@@ -62,7 +112,10 @@ async def dar_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fres
         ValueError: Si no se pueden obtener datos válidos
         FileNotFoundError: Si force_pickle=True pero no existe el archivo pickle
     """
-    hotel = await gestor.obtener_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fresh, use_pickle, force_pickle, on_scrape_step=on_scrape_step)
+    g = GestorService.get()
+    if g is None:
+        raise RuntimeError("No hay archivo Excel cargado.")
+    hotel = await g.obtener_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fresh, use_pickle, force_pickle, on_scrape_step=on_scrape_step)
 
     if hotel is None or not hotel.habitacion:
         raise ValueError("No se pudieron obtener datos válidos del hotel web")

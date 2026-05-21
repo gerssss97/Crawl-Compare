@@ -29,6 +29,29 @@ class ControladorHotel:
         # Suscribirse a eventos
         self.event_bus.on('hotel_changed', self.on_hotel_changed)
         self.event_bus.on('edificio_changed', self.on_edificio_changed)
+        self.event_bus.on('excel.loaded', self.on_excel_loaded)
+
+    def on_excel_loaded(self, payload=None):
+        """Resetea selecciones y re-puebla hoteles desde el Excel recién cargado.
+
+        Se suscribe al evento ``excel.loaded`` que dispara ``CrawlCompareGUI``
+        al cambiar de archivo. La UI debe escuchar ``hoteles_recargados``
+        para refrescar el combo de hoteles.
+        """
+        # Limpiar selecciones previas: el Excel anterior ya no aplica.
+        try:
+            self.estado_app.hotel.set("")
+            self.estado_app.edificio.set("")
+            self.estado_app.habitacion.set("")
+        except Exception:
+            pass
+
+        self.estado_app.habitaciones_unificadas = []
+        self.estado_app.habitaciones_excel = []
+
+        # Re-poblar hoteles y notificar a la UI.
+        nombres = self.cargar_hoteles()
+        self.event_bus.emit('hoteles_recargados', nombres)
 
     def cargar_hoteles(self):
         """Carga hoteles desde Excel.

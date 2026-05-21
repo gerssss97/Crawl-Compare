@@ -112,6 +112,15 @@ Interfaz gráfica CustomTkinter (activa) + Tkinter legacy.
 | [modales.md](ui/modales.md) | Modal de email, MessageBox, futuros |
 | [troubleshooting-ctk.md](ui/troubleshooting-ctk.md) | Problemas conocidos de CTk: scaling, scroll, rendering ⭐ |
 
+### Features
+
+Planes y documentación de features grandes que cruzan capas (Core + UI + Deploy).
+
+| Archivo | Descripción |
+|---------|-------------|
+| [seleccion-excel-y-config.md](features/seleccion-excel-y-config.md) | Selección de Excel + validators desacoplados + modal de config ⭐ |
+| [email-config-opciones.md](features/email-config-opciones.md) | Opciones evaluadas para configurar envío de email (decisión pendiente) 📋 |
+
 ---
 
 ## 🛠️ Skills Disponibles

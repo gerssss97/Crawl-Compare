@@ -7,6 +7,12 @@ class Colors:
     PRIMARY = "#2563EB"           # Azul eléctrico (botones, CTAs)
     PRIMARY_HOVER = "#1D4ED8"     # Azul hover
     PRIMARY_LIGHT = "#DBEAFE"     # Azul claro (backgrounds)
+
+    # Secundarios (variante opaca del PRIMARY)
+    SECONDARY = "#93C5FD"
+    SECONDARY_HOVER = "#60A5FA"
+    SECONDARY_ACTIVE = "#3B82F6"
+    SECONDARY_DISABLED = "#BFDBFE"
     
     # Semánticos
     SUCCESS = "#10B981"           # Verde (coincidencias)

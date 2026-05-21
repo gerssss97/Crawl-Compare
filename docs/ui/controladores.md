@@ -191,128 +191,120 @@ def on_edificio_changed(self, edificio_nombre):
 
 ### Propósito
 
-Valida campos del formulario antes de ejecutar comparación. NO escucha eventos (se llama directamente).
+Orquesta una lista de **Validators** desacoplados y devuelve un `ValidationResult` con todos los errores encontrados. **NO abre UI** — la presentación (messagebox, panel inline, etc.) queda a cargo de quien lo invoque.
 
-### Responsabilidades
+### Patrón: Validator + ValidationResult
 
-- Validar formato de fechas (DD-MM-AAAA)
-- Validar existencia de fechas
-- Validar orden de fechas (salida > entrada)
-- Validar que todos los campos estén completos
-- Mostrar mensajes de error al usuario
+```
+ControladorValidacion
+   ├─ ExcelCargadoValidator   → ¿Hay un Excel cargado? (red de seguridad)
+   ├─ CamposValidator          → Campos no vacíos, adultos ≥ 1
+   └─ FechasValidator          → Formato DD-MM-AAAA, no-pasado, orden
+```
+
+Cada validator implementa el protocolo `Validator` (`validate(state) → ValidationResult`) y es independiente del resto. Agregar uno nuevo (ej: email válido, API key configurada) = crear una clase y sumarla a la lista, **sin tocar el orquestador ni los demás validators**.
+
+### Estructuras de datos
+
+```python
+@dataclass
+class ValidationError:
+    campo: str                  # "fecha_entrada", "excel", "adultos"
+    mensaje: str
+    severity: str = "error"     # "error" | "warning"
+
+@dataclass
+class ValidationResult:
+    errors: list[ValidationError] = field(default_factory=list)
+
+    @property
+    def is_valid(self) -> bool:      # True si no hay errores
+        ...
+
+    def merge(self, other) -> None:  # Combina resultados
+        ...
+
+    def mensajes_concatenados(self) -> str:  # Bullets para UI
+        ...
+```
 
 ### Constructor
 
 ```python
-def __init__(self, estado_app: AppState):
-    self.estado_app = estado_app
-    # NO recibe event_bus
+def __init__(self, estado_app: AppState, validators: list[Validator] | None = None):
+    # Si no se pasan validators, usa los default en orden correcto.
+    self._validators = validators or [
+        ExcelCargadoValidator(),
+        CamposValidator(),
+        FechasValidator(),
+    ]
 ```
 
-### Métodos Principales
+Permite inyectar una lista custom para tests o flujos especiales.
 
-#### `validar_fecha(fecha_str: str, nombre_campo: str) → bool`
-Valida formato y existencia de una fecha.
+### Método principal
+
+#### `validar_todo() → ValidationResult`
+
+Ejecuta TODOS los validators y mergea los errores. Devuelve un único `ValidationResult` con la lista completa.
 
 ```python
-if not controlador.validar_fecha("15-02-2026", "Fecha de entrada"):
-    # Error mostrado, retornar
-    pass
+result = controlador.validar_todo()
+if not result.is_valid:
+    # result.errors → list[ValidationError]
+    # result.mensajes_concatenados() → "• ...\n• ..."
+    ...
 ```
 
-**Validaciones**:
-1. Campo no vacío
-2. Formato DD-MM-AAAA
-3. Fecha válida (no 31 de febrero, etc.)
-
-**Errores mostrados**:
-- "El campo 'Fecha de entrada' no puede estar vacío"
-- "Formato de fecha inválido. Use DD-MM-AAAA"
-- "Fecha inválida: 31-02-2026"
+**Beneficio sobre el contrato viejo**: antes devolvía `bool` y mostraba solo el primer error con `messagebox.showerror()`. Ahora se muestran **todos los errores juntos** y el llamador elige cómo presentarlos.
 
 ---
 
-#### `validar_orden_fechas(fecha_entrada: str, fecha_salida: str) → bool`
-Valida que fecha_salida > fecha_entrada.
-
-```python
-if not controlador.validar_orden_fechas("15-02-2026", "20-02-2026"):
-    # Error mostrado
-    pass
-```
-
-**Error mostrado**:
-- "La fecha de salida debe ser posterior a la fecha de entrada"
-
----
-
-#### `validar_campos_completos() → bool`
-Valida que hotel, habitación y precio estén seleccionados.
-
-```python
-if not controlador.validar_campos_completos():
-    # Error mostrado
-    pass
-```
-
-**Validaciones**:
-1. Hotel seleccionado
-2. Habitación seleccionada
-3. Precio actualizado (no "(ninguna seleccionada)")
-
-**Errores mostrados**:
-- "Debe seleccionar un hotel"
-- "Debe seleccionar una habitación"
-- "El campo 'Precio' no puede estar vacío"
-
----
-
-#### `validar_todo() → bool`
-Ejecuta todas las validaciones en orden.
-
-```python
-if controlador.validar_todo():
-    # Todas las validaciones pasaron → ejecutar comparación
-    pass
-```
-
-**Orden de validación**:
-1. `validar_fecha(fecha_entrada)`
-2. `validar_fecha(fecha_salida)`
-3. `validar_orden_fechas()`
-4. `validar_campos_completos()`
-
-**Retorna**: `True` si todas las validaciones pasan, `False` si alguna falla.
-
----
-
-### Ejemplo de Uso
+### Ejemplo de uso
 
 ```python
 from UI.controllers.controlador_validacion import ControladorValidacion
-from UI.state.app_state import AppState
-from UI.state.event_bus import EventBus
 from tkinter import messagebox
 
-event_bus = EventBus()
-estado_app = AppState(event_bus)
-
-# Configurar estado
-estado_app.hotel.set("Alvear Palace")
-estado_app.habitacion.set("dbl superior")
-estado_app.precio.set("$150.00")
-estado_app.fecha_entrada_completa.set("15-02-2026")
-estado_app.fecha_salida_completa.set("20-02-2026")
-
-# Crear controlador
 controlador = ControladorValidacion(estado_app)
+result = controlador.validar_todo()
 
-# Validar todo
-if controlador.validar_todo():
-    print("✅ Validación exitosa")
-else:
-    print("❌ Validación falló")
+if not result.is_valid:
+    messagebox.showerror(
+        "Datos incompletos",
+        "Revisá los siguientes campos:\n\n" + result.mensajes_concatenados()
+    )
+    return
+# Validación OK → seguir con el flujo
 ```
+
+### Cómo agregar un validator nuevo
+
+```python
+# UI/controllers/validators/email_validator.py
+from .base import ValidationError, ValidationResult
+
+class EmailValidator:
+    def validate(self, state) -> ValidationResult:
+        result = ValidationResult()
+        email = getattr(state, "user_email", None)
+        if not email or "@" not in (email.get() if hasattr(email, "get") else email):
+            result.errors.append(ValidationError(
+                campo="email",
+                mensaje="El email del usuario es inválido o no está configurado.",
+            ))
+        return result
+
+# Luego, al construir ControladorValidacion:
+ControladorValidacion(state, validators=[
+    ExcelCargadoValidator(),
+    CamposValidator(),
+    FechasValidator(),
+    EmailValidator(),
+])
+```
+
+Ningún otro archivo se modifica.
 
 ---
 

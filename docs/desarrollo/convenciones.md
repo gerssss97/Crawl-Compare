@@ -662,6 +662,50 @@ ctk.CTkComboBox(parent, values=[...]).pack()
 
 ---
 
+## Estilos de Botones — Helpers
+
+Para mantener consistencia visual, **nunca** definir colores de botón inline. Usar siempre los helpers de `UI/styles/button_styles.py`.
+
+```python
+from UI.styles import primary_button, secondary_button
+
+# Botón principal (Ejecutar, acción destructiva única)
+ctk.CTkButton(parent, text="Ejecutar", **primary_button())
+
+# Botón secundario (Limpiar, Exportar, acciones de soporte)
+ctk.CTkButton(parent, text="Limpiar", **secondary_button())
+
+# Con estado deshabilitado — el helper ya incluye text_color_disabled
+ctk.CTkButton(parent, text="Limpiar", state="disabled", **secondary_button())
+```
+
+### Lo que incluye cada helper
+
+| Parámetro | `primary_button()` | `secondary_button()` |
+|-----------|-------------------|---------------------|
+| `fg_color` | `PRIMARY` (#2563EB) | `SECONDARY` (#93C5FD) |
+| `hover_color` | `PRIMARY_HOVER` (#1D4ED8) | `SECONDARY_HOVER` (#60A5FA) |
+| `text_color` | `HEADER_TEXT` (#FFFFFF) | `TEXT_PRIMARY` (#1E293B) |
+| `text_color_disabled` | `TEXT_DISABLED` (#94A3B8) | `TEXT_DISABLED` (#94A3B8) |
+
+### Lo que NO va en el helper
+
+`text`, `command`, `width`, `state` — son lógica de instancia, no estilo visual.
+
+### Paleta SECONDARY completa (en `colors.py`)
+
+| Constante | Valor | Estado |
+|-----------|-------|--------|
+| `SECONDARY_DISABLED` | `#BFDBFE` | Sin interacción / fondo inactivo |
+| `SECONDARY` | `#93C5FD` | Normal |
+| `SECONDARY_HOVER` | `#60A5FA` | Hover |
+| `SECONDARY_ACTIVE` | `#3B82F6` | Pressed / activo |
+| `PRIMARY` | `#2563EB` | Primario |
+
+> `SECONDARY_DISABLED` se usa también como fondo de tabs inactivos en `CTkTabview`. Ver `config_modal.py`.
+
+---
+
 ## Flags de Debug
 
 Todos los flags de debug del proyecto se centralizan en `Hoteles/debug_config.py`. La idea es que cualquier módulo los importe desde ahí y nunca declare sus propios flags locales.

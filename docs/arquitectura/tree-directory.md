@@ -14,10 +14,13 @@ Hoteles/
 ├── Core/
 │   ├── comparador.py                # Fuzzy matching (scores, print debug)
 │   ├── comparador_multiperiodo.py   # Lógica multi-periodo ⭐
-│   ├── controller.py                # Fachada de servicios
+│   ├── controller.py                # Fachada de servicios + GestorService (singleton recargable) ⭐
+│   ├── excel_resolver.py            # Resuelve qué Excel cargar al arrancar
 │   ├── gestor_datos.py              # Orquestador Excel/Web
 │   ├── periodo_utils.py             # Utilidades de periodos
-│   └── servicio_habitaciones.py     # Servicio de habitaciones
+│   ├── servicio_habitaciones.py     # Servicio de habitaciones
+│   └── services/
+│       └── config_service.py        # Persistencia de config.json (último Excel, etc.) ⭐
 │
 ├── Models/
 │   ├── hotelExcel.py                # HotelExcel (Pydantic)
@@ -64,16 +67,24 @@ Hoteles/
 │   │   └── ctk_progress_panel.py    # Panel de progreso
 │   │
 │   ├── views/
-│   │   └── vista_resultados.py      # Tabla comparativa multi-periodo ⭐
+│   │   ├── vista_resultados.py      # Tabla comparativa multi-periodo ⭐
+│   │   ├── modal_email.py           # Modal para enviar email
+│   │   └── config_modal.py          # Modal de configuración (4 pestañas)
 │   │
 │   ├── controllers/
-│   │   ├── controlador_hotel.py     # Carga hoteles/habitaciones ⭐
+│   │   ├── controlador_hotel.py     # Carga hoteles/habitaciones (re-carga en excel.loaded) ⭐
 │   │   ├── controlador_precios.py   # Calcula precio según periodos ⭐
 │   │   ├── controlador_comparacion.py  # Orquesta comparación ⭐
-│   │   └── controlador_validacion.py   # Valida inputs
+│   │   ├── controlador_validacion.py   # Orquesta validators (devuelve ValidationResult)
+│   │   └── validators/
+│   │       ├── base.py              # ValidationError, ValidationResult, Validator (Protocol)
+│   │       ├── fechas_validator.py  # Formato/orden de fechas
+│   │       ├── campos_validator.py  # Campos completos
+│   │       └── excel_validator.py   # Excel cargado (defensivo)
 │   │
 │   ├── styles/
-│   │   ├── colors.py                # Paleta de colores
+│   │   ├── colors.py                # Paleta de colores (PRIMARY, SECONDARY, semánticos, neutrales)
+│   │   ├── button_styles.py         # Helpers primary_button() / secondary_button()
 │   │   ├── typography.py            # Tipografías
 │   │   ├── fonts.py
 │   │   └── spacing.py               # Espaciados
