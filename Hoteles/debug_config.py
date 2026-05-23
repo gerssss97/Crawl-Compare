@@ -35,3 +35,18 @@ DEBUG_FUZZY_MATCHING = False
 
 # Prints del parseo de fechas y nombres en ExtractorDatos/utils.py.
 DEBUG_EXCEL_PARSING = False
+
+# ===== STARTUP =====
+
+# Informa qué Excel se intentó cargar al iniciar la app y si tuvo éxito o falló.
+# Útil para diagnosticar problemas de configuración en el arranque.
+DEBUG_STARTUP_EXCEL_LOAD = False
+
+# ===== PIPELINE DE COMPARACIÓN =====
+
+# Imprime el progreso completo del pipeline de comparación multi-periodo:
+# - Nombre de habitación comparada y cantidad de periodos detectados
+# - Número de periodo actual y fechas de scraping calculadas
+# - Confirmación de scraping fresco (gestor_datos)
+# - URL construida para el scraper y JSON crudo extraído del LLM (scraper_utils)
+DEBUG_COMPARISON_PIPELINE = False

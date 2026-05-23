@@ -1,6 +1,7 @@
 """Comparador multi-periodo con scraping secuencial."""
 
 import asyncio
+from debug_config import DEBUG_COMPARISON_PIPELINE
 from typing import List
 from datetime import date
 from Models.hotelExcel import Periodo, HotelExcel
@@ -122,10 +123,11 @@ async def comparar_multiperiodo(
     if not periodos_aplicables:
         raise ValueError(f"No se encontraron periodos aplicables para {fecha_entrada} a {fecha_salida}")
 
-    print(f"\n{'='*60}")
-    print(f"COMPARACIÓN MULTI-PERIODO: {habitacion_unificada.nombre}")
-    print(f"Periodos detectados: {len(periodos_aplicables)}")
-    print(f"{'='*60}\n")
+    if DEBUG_COMPARISON_PIPELINE:
+        print(f"\n{'='*60}")
+        print(f"COMPARACIÓN MULTI-PERIODO: {habitacion_unificada.nombre}")
+        print(f"Periodos detectados: {len(periodos_aplicables)}")
+        print(f"{'='*60}\n")
 
     resultados_periodos = []
     habitacion_web_matcheada = None
@@ -135,7 +137,8 @@ async def comparar_multiperiodo(
 
     # Paso 2: Loop secuencial por cada periodo
     for idx, periodo in enumerate(periodos_aplicables, start=1):
-        print(f"\n--- PERIODO {idx}/{total_periodos} ---")
+        if DEBUG_COMPARISON_PIPELINE:
+            print(f"\n--- PERIODO {idx}/{total_periodos} ---")
 
         if on_progress:
             on_progress(idx, total_periodos, f"Scrapeando periodo {idx}/{total_periodos}...")
@@ -149,7 +152,8 @@ async def comparar_multiperiodo(
             fecha_inicio_str = fecha_scrape_inicio.strftime("%d-%m-%Y")
             fecha_fin_str = fecha_scrape_fin.strftime("%d-%m-%Y")
 
-            print(f"Scraping con fechas: {fecha_inicio_str} a {fecha_fin_str}")
+            if DEBUG_COMPARISON_PIPELINE:
+                print(f"Scraping con fechas: {fecha_inicio_str} a {fecha_fin_str}")
 
             # Scrape web (TESTING: usar force_pickle para tests rápidos)
             hotel_web = await dar_hotel_web(

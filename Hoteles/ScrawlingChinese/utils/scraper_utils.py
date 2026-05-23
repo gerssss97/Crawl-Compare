@@ -14,7 +14,7 @@ from crawl4ai import (
 from datetime import date
 from Models.hotelExcel import *
 from Models.hotelWeb import *
-from debug_config import DEBUG_CRAWL4AI_VERBOSE, DEBUG_SCRAPING_PIPELINE, DEBUG_LLM_MARKDOWN
+from debug_config import DEBUG_CRAWL4AI_VERBOSE, DEBUG_SCRAPING_PIPELINE, DEBUG_LLM_MARKDOWN, DEBUG_COMPARISON_PIPELINE
 
 
 def get_browser_config() -> BrowserConfig:
@@ -113,7 +113,8 @@ async def procesar_resultado_scraping(result):
 
  
     try:
-        print("Contenido extraído:", result.extracted_content)  
+        if DEBUG_COMPARISON_PIPELINE:
+            print("Contenido extraído:", result.extracted_content)
         hotel_data = json.loads(result.extracted_content)
 
         if not hotel_data:
@@ -122,7 +123,8 @@ async def procesar_resultado_scraping(result):
             
         # Verificar si es una lista de habitaciones
         if isinstance(hotel_data, list):
-            print(f"Procesando {len(hotel_data)} habitaciones")
+            if DEBUG_COMPARISON_PIPELINE:
+                print(f"Procesando {len(hotel_data)} habitaciones")
             habitaciones = []
             for h in hotel_data:
                 try:
@@ -169,7 +171,8 @@ async def fetch_and_process_page(
 ) -> Optional[HotelWeb]:
 
     url_completa = f"{base_url}?{urlencode(params)}"
-    print(f"Loading hotel page: {url_completa}...")
+    if DEBUG_COMPARISON_PIPELINE:
+        print(f"Loading hotel page: {url_completa}...")
 
     def _notify(step: str):
         if on_scrape_step:

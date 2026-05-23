@@ -3,7 +3,7 @@ from ScrawlingChinese.crawler import *
 from Models.hotelExcel import *
 from Models.hotelWeb import *
 from Core.comparador import *
-from debug_config import DEBUG_FUZZY_MATCHING, DEBUG_CRAWL4AI_VERBOSE
+from debug_config import DEBUG_FUZZY_MATCHING, DEBUG_CRAWL4AI_VERBOSE, DEBUG_COMPARISON_PIPELINE
 import pickle
 from datetime import datetime
 from pathlib import Path
@@ -88,7 +88,8 @@ class GestorDatos:
                 return self.__hotel_web
 
         # Realizar scraping fresco
-        print(f"Realizando scraping fresco para {fecha_ingreso} a {fecha_egreso}...")
+        if DEBUG_COMPARISON_PIPELINE:
+            print(f"Realizando scraping fresco para {fecha_ingreso} a {fecha_egreso}...")
         self.__last_fecha_ingreso = fecha_ingreso
         self.__last_fecha_egreso = fecha_egreso
         self.__last_adultos = adultos
