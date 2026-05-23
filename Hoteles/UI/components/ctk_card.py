@@ -68,21 +68,21 @@ class CTkCard(CTkBaseComponent):
     
     def _crear_titulo(self):
         """Crea el área de título de la card."""
-        title_frame = ctk.CTkFrame(
+        self.title_frame = ctk.CTkFrame(
             self,
             fg_color="transparent",
             corner_radius=0
         )
-        title_frame.pack(
+        self.title_frame.pack(
             fill='x',
             padx=Spacing.CARD_PADDING,
             pady=(Spacing.CARD_PADDING, Spacing.SM)
         )
-        
+
         # Ícono con fuente del sistema para emojis a color
         if self.icon:
             icon_label = ctk.CTkLabel(
-                title_frame,
+                self.title_frame,
                 text=self.icon,
                 font=("Segoe UI", Typography.SMALL),
                 text_color=Colors.TEXT_SECONDARY,
@@ -92,7 +92,7 @@ class CTkCard(CTkBaseComponent):
 
         # Texto del título
         title_label = ctk.CTkLabel(
-            title_frame,
+            self.title_frame,
             text=self.title_text,
             font=(Typography.FAMILY, Typography.SMALL, Typography.BOLD),
             text_color=Colors.TEXT_SECONDARY,

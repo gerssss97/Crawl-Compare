@@ -20,7 +20,8 @@ Hoteles/
 │   ├── periodo_utils.py             # Utilidades de periodos
 │   ├── servicio_habitaciones.py     # Servicio de habitaciones
 │   └── services/
-│       └── config_service.py        # Persistencia de config.json (último Excel, etc.) ⭐
+│       ├── config_service.py        # Persistencia de config.json (último Excel, etc.) ⭐
+│       └── email_senders.py         # MailtoSender — abre cliente de email del SO vía mailto:
 │
 ├── Models/
 │   ├── hotelExcel.py                # HotelExcel (Pydantic)
@@ -66,10 +67,15 @@ Hoteles/
 │   │   ├── ctk_precio_panel.py      # Panel de precio ⭐
 │   │   └── ctk_progress_panel.py    # Panel de progreso
 │   │
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── historial_service.py     # CRUD del historial de comparaciones (persiste en config.json)
+│   │
 │   ├── views/
 │   │   ├── vista_resultados.py      # Tabla comparativa multi-periodo ⭐
 │   │   ├── modal_email.py           # Modal para enviar email
-│   │   └── config_modal.py          # Modal de configuración (4 pestañas)
+│   │   ├── config_modal.py          # Modal de configuración (4 pestañas)
+│   │   └── historial_modal.py       # Modal de historial de comparaciones previas
 │   │
 │   ├── controllers/
 │   │   ├── controlador_hotel.py     # Carga hoteles/habitaciones (re-carga en excel.loaded) ⭐

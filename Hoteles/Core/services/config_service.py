@@ -77,3 +77,9 @@ class ConfigService:
 
     def set_last_excel_path(self, path: Optional[str]) -> None:
         self.set("last_excel_path", path)
+
+    def get_historial(self) -> list:
+        return self._cache.get("historial", [])
+
+    def set_historial(self, entradas: list) -> None:
+        self.set("historial", entradas)

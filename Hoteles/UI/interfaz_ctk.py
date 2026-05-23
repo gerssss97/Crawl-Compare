@@ -8,13 +8,15 @@ import customtkinter as ctk
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox
-from Core.controller import GestorService, dar_hoteles_excel
+from Core.controller import GestorService, dar_hoteles_excel, generar_texto_email_multiperiodo
+from Core.services.email_senders import MailtoSender
 from Core.excel_resolver import resolver_excel_inicial
 from Core.services import ConfigService
 from UI.state.event_bus import EventBus
 from UI.state.app_state import AppState
 from UI.styles.fonts import FontManager
 from UI.styles import Colors, Typography, Spacing
+from UI.styles.button_styles import secondary_button
 from UI.components import (
     CTkCard,
     CTkLabeledComboBox,
@@ -24,7 +26,8 @@ from UI.components import (
     CTkPeriodosPanel,
     CTkProgressPanel,
 )
-from UI.views import VistaResultados, ModalEmail, ConfigModal
+from UI.views import VistaResultados, ConfigModal, HistorialModal
+from UI.services.historial_service import HistorialService
 from UI.controllers import (
     ControladorHotel,
     ControladorValidacion,
@@ -54,6 +57,7 @@ class CrawlCompareGUI:
         # GestorService.cargar puede fallar (Excel corrupto) — diferimos el
         # mensaje hasta que la UI esté armada para mostrarlo con messagebox.
         self.config_service = ConfigService()
+        self.historial_service = HistorialService(self.config_service)
         self._error_excel_inicial = None
         excel_path = resolver_excel_inicial(self.config_service)
         if excel_path:
@@ -179,6 +183,20 @@ class CrawlCompareGUI:
             font=(Typography.FAMILY, 18, Typography.BOLD),
             text_color=Colors.HEADER_TEXT,
         ).pack(side="left", padx=Spacing.LG, pady=Spacing.MD)
+
+        self.btn_historial = ctk.CTkButton(
+            header,
+            text="🕐 Historial",
+            width=110,
+            height=32,
+            font=(Typography.FAMILY, Typography.SMALL),
+            fg_color="transparent",
+            hover_color="#334155",
+            text_color=Colors.HEADER_TEXT,
+            corner_radius=4,
+            command=self._abrir_historial,
+        )
+        self.btn_historial.pack(side="left", padx=(Spacing.SM, 0), pady=Spacing.SM)
 
         # Derecha (orden inverso por pack side="right"):
         #   [label Excel]  [Cambiar]  [⚙]
@@ -345,6 +363,17 @@ class CrawlCompareGUI:
         """Crea la card de seleccion de reserva."""
         card = CTkCard(parent, title="SELECCION DE RESERVA", icon="🏨")
         card.pack(fill="x", pady=(0, Spacing.MD))
+
+        ctk.CTkButton(
+            card.title_frame,
+            text="🗑️ Limpiar",
+            width=80,
+            height=24,
+            font=(Typography.FAMILY, Typography.SMALL),
+            corner_radius=Spacing.RADIUS_SM,
+            command=self._limpiar_campos,
+            **secondary_button(),
+        ).pack(side="right")
 
         # Hotel
         self.hotel_combo = CTkLabeledComboBox(
@@ -748,6 +777,17 @@ class CrawlCompareGUI:
                 self._panel_izq_outer.grid_rowconfigure(0, weight=0)  # 50%
                 self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
                 self.state.resultado_multiperiodo = resultado_data
+                import datetime
+                self.historial_service.agregar({
+                    "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
+                    "hotel": self.state.hotel.get(),
+                    "edificio": self.state.edificio.get() or None,
+                    "habitacion": self.state.habitacion.get(),
+                    "fecha_entrada": self.state.fecha_entrada_completa.get(),
+                    "fecha_salida": self.state.fecha_salida_completa.get(),
+                    "adultos": self.state.adultos.get(),
+                    "ninos": self.state.ninos.get(),
+                })
                 if resultado_data.tiene_discrepancias:
                     self._mostrar_email_btn()
             else:
@@ -840,8 +880,10 @@ class CrawlCompareGUI:
         self._btn_email.grid(row=3, column=0, sticky="ew", pady=(Spacing.SM, 0))
 
     def _abrir_ventana_email(self):
-        """Abre el modal de email."""
-        ModalEmail(self.root, self.state)
+        hotel = self.state.hotel.get()
+        cuerpo = generar_texto_email_multiperiodo(hotel, self.state.resultado_multiperiodo)
+        asunto = f"Discrepancia de precios - {hotel}"
+        MailtoSender().enviar(destinatario="", asunto=asunto, cuerpo=cuerpo)
 
     # =========================================================
     # Selección de Excel y configuración
@@ -932,6 +974,19 @@ class CrawlCompareGUI:
     # Handlers de eventos nuevos
     # =========================================================
 
+    def _limpiar_campos(self):
+        """Resetea todos los campos del formulario y limpia los resultados."""
+        self.state.reset_all()
+        self._ocultar_edificio()
+        nombres = [h.nombre.replace("(A)", "").replace("(a)", "").strip() for h in self.hoteles_excel]
+        self.hotel_combo.set_values(nombres)
+        self.periodos_panel.limpiar()
+        self.precio_panel.limpiar()
+        self.resultado.delete("1.0", tk.END)
+        if self._btn_email is not None:
+            self._btn_email.grid_forget()
+            self._btn_email = None
+
     def _on_validation_failed(self, data):
         """Muestra el messagebox con todos los errores de validación.
 
@@ -963,6 +1018,70 @@ class CrawlCompareGUI:
                 self._ocultar_edificio()
 
         self.root.after(0, _aplicar)
+
+    # =========================================================
+    # Historial
+    # =========================================================
+
+    def _abrir_historial(self):
+        entradas = self.historial_service.obtener_todos()
+        HistorialModal(
+            self.root,
+            entradas,
+            on_restaurar=self._on_historial_restaurar,
+            on_limpiar=self.historial_service.limpiar_todo,
+        )
+
+    def _on_historial_restaurar(self, entrada: dict):
+        """Pre-rellena el formulario con los datos de una entrada del historial."""
+        hotel = entrada.get("hotel", "")
+        edificio = entrada.get("edificio") or ""
+        habitacion = entrada.get("habitacion", "")
+        fecha_entrada = entrada.get("fecha_entrada", "")
+        fecha_salida = entrada.get("fecha_salida", "")
+        adultos = entrada.get("adultos", 1)
+        ninos = entrada.get("ninos", 0)
+
+        # Hotel primero — dispara _on_hotel_changed que carga edificios/habitaciones
+        self.state.hotel.set(hotel)
+        self._on_hotel_changed()
+
+        # Fechas: formato DD-MM-AAAA → separar componentes
+        def _set_fecha(fecha_completa, var_dia, var_mes, var_ano):
+            partes = fecha_completa.split("-") if fecha_completa else []
+            if len(partes) == 3:
+                var_dia.set(partes[0])
+                var_mes.set(partes[1])
+                var_ano.set(partes[2])
+
+        _set_fecha(
+            fecha_entrada,
+            self.state.fecha_dia_entrada,
+            self.state.fecha_mes_entrada,
+            self.state.fecha_ano_entrada,
+        )
+        _set_fecha(
+            fecha_salida,
+            self.state.fecha_dia_salida,
+            self.state.fecha_mes_salida,
+            self.state.fecha_ano_salida,
+        )
+
+        self.state.adultos.set(adultos)
+        self.state.ninos.set(ninos)
+
+        # Edificio y habitación se difieren: _on_hotel_changed lanza
+        # cargar_edificios/cargar_habitaciones que son síncronos, pero el
+        # combo necesita un tick de render antes de aceptar set().
+        def _set_edificio_habitacion():
+            if edificio:
+                self.state.edificio.set(edificio)
+                self._on_edificio_changed()
+                self.root.after(200, lambda: self.state.habitacion.set(habitacion))
+            else:
+                self.state.habitacion.set(habitacion)
+
+        self.root.after(100, _set_edificio_habitacion)
 
 
 def run_interfaz():

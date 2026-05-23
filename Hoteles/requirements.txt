@@ -4,3 +4,4 @@ pydantic==2.10.6
 openpyxl>=3.1.0
 rapidfuzz>=3.13.0
 customtkinter==5.2.2
+pyperclip>=1.8.0
