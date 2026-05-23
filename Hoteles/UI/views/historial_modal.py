@@ -69,21 +69,20 @@ class HistorialModal(ctk.CTkToplevel):
         adultos = entrada.get("adultos", 1)
         ninos = entrada.get("ninos", 0)
         timestamp = entrada.get("timestamp", "")
+        periodos = entrada.get("periodos", [])
 
         nombre_hotel = f"{hotel} — {edificio}" if edificio else hotel
-        linea1 = f"{nombre_hotel}  |  {habitacion}"
 
-        partes_linea2 = []
+        partes_linea3 = []
         if fecha_entrada or fecha_salida:
-            partes_linea2.append(f"{fecha_entrada} → {fecha_salida}")
+            partes_linea3.append(f"{fecha_entrada} → {fecha_salida}")
         huesp = f"{adultos} adulto{'s' if adultos != 1 else ''}"
         if ninos:
             huesp += f", {ninos} niño{'s' if ninos != 1 else ''}"
-        partes_linea2.append(huesp)
+        partes_linea3.append(huesp)
         if timestamp:
-            # Mostrar solo la parte de fecha y hora sin microsegundos
-            partes_linea2.append(timestamp[:16].replace("T", " "))
-        linea2 = "   •   ".join(partes_linea2)
+            partes_linea3.append(timestamp[:16].replace("T", " "))
+        linea3 = "   •   ".join(partes_linea3)
 
         fila = ctk.CTkFrame(
             parent,
@@ -98,19 +97,60 @@ class HistorialModal(ctk.CTkToplevel):
 
         ctk.CTkLabel(
             fila,
-            text=linea1,
+            text=nombre_hotel,
             font=(Typography.FAMILY, Typography.BODY, Typography.BOLD),
             text_color=Colors.TEXT_PRIMARY,
             anchor="w",
-        ).grid(row=0, column=0, sticky="ew", padx=Spacing.MD, pady=(Spacing.SM, 2))
+        ).grid(row=0, column=0, sticky="ew", padx=Spacing.MD, pady=(Spacing.SM, 0))
 
         ctk.CTkLabel(
             fila,
-            text=linea2,
+            text=habitacion,
+            font=(Typography.FAMILY, Typography.SMALL, Typography.BOLD),
+            text_color=Colors.TEXT_PRIMARY,
+            anchor="w",
+        ).grid(row=1, column=0, sticky="ew", padx=Spacing.MD, pady=(0, 2))
+
+        ctk.CTkLabel(
+            fila,
+            text=linea3,
             font=(Typography.FAMILY, Typography.SMALL),
             text_color=Colors.TEXT_SECONDARY,
             anchor="w",
-        ).grid(row=1, column=0, sticky="ew", padx=Spacing.MD, pady=(0, Spacing.SM))
+        ).grid(row=2, column=0, sticky="ew", padx=Spacing.MD, pady=(0, Spacing.XS))
+
+        if periodos:
+            for idx, p in enumerate(periodos):
+                excel = p.get("precio_excel", "")
+                web = p.get("precio_web", "")
+                coincide = p.get("coincide", True)
+
+                def _fmt(v):
+                    try:
+                        return f"${int(round(float(v)))}"
+                    except (TypeError, ValueError):
+                        return str(v)
+
+                icono = "✓" if coincide else "⚠"
+                color_icono = Colors.SUCCESS if coincide else Colors.WARNING
+                nombre_periodo = p.get("nombre") or ""
+                prefijo = f"{nombre_periodo}   " if nombre_periodo else ""
+                texto = f"{prefijo}Excel: {_fmt(excel)}   Web: {_fmt(web)}   {icono}"
+                es_ultimo = idx == len(periodos) - 1
+
+                ctk.CTkLabel(
+                    fila,
+                    text=texto,
+                    font=(Typography.FAMILY, 11),
+                    text_color=color_icono if not coincide else Colors.TEXT_SECONDARY,
+                    anchor="w",
+                ).grid(
+                    row=3 + idx,
+                    column=0,
+                    sticky="ew",
+                    padx=(Spacing.MD * 2, Spacing.MD),
+                    pady=(0, Spacing.SM if es_ultimo else 0),
+                )
 
         # Bind click en fila y todos sus hijos
         for widget in (fila, *fila.winfo_children()):

@@ -4,6 +4,7 @@ Migra InterfazApp (interfaz.py) a CustomTkinter manteniendo toda la
 logica de negocio, controladores y EventBus intactos.
 """
 
+from debug_config import DEBUG_STARTUP_EXCEL_LOAD
 import customtkinter as ctk
 import tkinter as tk
 from pathlib import Path
@@ -64,12 +65,15 @@ class CrawlCompareGUI:
             try:
                 GestorService.cargar(excel_path)
                 self.config_service.set_last_excel_path(excel_path)
-                print(f"[startup] Excel cargado: {excel_path}")
+                if DEBUG_STARTUP_EXCEL_LOAD:
+                    print(f"[startup] Excel cargado: {excel_path}")
             except Exception as e:
-                print(f"[startup] Error cargando Excel inicial: {e}")
+                if DEBUG_STARTUP_EXCEL_LOAD:
+                    print(f"[startup] Error cargando Excel inicial: {e}")
                 self._error_excel_inicial = (excel_path, str(e))
         else:
-            print("[startup] Sin Excel — arranque vacío.")
+            if DEBUG_STARTUP_EXCEL_LOAD:
+                print("[startup] Sin Excel — arranque vacío.")
 
         # Aliases de compatibilidad con controladores legacy
         self.seleccion_hotel = self.state.hotel
@@ -716,6 +720,9 @@ class CrawlCompareGUI:
             self._panel_izq_outer.grid_rowconfigure(0, weight=0)  # 50%
             self._panel_izq_outer.grid_rowconfigure(1, weight=2)  # 50%
             self._total_periodos_progreso = 0
+            if self._btn_email is not None:
+                self._btn_email.grid_forget()
+                self._btn_email = None
             # El panel se inicializa con 1 periodo temporal; se ajustara
             # al recibir el primer comparison_progress con el total real.
             self.progress_panel.iniciar(total_periodos=0)
@@ -778,16 +785,28 @@ class CrawlCompareGUI:
                 self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
                 self.state.resultado_multiperiodo = resultado_data
                 import datetime
-                self.historial_service.agregar({
-                    "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
-                    "hotel": self.state.hotel.get(),
-                    "edificio": self.state.edificio.get() or None,
-                    "habitacion": self.state.habitacion.get(),
-                    "fecha_entrada": self.state.fecha_entrada_completa.get(),
-                    "fecha_salida": self.state.fecha_salida_completa.get(),
-                    "adultos": self.state.adultos.get(),
-                    "ninos": self.state.ninos.get(),
-                })
+                try:
+                    self.historial_service.agregar({
+                        "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
+                        "hotel": self.state.hotel.get(),
+                        "edificio": self.state.edificio.get() or None,
+                        "habitacion": self.state.habitacion.get(),
+                        "fecha_entrada": self.state.fecha_entrada_completa.get(),
+                        "fecha_salida": self.state.fecha_salida_completa.get(),
+                        "adultos": self.state.adultos.get(),
+                        "ninos": self.state.ninos.get(),
+                        "periodos": [
+                            {
+                                "nombre": rp.periodo.nombre,
+                                "precio_excel": rp.precio_excel,
+                                "precio_web": rp.precio_web,
+                                "coincide": rp.coincide,
+                            }
+                            for rp in resultado_data.periodos
+                        ],
+                    })
+                except Exception as e:
+                    print(f"[historial] Error al guardar entrada: {e}")
                 if resultado_data.tiene_discrepancias:
                     self._mostrar_email_btn()
             else:
