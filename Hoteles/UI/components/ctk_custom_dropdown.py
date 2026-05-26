@@ -12,9 +12,10 @@ class CTkCustomDropdown(ctk.CTkFrame):
     - Llena 100% del ancho del dropdown
     - Se puede clickear en cualquier parte para abrir
     - No permite editar el texto
+    - Soporta typeahead: tipear ≥2 letras filtra las opciones con debounce de 500ms
     """
 
-    def __init__(self, parent, values=None, textvariable=None, command=None, placeholder_text="Seleccionar...", width=None, max_visible=None, **kwargs):
+    def __init__(self, parent, values=None, textvariable=None, command=None, on_confirm=None, placeholder_text="Seleccionar...", width=None, max_visible=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
 
         self.values = values or []
@@ -26,6 +27,13 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self._fixed_width = width
         self._max_visible = max_visible
         self._bind_ids = {}  # event → binding ID para desvinculación selectiva
+
+        # --- Typeahead state ---
+        self._search_mode = False
+        self._after_id = None
+        self._prev_value = ""  # para restaurar con Escape
+        self.on_confirm = on_confirm
+        self._just_selected = False  # bloquea _activar_modo_busqueda durante 200ms: el <Button-1> que cerró el Toplevel se propaga al display_label recién visible y lo reabre sin este guard
 
         # Frame principal con entrada y botón
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -61,6 +69,21 @@ class CTkCustomDropdown(ctk.CTkFrame):
         )
         self._display_label.pack(fill="x", padx=(Spacing.SM, Spacing.SM), pady=2)
 
+        # Entry de búsqueda (oculto al inicio, se muestra en modo búsqueda)
+        self._search_entry = ctk.CTkEntry(
+            self.entry,
+            fg_color="transparent",
+            border_width=0,
+            text_color=Colors.TEXT_PRIMARY,
+            placeholder_text="Buscar...",
+            placeholder_text_color=Colors.TEXT_DISABLED,
+            font=(Typography.FAMILY, Typography.BODY),
+            height=36,
+        )
+        self._search_entry.bind("<KeyRelease>", self._on_search_changed)
+        self._search_entry.bind("<Escape>", lambda _: self._cancelar_busqueda())
+        self._search_entry.bind("<Return>", self._on_search_enter)
+
         # Botón dropdown
         self.button = ctk.CTkButton(
             self.main_frame,
@@ -75,14 +98,126 @@ class CTkCustomDropdown(ctk.CTkFrame):
         )
         self.button.pack(side="right", padx=(Spacing.XXS, 0))
 
-        self.entry.bind("<Button-1>", lambda _: self._toggle_dropdown(), add="+")
-        self._display_label.bind("<Button-1>", lambda _: self._toggle_dropdown(), add="+")
+        # Click en el entry activa el modo búsqueda (FocusIn excluido: el foco
+        # puede llegar programáticamente desde on_confirm y abriría el dropdown sin acción del usuario)
+        self.entry.bind("<Button-1>", lambda _: self._activar_modo_busqueda(), add="+")
+        self._display_label.bind("<Button-1>", lambda _: self._activar_modo_busqueda(), add="+")
 
         # Sincronizar el entry cuando la StringVar cambia externamente
         if self.textvariable:
             self.textvariable.trace_add("write", self._on_textvariable_changed)
 
+    # ------------------------------------------------------------------ #
+    #  Typeahead                                                           #
+    # ------------------------------------------------------------------ #
+
+    def _activar_modo_busqueda(self):
+        if self._search_mode or self._just_selected:
+            return
+        self._prev_value = self.get()
+        self._search_mode = True
+        self._display_label.pack_forget()
+        self._search_entry.pack(fill="x", padx=(Spacing.SM, Spacing.SM), pady=2)
+        self._search_entry.delete(0, "end")
+        self._search_entry.focus_set()
+        self._open_dropdown(values=self.values)
+
+    def _cancel_pending_search(self):
+        if self._after_id:
+            self.after_cancel(self._after_id)
+            self._after_id = None
+
+    def _desactivar_modo_busqueda(self, restore=False):
+        self._search_mode = False
+        self._cancel_pending_search()
+        self._search_entry.pack_forget()
+        self._display_label.pack(fill="x", padx=(Spacing.SM, Spacing.SM), pady=2)
+        if restore:
+            self._set_display(self._prev_value)
+            if self.textvariable:
+                self.textvariable.set(self._prev_value)
+
+    def _cancelar_busqueda(self):
+        self._close_dropdown()
+        self._desactivar_modo_busqueda(restore=True)
+
+    def _on_search_changed(self, event):
+        # Ignorar teclas de navegación que no cambian el texto
+        if event.keysym in ("Escape", "Return", "Up", "Down", "Tab"):
+            return
+        self._cancel_pending_search()
+        self._after_id = self.after(500, self._ejecutar_busqueda)
+
+    def _on_search_enter(self, event):
+        """Selecciona el primer resultado visible y dispara on_confirm."""
+        query = self._search_entry.get().strip()
+        filtrados = [v for v in self.values if query.lower() in v.lower()] if query else self.values
+        if not filtrados:
+            return
+        self._select_option(filtrados[0])
+        if self.on_confirm:
+            self.on_confirm()
+
+    def _ejecutar_busqueda(self):
+        self._after_id = None
+        query = self._search_entry.get().strip()
+        filtrados = [v for v in self.values if query.lower() in v.lower()] if query else self.values
+        self._close_dropdown()
+        if filtrados:
+            self._open_dropdown(values=filtrados)
+        else:
+            self._open_dropdown_sin_resultados()
+
+    def _open_dropdown_mensaje(self, texto):
+        """Abre un popup con un único label de mensaje (no seleccionable)."""
+        self._dropdown_open = True
+        self.update_idletasks()
+
+        x = self.winfo_rootx()
+        y = self.winfo_rooty() + self.winfo_height() + 2
+        width_px = self.winfo_width()
+
+        self._dropdown_window = tk.Toplevel(self.winfo_toplevel())
+        self._dropdown_window.wm_overrideredirect(True)
+        self._dropdown_window.resizable(False, False)
+        self._dropdown_window.configure(background=Colors.BACKGROUND)
+        self._dropdown_window.geometry(f"{width_px}x1+-9999+-9999")
+
+        frame = ctk.CTkFrame(
+            self._dropdown_window,
+            fg_color=Colors.BACKGROUND,
+        )
+        frame.pack(fill="both", expand=True)
+
+        label = ctk.CTkLabel(
+            frame,
+            text=texto,
+            font=(Typography.FAMILY, Typography.BODY),
+            text_color=Colors.TEXT_DISABLED,
+            fg_color="transparent",
+            anchor="w",
+        )
+        label.pack(fill="x", padx=Spacing.SM, pady=Spacing.SM)
+
+        self._dropdown_window.update_idletasks()
+        height_px = frame.winfo_reqheight() + 4
+        self._dropdown_window.geometry(f"{width_px}x{height_px}+{x}+{y}")
+
+        root = self.winfo_toplevel()
+        self._bind_ids["<Button-1>"] = root.bind("<Button-1>", self._on_click_outside, add="+")
+        self._bind_ids["<Unmap>"] = root.bind("<Unmap>", lambda _: self._close_dropdown(), add="+")
+
+    def _open_dropdown_sin_resultados(self):
+        self._open_dropdown_mensaje("Sin resultados")
+
+    # ------------------------------------------------------------------ #
+    #  Helpers de display                                                  #
+    # ------------------------------------------------------------------ #
+
     def _on_button_click(self):
+        """El botón ▼ abre el popup normal con TODOS los valores."""
+        if self._search_mode:
+            self._desactivar_modo_busqueda()
         self._toggle_dropdown()
 
     def _on_textvariable_changed(self, *args):
@@ -121,32 +256,33 @@ class CTkCustomDropdown(ctk.CTkFrame):
         else:
             self._display_label.configure(text=self._placeholder_text, text_color=Colors.TEXT_DISABLED)
 
+    # ------------------------------------------------------------------ #
+    #  Popup principal                                                     #
+    # ------------------------------------------------------------------ #
+
     def _toggle_dropdown(self):
         if self._dropdown_open:
             self._close_dropdown()
         else:
             self._open_dropdown()
 
-    def _open_dropdown(self):
+    def _open_dropdown(self, values=None):
         if self._dropdown_open:
             return
+
+        display_values = values if values is not None else self.values
 
         self._dropdown_open = True
         self.update_idletasks()
 
-        # Coordenadas absolutas de pantalla para posicionar el Toplevel
         x = self.winfo_rootx()
         y = self.winfo_rooty() + self.winfo_height() + 2
 
-        # winfo_width() devuelve píxeles reales. tk.Toplevel geometry() también trabaja
-        # en píxeles reales (sin scaling de CTk), así que lo usamos directamente.
         width_px = self.winfo_width()
-        # tk.Toplevel en vez de CTkToplevel: evita el minsize 200x200 que CTkToplevel impone
         self._dropdown_window = tk.Toplevel(self.winfo_toplevel())
         self._dropdown_window.wm_overrideredirect(True)
-        self._dropdown_window.resizable(False, False)  # evita que winfo_reqheight expanda la ventana
-        self._dropdown_window.configure(background=Colors.SUCCESS_LIGHT)
-        # Geometría inicial off-screen para medir contenido sin flash visible
+        self._dropdown_window.resizable(False, False)
+        self._dropdown_window.configure(background=Colors.BACKGROUND)
         self._dropdown_window.geometry(f"{width_px}x1+-9999+-9999")
 
         scroll_frame = ctk.CTkScrollableFrame(
@@ -157,9 +293,6 @@ class CTkCustomDropdown(ctk.CTkFrame):
         )
         scroll_frame.pack(fill="both", expand=True)
 
-        # --- Paso previo: medir el ancho real disponible para texto ---
-        # Crear un botón sonda con texto largo para que el _text_label se expanda,
-        # layoutear off-screen, medir el padding real del CTkButton, destruir.
         long_text = "X" * 200
         probe_btn = ctk.CTkButton(scroll_frame, text=long_text, anchor="w")
         probe_btn.pack(fill="x")
@@ -174,11 +307,9 @@ class CTkCustomDropdown(ctk.CTkFrame):
         real_font = tkfont.Font(family=font_family, size=font_size)
 
         list_available_px = probe_btn._text_label.winfo_width()
-
         probe_btn.destroy()
 
-        # --- Crear botones con texto ya truncado ---
-        for value in self.values:
+        for value in display_values:
             display = self._truncate_text(value, available_px=list_available_px, font=real_font)
             btn = ctk.CTkButton(
                 scroll_frame,
@@ -191,19 +322,14 @@ class CTkCustomDropdown(ctk.CTkFrame):
             )
             btn.pack(fill="x", pady=2)
 
-        # Medir overhead del CTkScrollableFrame midiendo los hijos directamente.
-        # No usar ventana - canvas porque con pocos items el canvas no llena la ventana.
         self._dropdown_window.update_idletasks()
 
         children = scroll_frame.winfo_children()
-        content_height_px = sum(c.winfo_reqheight() + 4 for c in children)  # +4 = pady=2 arriba y abajo
+        content_height_px = sum(c.winfo_reqheight() + 4 for c in children)
 
-        # Overhead: estructura interna del CTkScrollableFrame (corner_radius, padding)
-        # Se mide como la diferencia entre _parent_frame y _parent_canvas en reqheight
         parent_canvas = scroll_frame._parent_canvas
         parent_frame = scroll_frame._parent_frame
         overhead = parent_frame.winfo_reqheight() - parent_canvas.winfo_reqheight()
-        # Fallback por si la medición da negativo o cero (aún no layouteado)
         if overhead <= 0:
             overhead = 18
 
@@ -214,12 +340,8 @@ class CTkCustomDropdown(ctk.CTkFrame):
             max_height_px = content_height_px + overhead
         height_px_final = min(content_height_px + overhead, max_height_px)
 
-        # Paso 4: posicionar en la ubicación real
         self._dropdown_window.geometry(f"{width_px}x{height_px_final}+{x}+{y}")
 
-        # Cerrar al hacer click o scroll fuera del dropdown (no con FocusOut, que se
-        # dispara inmediatamente cuando el botón roba el foco cerrando el dropdown).
-        # Se guardan los IDs para desvinculación selectiva (no borrar bindings de otros dropdowns).
         root = self.winfo_toplevel()
         self._bind_ids["<Button-1>"] = root.bind("<Button-1>", self._on_click_outside, add="+")
         self._bind_ids["<MouseWheel>"] = root.bind("<MouseWheel>", self._on_scroll_outside, add="+")
@@ -227,24 +349,26 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self._bind_ids["<Button-5>"] = root.bind("<Button-5>", self._on_scroll_outside, add="+")
         self._bind_ids["<Unmap>"] = root.bind("<Unmap>", lambda _: self._close_dropdown(), add="+")
 
-    def _on_click_outside(self, event):
-        """Cierra el dropdown si el click fue fuera de la ventana del dropdown."""
-        if self._dropdown_window is None:
-            return
+    def _event_inside_popup(self, event) -> bool:
         win = self._dropdown_window
         wx, wy = win.winfo_rootx(), win.winfo_rooty()
         ww, wh = win.winfo_width(), win.winfo_height()
-        if not (wx <= event.x_root <= wx + ww and wy <= event.y_root <= wy + wh):
+        return wx <= event.x_root <= wx + ww and wy <= event.y_root <= wy + wh
+
+    def _on_click_outside(self, event):
+        """Cierra el dropdown (y el modo búsqueda) si el click fue fuera."""
+        if self._dropdown_window is None:
+            return
+        if not self._event_inside_popup(event):
             self._close_dropdown()
+            if self._search_mode:
+                self._desactivar_modo_busqueda(restore=True)
 
     def _on_scroll_outside(self, event):
         """Cierra el dropdown si el scroll ocurrió fuera de la ventana del dropdown."""
         if self._dropdown_window is None:
             return
-        win = self._dropdown_window
-        wx, wy = win.winfo_rootx(), win.winfo_rooty()
-        ww, wh = win.winfo_width(), win.winfo_height()
-        if not (wx <= event.x_root <= wx + ww and wy <= event.y_root <= wy + wh):
+        if not self._event_inside_popup(event):
             self._close_dropdown()
 
     def _close_dropdown(self):
@@ -258,13 +382,20 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self._dropdown_open = False
 
     def _select_option(self, value):
+        self._just_selected = True
+        self.after(200, lambda: setattr(self, "_just_selected", False))
         self._close_dropdown()
+        if self._search_mode:
+            self._desactivar_modo_busqueda()
+        self._set_display(value)
         if self.textvariable:
-            self.textvariable.set(value)  # dispara _on_textvariable_changed → _set_display
-        else:
-            self._set_display(value)
+            self.textvariable.set(value)
         if self.command:
             self.command(value)
+
+    # ------------------------------------------------------------------ #
+    #  API pública                                                         #
+    # ------------------------------------------------------------------ #
 
     def set_values(self, values):
         self.values = values
@@ -281,6 +412,8 @@ class CTkCustomDropdown(ctk.CTkFrame):
     def configure(self, **kwargs):
         if "command" in kwargs:
             self.command = kwargs.pop("command")
+        if "on_confirm" in kwargs:
+            self.on_confirm = kwargs.pop("on_confirm")
         if "values" in kwargs:
             self.set_values(kwargs.pop("values"))
         if kwargs:

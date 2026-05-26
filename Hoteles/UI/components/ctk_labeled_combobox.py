@@ -71,7 +71,7 @@ class CTkLabeledComboBox(CTkBaseComponent):
             fg_color="transparent",
             anchor='w'
         )
-        self.label.pack(fill='x', pady=(0, Spacing.SM))
+        self.label.pack(fill='x', pady=(0, Spacing.XXS))
 
         # Usar dropdown personalizado en lugar de CTkComboBox
         # Esto soluciona los problemas de ancho y clickeabilidad

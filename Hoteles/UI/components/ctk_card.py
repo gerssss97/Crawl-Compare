@@ -56,14 +56,11 @@ class CTkCard(CTkBaseComponent):
             corner_radius=0
         )
         
-        # Padding del content_frame
-        padding_top = Spacing.SM if self.title_text else Spacing.CARD_PADDING
-        
         self.content_frame.pack(
             fill='both',
             expand=True,
             padx=Spacing.CARD_PADDING,
-            pady=(padding_top, Spacing.CARD_PADDING)
+            pady=(Spacing.XS, Spacing.CARD_PADDING)
         )
     
     def _crear_titulo(self):
@@ -76,7 +73,7 @@ class CTkCard(CTkBaseComponent):
         self.title_frame.pack(
             fill='x',
             padx=Spacing.CARD_PADDING,
-            pady=(Spacing.CARD_PADDING, Spacing.SM)
+            pady=(Spacing.SM, Spacing.XS)
         )
 
         # Ícono con fuente del sistema para emojis a color

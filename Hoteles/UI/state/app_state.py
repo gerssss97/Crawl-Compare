@@ -55,6 +55,9 @@ class AppState:
         self.resultado_multiperiodo = None  # ResultadoComparacionMultiperiodo de la última comparación
         self.periodos_precio = []  # Lista de dicts {periodo, precio, nombre_grupo} del último cálculo
 
+        # ===== Habitación seleccionada (objeto rico) =====
+        self.habitacion_unificada_actual = None  # HabitacionUnificada | None
+
         # ===== Gap analysis (cobertura de periodos) =====
         self.gap_analysis_actual = None  # GapAnalysis | None
         self.gap_confirmado = False  # True si usuario confirmó continuar con gaps
@@ -108,6 +111,7 @@ class AppState:
         self.reset_huespedes()
         self.periodos_var.set("")
         self.habitacion_web = None
+        self.habitacion_unificada_actual = None
         self.periodos_precio = []
         self.gap_analysis_actual = None
         self.gap_confirmado = False

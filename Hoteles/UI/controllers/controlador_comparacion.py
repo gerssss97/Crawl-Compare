@@ -67,8 +67,6 @@ class ControladorComparacion:
                 })
                 return
 
-            self.event_bus.emit('comparison_started')
-
             # Verificar si hay gaps no confirmados
             gap_analysis = getattr(self.estado_app, 'gap_analysis_actual', None)
             gap_confirmado = getattr(self.estado_app, 'gap_confirmado', False)
@@ -76,6 +74,8 @@ class ControladorComparacion:
             if gap_analysis and gap_analysis.tiene_gaps and not gap_confirmado:
                 self.event_bus.emit('mostrar_modal_gaps', {'gap_analysis': gap_analysis})
                 return
+            
+            self.event_bus.emit('comparison_started')
 
             # Obtener datos del estado
             fecha_entrada_str = self.estado_app.fecha_entrada_completa.get()

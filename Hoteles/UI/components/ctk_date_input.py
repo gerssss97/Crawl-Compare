@@ -60,8 +60,8 @@ class CTkDateInput(CTkBaseComponent):
             text_color=Colors.TEXT_PRIMARY,
             anchor='w'
         )
-        self.label.pack(fill='x', pady=(0, Spacing.SM))
-        
+        self.label.pack(fill='x', pady=(0, Spacing.XXS))
+
         # Frame para los 3 inputs
         inputs_frame = ctk.CTkFrame(self, fg_color="transparent")
         inputs_frame.pack(fill='x')
@@ -75,33 +75,34 @@ class CTkDateInput(CTkBaseComponent):
             'placeholder_text_color': Colors.TEXT_DISABLED,
             'corner_radius': Spacing.RADIUS_MD,
             'border_width': 1,
-            'height': 40
+            'height': 32,
+            'justify': 'center'
         }
         
         # DD (día)
         self.day_entry = ctk.CTkEntry(
             inputs_frame,
-            width=70,
+            width=48,
             placeholder_text="DD",
             textvariable=self.day_var,
             **entry_style
         )
-        self.day_entry.pack(side='left', padx=(0, Spacing.SM))
-        
+        self.day_entry.pack(side='left', padx=(0, Spacing.XS))
+
         # MM (mes)
         self.month_entry = ctk.CTkEntry(
             inputs_frame,
-            width=90,
+            width=48,
             placeholder_text="MM",
             textvariable=self.month_var,
             **entry_style
         )
-        self.month_entry.pack(side='left', padx=(0, Spacing.SM))
-        
+        self.month_entry.pack(side='left', padx=(0, Spacing.XS))
+
         # AAAA (año)
         self.year_entry = ctk.CTkEntry(
             inputs_frame,
-            width=100,
+            width=72,
             placeholder_text="AAAA",
             textvariable=self.year_var,
             **entry_style

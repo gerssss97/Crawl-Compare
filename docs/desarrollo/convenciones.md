@@ -662,6 +662,25 @@ ctk.CTkComboBox(parent, values=[...]).pack()
 
 ---
 
+### Padding en widgets CTk — valores directos, sin condicionales
+
+**NUNCA** usar expresiones condicionales (ternarios) para calcular valores de padding. Siempre pasar valores directos de `Spacing` en `pack()`/`grid()`.
+
+```python
+# ✅ Correcto — valor directo
+self.content_frame.pack(pady=(Spacing.XS, Spacing.CARD_PADDING))
+
+# ❌ Incorrecto — condicional para calcular padding
+padding_top = Spacing.SM if self.title_text else Spacing.CARD_PADDING
+self.content_frame.pack(pady=(padding_top, Spacing.CARD_PADDING))
+```
+
+Si hay dos casos distintos (ej: con título / sin título), manejarlos con dos bloques `pack()`/`grid()` separados y explícitos, no con una variable de padding calculada con ternario.
+
+**Razón**: Los condicionales en paddings ocultan la intención visual, hacen el layout difícil de razonar y complican los ajustes futuros.
+
+---
+
 ## Estilos de Botones — Helpers
 
 Para mantener consistencia visual, **nunca** definir colores de botón inline. Usar siempre los helpers de `UI/styles/button_styles.py`.
@@ -834,6 +853,7 @@ Ver detalles en [/.claude/skills/commit-custom.md](../../.claude/skills/commit-c
 | **Controladores** | Constructor `(estado_app, event_bus)` | `def __init__(self, estado_app, event_bus)` | `def __init__(self, state)` |
 | **Modelos** | Heredan `BaseModel` (Pydantic) | `class HotelExcel(BaseModel)` | `class HotelExcel` |
 | **Commits** | Conventional en español | `feat: nueva funcionalidad` | `Add new feature` |
+| **Padding CTk** | Valores directos de `Spacing`, sin ternarios | `pady=(Spacing.XS, Spacing.MD)` | `pady=(top if cond else Spacing.MD, ...)` |
 
 ---
 

@@ -194,11 +194,9 @@ class CrawlCompareGUI:
             width=110,
             height=32,
             font=(Typography.FAMILY, Typography.SMALL),
-            fg_color="transparent",
-            hover_color="#334155",
-            text_color=Colors.HEADER_TEXT,
             corner_radius=4,
             command=self._abrir_historial,
+            **secondary_button(),
         )
         self.btn_historial.pack(side="left", padx=(Spacing.SM, 0), pady=Spacing.SM)
 
@@ -409,6 +407,24 @@ class CrawlCompareGUI:
         self.habitacion_combo.pack(fill="x")
         self.habitacion_combo.combobox.configure(command=self._on_habitacion_changed)
 
+        # on_confirm: Enter en un combo mueve el foco al siguiente campo
+        # Se configura después de crear todos los combos pero antes de _crear_form_fechas.
+        # fecha_entrada_input se asigna en _crear_form_fechas, así que usamos lambda
+        # para capturarlo en tiempo de ejecución (no en tiempo de definición).
+        self.hotel_combo.combobox.configure(
+            on_confirm=lambda: (
+                self.edificio_combo.combobox._activar_modo_busqueda()
+                if self._edificio_visible
+                else self.habitacion_combo.combobox._activar_modo_busqueda()
+            )
+        )
+        self.edificio_combo.combobox.configure(
+            on_confirm=lambda: self.habitacion_combo.combobox._activar_modo_busqueda()
+        )
+        self.habitacion_combo.combobox.configure(
+            on_confirm=lambda: self.fecha_entrada_input.day_entry.focus_set()
+        )
+
         self._edificio_visible = False
 
     def _crear_form_fechas(self, parent):
@@ -431,19 +447,22 @@ class CrawlCompareGUI:
         ):
             var.trace_add("write", self._actualizar_fecha_salida)
 
-        # Fechas entrada y salida en la misma fila
+        # Fechas + huéspedes en la misma fila: [entrada | salida | adultos | niños]
         fechas_row = ctk.CTkFrame(card.content_frame, fg_color="transparent")
         fechas_row.pack(fill="x", pady=(0, Spacing.FORM_GAP))
-        fechas_row.columnconfigure(0, weight=1)
-        fechas_row.columnconfigure(1, weight=1)
+        fechas_row.columnconfigure(0, weight=0)
+        fechas_row.columnconfigure(1, weight=0)
+        fechas_row.columnconfigure(2, weight=0)
+        fechas_row.columnconfigure(3, weight=0)
 
-        CTkDateInput(
+        self.fecha_entrada_input = CTkDateInput(
             fechas_row,
             label="Fecha de entrada",
             day_var=self.state.fecha_dia_entrada,
             month_var=self.state.fecha_mes_entrada,
             year_var=self.state.fecha_ano_entrada,
-        ).grid(row=0, column=0, sticky="ew", padx=(0, Spacing.MD))
+        )
+        self.fecha_entrada_input.grid(row=0, column=0, sticky="w", padx=(0, Spacing.MD))
 
         CTkDateInput(
             fechas_row,
@@ -451,32 +470,23 @@ class CrawlCompareGUI:
             day_var=self.state.fecha_dia_salida,
             month_var=self.state.fecha_mes_salida,
             year_var=self.state.fecha_ano_salida,
-        ).grid(row=0, column=1, sticky="ew")
+        ).grid(row=0, column=1, sticky="w", padx=(0, Spacing.MD))
 
-        # Huespedes (compactos, ancho fijo — no necesitan llenar toda la fila)
-        huesp_frame = ctk.CTkFrame(card.content_frame, fg_color="transparent")
-        huesp_frame.pack(anchor="w")
+        self._crear_entry_huesped(fechas_row, "Adultos", self.state.adultos, 2, padx=(Spacing.MD, Spacing.SM))
+        self._crear_entry_huesped(fechas_row, "Ninos", self.state.ninos, 3, padx=(0, 0))
 
-        self._crear_entry_huesped(huesp_frame, "Adultos", self.state.adultos, 0)
-        self._crear_entry_huesped(huesp_frame, "Ninos", self.state.ninos, 1)
-
-    def _crear_entry_huesped(self, parent, label, variable, col):
+    def _crear_entry_huesped(self, parent, label, variable, col, padx=0):
         """Crea un entry de huesped (adultos o ninos) con ancho compacto."""
         frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.grid(
-            row=0,
-            column=col,
-            sticky="w",
-            padx=(0, Spacing.MD) if col == 0 else 0,
-        )
+        frame.grid(row=0, column=col, sticky="nw", padx=padx)
 
         ctk.CTkLabel(
             frame,
             text=label,
-            font=(Typography.FAMILY, Typography.SMALL),
-            text_color=Colors.TEXT_SECONDARY,
+            font=(Typography.FAMILY, Typography.BODY, Typography.BOLD),
+            text_color=Colors.TEXT_PRIMARY,
             anchor="w",
-        ).pack(anchor="w", pady=(0, Spacing.XS))
+        ).pack(anchor="w", pady=(0, Spacing.XXS))
 
         ctk.CTkEntry(
             frame,
@@ -484,8 +494,12 @@ class CrawlCompareGUI:
             font=(Typography.FAMILY, Typography.BODY),
             fg_color=Colors.SURFACE,
             border_color=Colors.BORDER,
+            border_width=1,
             corner_radius=Spacing.RADIUS_MD,
-            width=100,
+            height=32,
+            width=60,
+            justify='center',
+            text_color=Colors.TEXT_PRIMARY,
         ).pack()
 
     def _crear_boton_ejecutar(self, parent):
@@ -574,6 +588,8 @@ class CrawlCompareGUI:
         edificios = self.controlador_hotel.cargar_edificios(nombre)
         self.edificio_combo.set_values(edificios)
         self.state.edificio.set("")
+        self.habitacion_combo.set_values([])
+        self.state.habitacion.set("")
 
     def _cargar_habitaciones(self, hotel_nombre, tipo=None):
         """Carga las habitaciones para el hotel y tipo opcionales."""

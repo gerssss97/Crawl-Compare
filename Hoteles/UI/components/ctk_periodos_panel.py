@@ -107,12 +107,35 @@ class CTkPeriodosPanel(CTkCard):
                 scrollbar_button_hover_color=Colors.PRIMARY_HOVER
             )
             scroll_frame.pack(fill='both', expand=True)
+            self._aislar_scroll(scroll_frame)
             container = scroll_frame
         else:
             container = self.content_frame
 
         for nombre_grupo, periodos in grupos_periodos.items():
             self._crear_grupo(container, nombre_grupo, periodos)
+
+    def _aislar_scroll(self, scroll_frame):
+        root = self.winfo_toplevel()
+        _canvas = scroll_frame._parent_canvas
+
+        def _solo_aqui(event):
+            widget_bajo_cursor = root.winfo_containing(event.x_root, event.y_root)
+            if not self._es_hijo_de(widget_bajo_cursor, scroll_frame):
+                return
+            _canvas.yview_scroll(int(-event.delta / 6), "units")
+            return "break"
+
+        bid = root.bind("<MouseWheel>", _solo_aqui, add="+")
+        scroll_frame.bind("<Destroy>", lambda _: root.unbind("<MouseWheel>", bid), add="+")
+
+    def _es_hijo_de(self, widget, contenedor):
+        w = widget
+        while w is not None:
+            if w is contenedor:
+                return True
+            w = getattr(w, "master", None)
+        return False
 
     def _crear_grupo(self, parent, nombre_grupo, periodos):
         """Crea el bloque visual de un grupo de periodos.

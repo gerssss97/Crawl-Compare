@@ -1,7 +1,6 @@
 """Controlador para gestión dinámica de precios basados en fechas y periodos."""
 
 from datetime import datetime
-from typing import Optional
 from Models.habitacion_unificada import HabitacionUnificada
 from Core.servicio_habitaciones import analizar_cobertura
 
@@ -30,7 +29,6 @@ class ControladorPrecios:
         """
         self.estado_app = estado_app
         self.event_bus = event_bus
-        self.habitacion_actual: Optional[HabitacionUnificada] = None
 
         # Suscribirse a cambios de fechas
         self.estado_app.fecha_entrada_completa.trace_add(
@@ -42,32 +40,37 @@ class ControladorPrecios:
             lambda *args: self._on_fechas_changed()
         )
 
-        # Suscribirse a cambio de habitación
+        # Suscribirse a cambio de habitación (objeto rico) y a reset (string vacío)
         self.event_bus.on('habitacion_unificada_changed', self._on_habitacion_changed)
+        self.event_bus.on('habitacion_changed', self._on_habitacion_str_changed)
 
     def _on_habitacion_changed(self, habitacion_unificada: HabitacionUnificada):
-        """Handler cuando cambia la habitación seleccionada.
-
-        Args:
-            habitacion_unificada: Nueva habitación seleccionada
-        """
-        self.habitacion_actual = habitacion_unificada
+        """Handler cuando cambia la habitación seleccionada (objeto rico)."""
+        self.estado_app.habitacion_unificada_actual = habitacion_unificada
 
         # Si ya hay fechas válidas, calcular precios inmediatamente
         if self._fechas_son_validas():
             self._calcular_y_mostrar_precios()
         else:
-            # Mostrar mensaje "Ingrese fechas" y resetear precio
             self.estado_app.precio.set("(ninguna seleccionada)")
             self.event_bus.emit('precios_actualizados', {
                 'tipo': 'sin_fechas',
                 'mensaje': '(Ingrese fechas para ver precios)'
             })
 
+    def _on_habitacion_str_changed(self, nombre: str):
+        """Handler cuando state.habitacion cambia — limpia si quedó vacío."""
+        if not nombre:
+            self.estado_app.habitacion_unificada_actual = None
+            self.estado_app.precio.set("(ninguna seleccionada)")
+            self.event_bus.emit('precios_actualizados', {
+                'tipo': 'sin_fechas',
+                'mensaje': '(Seleccioná una habitación)'
+            })
+
     def _on_fechas_changed(self):
         """Handler cuando cambian las fechas de entrada o salida."""
-        # Recalcular precios si hay habitación seleccionada y fechas válidas
-        if self.habitacion_actual and self._fechas_son_validas():
+        if self.estado_app.habitacion_unificada_actual and self._fechas_son_validas():
             self._calcular_y_mostrar_precios()
 
     def _fechas_son_validas(self) -> bool:
@@ -133,13 +136,13 @@ class ControladorPrecios:
         if gap_analysis.tiene_gaps:
             self.event_bus.emit('gaps_detected', {
                 'gap_analysis': gap_analysis,
-                'habitacion': self.habitacion_actual.nombre if self.habitacion_actual else ''
+                'habitacion': self.estado_app.habitacion_unificada_actual.nombre if self.estado_app.habitacion_unificada_actual else ''
             })
 
         # Obtener precios para cada periodo
         precios_data = []
         for periodo in gap_analysis.periodos_aplicables:
-            precio = self.habitacion_actual.precio_para_periodo(periodo.id)
+            precio = self.estado_app.habitacion_unificada_actual.precio_para_periodo(periodo.id)
 
             # Buscar nombre del grupo al que pertenece el periodo
             nombre_grupo = None

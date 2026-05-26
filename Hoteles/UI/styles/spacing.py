@@ -12,13 +12,13 @@ class Spacing:
     XL = 32
     
     # Padding para elementos específicos
-    CARD_PADDING = 24
+    CARD_PADDING = 16
     PANEL_PADDING = 32
     BUTTON_PADDING = (14, 24)  # (vertical, horizontal)
-    
+
     # Gaps entre elementos
-    FORM_GAP = 20
-    ELEMENT_GAP = 16
+    FORM_GAP = 12
+    ELEMENT_GAP = 12
     
     # Border Radius
     RADIUS_SM = 6

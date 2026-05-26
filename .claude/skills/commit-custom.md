@@ -175,7 +175,6 @@ docs(readme): Agregar sección de troubleshooting
 
 - ✅ Preview del commit antes de crear
 - ✅ Validación de longitud de mensaje (<70 caracteres)
-- ✅ Co-Authored-By automático
 - ✅ Muestra git status y diff staged
 - ✅ Formato conventional en español
 - ✅ Descripción multilínea opcional

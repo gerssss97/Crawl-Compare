@@ -17,6 +17,7 @@ Problemas conocidos, causas y soluciones encontradas durante el desarrollo.
 - [Rendering — Esquinas redondeadas borrosas en Windows](#rendering--esquinas-redondeadas-borrosas-en-windows)
 - [Rendering — tk.Frame rectangular tapando esquinas de CTkFrame](#rendering--tkframe-rectangular-tapando-esquinas-de-ctkframe)
 - [CTkCustomDropdown — Texto del listado se clipea por la izquierda](#ctkcustomdropdown--texto-del-listado-se-clipea-por-la-izquierda)
+- [CTkCustomDropdown — Seleccionar una opción reabre el dropdown inmediatamente](#ctkcustomdropdown--seleccionar-una-opción-reabre-el-dropdown-inmediatamente)
 - [Layout — Dos columnas de igual ancho y alto](#layout--dos-columnas-de-igual-ancho-y-alto)
 - [CTkToplevel — Botón minimizar bloqueado por grab_set()](#ctktoplevel--botón-minimizar-bloqueado-por-grab_set)
 - [Rendering — tk.Text rectangular dentro de CTkFrame redondeado (Modal Email)](#rendering--tktext-rectangular-dentro-de-ctkframe-redondeado-modal-email)
@@ -25,6 +26,7 @@ Problemas conocidos, causas y soluciones encontradas durante el desarrollo.
 - [Layout — CTkScrollableFrame cambia el ancho del contenido al aparecer/desaparecer la scrollbar](#layout--ctkscrollableframe-cambia-el-ancho-del-contenido-al-aparerecerdesaparecer-la-scrollbar)
 - [Layout — grid_remove() en constructor no tiene efecto](#layout--grid_remove-en-constructor-no-tiene-efecto)
 - [CTkLabel — wraplength dinámico no funciona si width=1 está seteado](#ctklabel--wraplength-dinámico-no-funciona-si-width1-está-seteado)
+- [Scroll / MouseWheel — Dos CTkScrollableFrame anidados se scrollean simultáneamente](#scroll--mousewheel--dos-ctkscrollableframe-anidados-se-scrollean-simultáneamente)
 
 ---
 
@@ -1007,6 +1009,153 @@ self.panel = MiPanel(
 
 ---
 
+---
+
+## CTkCustomDropdown — Seleccionar una opción reabre el dropdown inmediatamente
+
+**Estado**: ✅ Resuelto
+
+**Archivo afectado**: [UI/components/ctk_custom_dropdown.py](../../Hoteles/UI/components/ctk_custom_dropdown.py)
+
+### Síntoma
+
+Al hacer click en una opción del dropdown:
+1. Por un microsegundo se ve la opción seleccionada en el input (label)
+2. El dropdown reabre solo
+3. El label vuelve a mostrar el placeholder ("Seleccionar..." / "Buscar...")
+4. Solo al hacer click fuera se cierra y se ve la opción correcta
+
+### Causa
+
+El mismo evento `<Button-1>` del mouse que dispara el `command` del botón de la opción se propaga al widget que quedó debajo al cerrarse el Toplevel.
+
+El flujo es:
+
+1. Usuario hace click sobre el botón de una opción → `_select_option(value)` corre
+2. `_close_dropdown()` destruye el `Toplevel` → el widget que queda "encima" es el `_display_label`
+3. `_desactivar_modo_busqueda()` oculta el `_search_entry` y re-empaqueta el `_display_label`
+4. El evento `<Button-1>` que originó el click **sigue propagándose** en la cola de eventos de Tk
+5. Ese mismo evento cae sobre el `_display_label` recién visible, que tiene binding:
+   ```python
+   self._display_label.bind("<Button-1>", lambda _: self._activar_modo_busqueda(), add="+")
+   ```
+6. `_activar_modo_busqueda()` se ejecuta → el dropdown vuelve a abrirse
+
+Es un clásico problema de **event propagation** en tkinter con Toplevel: el click que cierra la ventana flotante alcanza al widget subyacente en el mismo ciclo de eventos.
+
+### Intentos anteriores (descartados)
+
+| # | Intento | Resultado |
+|---|---------|-----------|
+| 1 | `_set_display(value)` directo antes de `textvariable.set()` | El label se actualiza antes que el trace, pero el reopen sigue — no resuelve la propagación del evento |
+| 2 | Agregar `update_idletasks()` entre `_set_display` y `textvariable.set` | Contraproducente: `update_idletasks()` procesa eventos pendientes de Tk (incluyendo `<FocusIn>` y `<Button-1>`) anticipadamente, agravando el reopen en lugar de resolverlo |
+
+### Solución — flag de cooldown `_just_selected`
+
+Agregar un flag de cooldown que bloquea `_activar_modo_busqueda` durante 200ms después de una selección. El display se actualiza llamando `_set_display(value)` directamente **después** de `_desactivar_modo_busqueda()`, antes de `textvariable.set()`, para que el label tenga el valor correcto en el mismo tick sin depender del trace:
+
+```python
+# En __init__:
+self._just_selected = False  # bloquea _activar_modo_busqueda: el <Button-1> que cerró
+                              # el Toplevel se propaga al display_label recién visible
+
+# En _activar_modo_busqueda:
+def _activar_modo_busqueda(self):
+    if self._search_mode or self._just_selected:   # ← bloqueo por cooldown
+        return
+    ...
+
+# En _select_option:
+def _select_option(self, value):
+    self._just_selected = True
+    self.after(200, lambda: setattr(self, "_just_selected", False))  # ← reset tras 200ms
+    self._close_dropdown()
+    if self._search_mode:
+        self._desactivar_modo_busqueda()       # re-packea el display_label (con texto viejo)
+    self._set_display(value)                   # actualiza el label síncronamente
+    if self.textvariable:
+        self.textvariable.set(value)           # sincroniza la StringVar (trace llama _set_display de nuevo, no-op visual)
+    if self.command:
+        self.command(value)
+```
+
+**Por qué `_set_display` antes de `textvariable.set`**: `_desactivar_modo_busqueda()` re-packea el `_display_label` con el texto que tenía antes (placeholder o valor anterior). Llamar `_set_display(value)` inmediatamente después lo corrige en el mismo tick, antes de que el event loop procese cualquier render. El `textvariable.set()` que viene después dispara el trace que llama `_set_display` de nuevo, pero es un no-op visual porque el texto ya es correcto.
+
+**Por qué 200ms**: es suficiente para que el evento `<Button-1>` se drene completamente de la cola de eventos de Tk (típicamente < 16ms), pero imperceptible para el usuario.
+
+**Por qué `setattr`**: `lambda: setattr(self, "_just_selected", False)` es equivalente a un método nombrado pero más compacto para un reset de una sola variable. `after` acepta cualquier callable.
+
+### Regla general
+
+Cuando un `Toplevel` con `wm_overrideredirect(True)` se cierra en respuesta a un click, el evento `<Button-1>` puede propagarse al widget que quedó debajo. Si ese widget tiene un binding que reabre el popup, se genera un loop de open/close. La solución es un **flag de cooldown** que bloquea el reopen durante el tiempo mínimo para que el evento se drene (~200ms).
+
+---
+
 Ver también:
 - [componentes.md](componentes.md) — Componentes CTk y CTkCustomDropdown
+
+---
+
+## Scroll / MouseWheel — Dos CTkScrollableFrame anidados se scrollean simultáneamente
+
+**Estado**: ✅ Resuelto
+
+**Archivo afectado**: [UI/components/ctk_periodos_panel.py](../../Hoteles/UI/components/ctk_periodos_panel.py)
+
+### Síntoma
+
+Al scrollear dentro de un `CTkScrollableFrame` interno (panel de periodos), el `CTkScrollableFrame` externo (panel derecho completo) también se scrollea. El problema se nota especialmente en los gaps entre cards de periodo, donde no hay widgets hijos directos.
+
+### Causa
+
+`CTkScrollableFrame` usa `bind_all("<MouseWheel>", ...)` — un binding global que dispara para cualquier evento de scroll en toda la aplicación. Cuando hay dos `CTkScrollableFrame` anidados, ambos tienen su `bind_all` activo simultáneamente.
+
+La guardia interna `check_if_master_is_canvas()` sube por `.master` para determinar si el widget bajo el cursor le pertenece. En los **gaps entre widgets hijos** (zonas vacías del scroll_frame interno), el widget bajo el cursor pertenece a la jerarquía del outer también → ambos `bind_all` disparan al mismo tiempo.
+
+### Intentos anteriores (descartados)
+
+| # | Intento | Resultado |
+|---|---------|-----------|
+| 1 | `bind("<Enter>/<Leave>")` sobre el `scroll_frame` para activar/desactivar un override | `<Enter>/<Leave>` nunca dispara en `CTkScrollableFrame` — la estructura interna (canvas, frame) intercepta los eventos antes de que lleguen al frame raíz |
+
+### Solución — `bind_all` con guardia `winfo_containing` + cleanup en `<Destroy>`
+
+Registrar un `bind_all` adicional en la root que, en cada evento de scroll, verifica si el widget bajo el cursor está dentro del `scroll_frame` interno. Si sí, scrollea ese canvas y devuelve `"break"` para bloquear el handler del outer.
+
+```python
+def _aislar_scroll(self, scroll_frame):
+    root = self.winfo_toplevel()
+    _canvas = scroll_frame._parent_canvas
+
+    def _solo_aqui(event):
+        widget_bajo_cursor = root.winfo_containing(event.x_root, event.y_root)
+        if not self._es_hijo_de(widget_bajo_cursor, scroll_frame):
+            return
+        _canvas.yview_scroll(int(-event.delta / 6), "units")
+        return "break"
+
+    bid = root.bind("<MouseWheel>", _solo_aqui, add="+")
+    scroll_frame.bind("<Destroy>", lambda _: root.unbind("<MouseWheel>", bid), add="+")
+
+def _es_hijo_de(self, widget, contenedor):
+    w = widget
+    while w is not None:
+        if w is contenedor:
+            return True
+        w = getattr(w, "master", None)
+    return False
+```
+
+**Por qué `winfo_containing(event.x_root, event.y_root)`**: devuelve el widget que está visualmente bajo el cursor en coordenadas absolutas de pantalla. Es la forma correcta de saber "¿dónde está el mouse ahora mismo?" independientemente de en qué widget se originó el evento.
+
+**Por qué `return "break"`**: en Tkinter, devolver `"break"` desde un handler cancela la ejecución de los handlers siguientes en la cadena de bindings. Como el nuestro se registra con `add="+"` (último en registrarse = primero en ejecutarse), el `"break"` evita que el `bind_all` del outer se ejecute.
+
+**Por qué `<Destroy>` para cleanup**: `actualizar_periodos()` llama `widget.destroy()` sobre los hijos al reconstruir el contenido. Cuando el `scroll_frame` se destruye, dispara `<Destroy>` automáticamente. Ahí se llama `root.unbind("<MouseWheel>", bid)` con el ID específico del binding — solo desregistra ese handler, sin afectar otros `bind_all` activos. Evita la acumulación de bindings con cada selección de habitación.
+
+### Regla general
+
+Cuando haya dos `CTkScrollableFrame` anidados y el outer interfiera con el scroll del inner:
+1. Usar `root.bind("<MouseWheel>", handler, add="+")` con guardia `winfo_containing` + `_es_hijo_de`
+2. Guardar el `bid` que devuelve `bind()` y liberarlo en `<Destroy>` del inner frame
+3. No usar `<Enter>/<Leave>` — no disparan en `CTkScrollableFrame`
 - [../desarrollo/debugging.md](../desarrollo/debugging.md) — Debugging general
