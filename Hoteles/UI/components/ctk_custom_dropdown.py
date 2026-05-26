@@ -35,6 +35,11 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self.on_confirm = on_confirm
         self._just_selected = False  # bloquea _activar_modo_busqueda durante 200ms: el <Button-1> que cerró el Toplevel se propaga al display_label recién visible y lo reabre sin este guard
 
+        # --- Keyboard navigation state ---
+        self._hovered_index = -1       # índice activo en el popup (-1 = ninguno)
+        self._dropdown_buttons = []    # referencias a los CTkButton del popup
+        self._dropdown_values = []     # valores paralelos a _dropdown_buttons
+
         # Frame principal con entrada y botón
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.main_frame.pack(fill="x" if width is None else "none")
@@ -83,6 +88,8 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self._search_entry.bind("<KeyRelease>", self._on_search_changed)
         self._search_entry.bind("<Escape>", lambda _: self._cancelar_busqueda())
         self._search_entry.bind("<Return>", self._on_search_enter)
+        self._search_entry.bind("<Up>",   self._on_key_up)
+        self._search_entry.bind("<Down>", self._on_key_down)
 
         # Botón dropdown
         self.button = ctk.CTkButton(
@@ -149,14 +156,85 @@ class CTkCustomDropdown(ctk.CTkFrame):
         self._after_id = self.after(500, self._ejecutar_busqueda)
 
     def _on_search_enter(self, event):
-        """Selecciona el primer resultado visible y dispara on_confirm."""
-        query = self._search_entry.get().strip()
-        filtrados = [v for v in self.values if query.lower() in v.lower()] if query else self.values
-        if not filtrados:
-            return
-        self._select_option(filtrados[0])
+        """Selecciona el item con hover activo, o el primero si ninguno está resaltado."""
+        if self._hovered_index >= 0 and self._hovered_index < len(self._dropdown_values):
+            value = self._dropdown_values[self._hovered_index]
+        else:
+            query = self._search_entry.get().strip()
+            filtrados = [v for v in self.values if query.lower() in v.lower()] if query else self.values
+            if not filtrados:
+                return
+            value = filtrados[0]
+        self._select_option(value)
         if self.on_confirm:
             self.on_confirm()
+
+    def _on_key_down(self, event):
+        if not self._dropdown_open or not self._dropdown_buttons:
+            return
+        new_index = min(self._hovered_index + 1, len(self._dropdown_buttons) - 1)
+        self._set_hover(new_index)
+
+    def _on_key_up(self, event):
+        if not self._dropdown_open or not self._dropdown_buttons:
+            return
+        new_index = max(self._hovered_index - 1, 0)
+        self._set_hover(new_index)
+
+    def _set_hover(self, index):
+        """Aplica el highlight al botón en `index` y quita el anterior."""
+        if self._hovered_index >= 0 and self._hovered_index < len(self._dropdown_buttons):
+            self._dropdown_buttons[self._hovered_index].configure(fg_color=Colors.SUCCESS_LIGHT)
+        self._hovered_index = index
+        if index >= 0 and index < len(self._dropdown_buttons):
+            self._dropdown_buttons[index].configure(fg_color=Colors.PRIMARY_LIGHT)
+            self._scroll_to_index(index)
+
+    def _clear_hover(self, index):
+        """Quita el highlight del botón si el mouse lo deja y no hay navegación por teclado activa."""
+        if self._hovered_index == index:
+            self._dropdown_buttons[index].configure(fg_color=Colors.SUCCESS_LIGHT)
+            self._hovered_index = -1
+
+    def _scroll_to_index(self, index):
+        """Scrollea el CTkScrollableFrame para que el botón en `index` sea visible."""
+        if self._dropdown_window is None:
+            return
+        # CTkScrollableFrame expone _parent_canvas con el canvas interno
+        scroll_frames = [
+            w for w in self._dropdown_window.winfo_children()
+            if isinstance(w, ctk.CTkScrollableFrame)
+        ]
+        if not scroll_frames:
+            return
+        scroll_frame = scroll_frames[0]
+        canvas = scroll_frame._parent_canvas
+
+        canvas.update_idletasks()
+        total_height = canvas.bbox("all")
+        if not total_height:
+            return
+        total_height = total_height[3]
+        if total_height == 0:
+            return
+
+        btn = self._dropdown_buttons[index]
+        btn.update_idletasks()
+        btn_y = btn.winfo_y()
+        btn_h = btn.winfo_height()
+        canvas_h = canvas.winfo_height()
+
+        # Fracción [0,1] del top e bottom del botón sobre el contenido total
+        top_frac    = btn_y / total_height
+        bottom_frac = (btn_y + btn_h) / total_height
+
+        # Posición actual del viewport
+        view_top, view_bottom = canvas.yview()
+
+        if top_frac < view_top:
+            canvas.yview_moveto(top_frac)
+        elif bottom_frac > view_bottom:
+            canvas.yview_moveto(bottom_frac - (canvas_h / total_height))
 
     def _ejecutar_busqueda(self):
         self._after_id = None
@@ -272,6 +350,11 @@ class CTkCustomDropdown(ctk.CTkFrame):
 
         display_values = values if values is not None else self.values
 
+        # Resetear estado de navegación por teclado
+        self._hovered_index = -1
+        self._dropdown_buttons = []
+        self._dropdown_values = list(display_values)
+
         self._dropdown_open = True
         self.update_idletasks()
 
@@ -309,18 +392,22 @@ class CTkCustomDropdown(ctk.CTkFrame):
         list_available_px = probe_btn._text_label.winfo_width()
         probe_btn.destroy()
 
-        for value in display_values:
+        for idx, value in enumerate(display_values):
             display = self._truncate_text(value, available_px=list_available_px, font=real_font)
             btn = ctk.CTkButton(
                 scroll_frame,
                 text=display,
                 fg_color=Colors.SUCCESS_LIGHT,
-                hover_color=Colors.PRIMARY_LIGHT,
+                hover_color=Colors.SUCCESS_LIGHT,  # desactivamos el hover nativo de CTk
                 text_color=Colors.TEXT_PRIMARY,
                 anchor="w",
                 command=lambda v=value: self._select_option(v),
             )
             btn.pack(fill="x", pady=2)
+            self._dropdown_buttons.append(btn)
+            # Hover de mouse: sincroniza _hovered_index con el cursor
+            btn.bind("<Enter>", lambda _e, i=idx: self._set_hover(i),  add="+")
+            btn.bind("<Leave>", lambda _e, i=idx: self._clear_hover(i), add="+")
 
         self._dropdown_window.update_idletasks()
 
@@ -380,6 +467,9 @@ class CTkCustomDropdown(ctk.CTkFrame):
             self._dropdown_window.destroy()
             self._dropdown_window = None
         self._dropdown_open = False
+        self._hovered_index = -1
+        self._dropdown_buttons = []
+        self._dropdown_values = []
 
     def _select_option(self, value):
         self._just_selected = True

@@ -162,8 +162,8 @@ class CrawlCompareGUI:
         self._content_frame = ctk.CTkFrame(self.root, fg_color=Colors.BACKGROUND)
         self._content_frame.pack(fill="both", expand=True)
 
-        self._content_frame.grid_columnconfigure(0, weight=55, minsize=480, uniform="cols")
-        self._content_frame.grid_columnconfigure(1, weight=45, minsize=360, uniform="cols")
+        self._content_frame.grid_columnconfigure(0, weight=65, minsize=480, uniform="cols")
+        self._content_frame.grid_columnconfigure(1, weight=35, minsize=360, uniform="cols")
         self._content_frame.grid_rowconfigure(0, weight=1)
 
         self._crear_panel_izquierdo()
@@ -377,19 +377,23 @@ class CrawlCompareGUI:
             **secondary_button(),
         ).pack(side="right")
 
+        # Row que contiene hotel (siempre) + edificio (condicional, a su derecha)
+        self._hotel_edificio_row = ctk.CTkFrame(card.content_frame, fg_color="transparent")
+        self._hotel_edificio_row.pack(fill="x", pady=(0, Spacing.FORM_GAP))
+
         # Hotel
         self.hotel_combo = CTkLabeledComboBox(
-            card.content_frame,
+            self._hotel_edificio_row,
             label="Hotel",
             textvariable=self.state.hotel,
             max_visible=3,
         )
-        self.hotel_combo.pack(fill="x", pady=(0, Spacing.FORM_GAP))
+        self.hotel_combo.pack(side="left", fill="x", expand=True)
         self.hotel_combo.combobox.configure(command=self._on_hotel_changed)
 
-        # Edificio (oculto por defecto, se muestra si el hotel tiene tipos)
+        # Edificio (oculto por defecto, se muestra a la derecha del hotel)
         self.edificio_combo = CTkLabeledComboBox(
-            card.content_frame,
+            self._hotel_edificio_row,
             label="Edificio",
             textvariable=self.state.edificio,
             max_visible=3,
@@ -526,44 +530,22 @@ class CrawlCompareGUI:
         )
         panel_der.grid(row=0, column=1, sticky="nsew")
 
-        container = ctk.CTkScrollableFrame(panel_der, fg_color="transparent")
+        container = ctk.CTkFrame(panel_der, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=Spacing.LG, pady=(0, Spacing.LG))
-
-        # Fix 1: auto-ocultar scrollbar cuando el contenido cabe en el viewport.
-        # CTkScrollableFrame siempre muestra la scrollbar — hookeamos yscrollcommand
-        # para decidir nosotros. lo/hi son fracciones [0-1] del contenido visible:
-        # lo=0, hi=1 → todo visible → ocultamos. Margen 0.5% absorbe DPI rounding.
-        # after(0) difiere el grid_remove/grid al siguiente tick para evitar re-entry.
-        _sb_der = container._scrollbar
-        _sb_der.configure(width=Spacing.SCROLLBAR_WIDTH)
-        _canvas_der = container._parent_canvas
-
-        def _auto_hide_der(lo, hi):
-            _sb_der.set(lo, hi)
-            should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
-            _canvas_der.after(0, _sb_der.grid if should_show else _sb_der.grid_remove)
-
-        _canvas_der.configure(yscrollcommand=_auto_hide_der)
-
-        # Fix 2: velocidad uniforme al scrollear sobre la scrollbar.
-        # Sin esto, la scrollbar usa delta/40 (lento) en vez de delta/6 (normal).
-        # Idéntico al fix ya aplicado en _panel_izq.
-        def _fix_scrollbar_wheel_der(event):
-            _canvas_der.yview_scroll(int(-event.delta / 6), "units")
-            return "break"
-
-        container._scrollbar._canvas.bind("<MouseWheel>", _fix_scrollbar_wheel_der)
+        container.grid_rowconfigure(0, weight=1, uniform="panel")
+        container.grid_rowconfigure(1, weight=1, uniform="panel")
+        container.grid_columnconfigure(0, weight=1)
 
         # Panel de precio
         self.precio_panel = CTkPrecioPanel(
             container,
             textvariable=self.state.precio,
         )
-        self.precio_panel.pack(fill="x", pady=(Spacing.LG, Spacing.MD))
+        self.precio_panel.grid(row=0, column=0, sticky="nsew", pady=(Spacing.LG, Spacing.MD))
 
         # Panel de periodos
         self.periodos_panel = CTkPeriodosPanel(container)
-        self.periodos_panel.pack(fill="both", expand=True)
+        self.periodos_panel.grid(row=1, column=0, sticky="nsew")
 
         # Placeholder para el boton de email (se agrega dinamicamente)
         self._btn_email = None
@@ -609,11 +591,9 @@ class CrawlCompareGUI:
     # =========================================================
 
     def _mostrar_edificio(self):
-        """Muestra el combo de edificio entre hotel y habitacion."""
+        """Muestra el combo de edificio a la derecha del hotel."""
         if not self._edificio_visible:
-            self.habitacion_combo.pack_forget()
-            self.edificio_combo.pack(fill="x", pady=(0, Spacing.FORM_GAP))
-            self.habitacion_combo.pack(fill="x")
+            self.edificio_combo.pack(side="left", fill="x", expand=True, padx=(Spacing.SM, 0))
             self._edificio_visible = True
             self.edificio_combo.update_idletasks()  # fuerza render del label interno
 
