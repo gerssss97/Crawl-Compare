@@ -45,15 +45,23 @@ class ControladorComparacion:
         self.event_bus = event_bus
         self.controlador_validacion = controlador_validacion
 
-    def ejecutar_comparacion_async(self):
-        """Ejecuta comparación en background thread."""
-        threading.Thread(target=self._run_async, daemon=True).start()
+    def ejecutar_comparacion_async(self, comparison_id: str):
+        """Ejecuta comparación en background thread.
 
-    def _run_async(self):
+        Args:
+            comparison_id: Identificador único de esta comparación (timestamp ISO).
+        """
+        threading.Thread(
+            target=self._run_async,
+            args=(comparison_id,),
+            daemon=True,
+        ).start()
+
+    def _run_async(self, comparison_id: str):
         """Wrapper para ejecutar corrutina async."""
-        asyncio.run(self._ejecutar_comparacion())
+        asyncio.run(self._ejecutar_comparacion(comparison_id))
 
-    async def _ejecutar_comparacion(self):
+    async def _ejecutar_comparacion(self, comparison_id: str):
         """Ejecuta comparación multi-periodo asíncrona."""
         try:
             # Validar PRIMERO — antes de tocar la UI con comparison_started.
@@ -75,7 +83,7 @@ class ControladorComparacion:
                 self.event_bus.emit('mostrar_modal_gaps', {'gap_analysis': gap_analysis})
                 return
             
-            self.event_bus.emit('comparison_started')
+            self.event_bus.emit('comparison_started', {'comparison_id': comparison_id})
 
             # Obtener datos del estado
             fecha_entrada_str = self.estado_app.fecha_entrada_completa.get()
@@ -98,7 +106,10 @@ class ControladorComparacion:
                     break
 
             if not hotel_actual:
-                self.event_bus.emit('comparison_error', "No se encontró el hotel seleccionado")
+                self.event_bus.emit('comparison_error', {
+                    'comparison_id': comparison_id,
+                    'error': "No se encontró el hotel seleccionado",
+                })
                 return
 
             # Buscar habitación unificada
@@ -109,7 +120,10 @@ class ControladorComparacion:
                     break
 
             if not habitacion_unificada:
-                self.event_bus.emit('comparison_error', f"No se encontró habitación '{habitacion_nombre}'")
+                self.event_bus.emit('comparison_error', {
+                    'comparison_id': comparison_id,
+                    'error': f"No se encontró habitación '{habitacion_nombre}'",
+                })
                 return
 
             # Ejecutar comparación multi-periodo
@@ -117,13 +131,17 @@ class ControladorComparacion:
 
             def _on_progress(periodo_actual, total, estado):
                 self.event_bus.emit('comparison_progress', {
+                    'comparison_id': comparison_id,
                     'periodo_actual': periodo_actual,
                     'total': total,
                     'estado': estado,
                 })
 
             def _on_scrape_step(step):
-                self.event_bus.emit('scrape_step', {'step': step})
+                self.event_bus.emit('scrape_step', {
+                    'comparison_id': comparison_id,
+                    'step': step,
+                })
 
             resultado = await comparar_multiperiodo(
                 habitacion_unificada=habitacion_unificada,
@@ -140,14 +158,23 @@ class ControladorComparacion:
             self.estado_app.gap_confirmado = False
 
             # Emitir evento de éxito
-            self.event_bus.emit('comparison_completed', resultado)
+            self.event_bus.emit('comparison_completed', {
+                'comparison_id': comparison_id,
+                'resultado': resultado,
+            })
 
         except ValueError as ve:
             error_msg = f"Error de validación: {str(ve)}\n"
-            self.event_bus.emit('comparison_error', error_msg)
+            self.event_bus.emit('comparison_error', {
+                'comparison_id': comparison_id,
+                'error': error_msg,
+            })
 
         except Exception as e:
             error_msg = f"Error inesperado: {str(e)}\n"
             import traceback
             traceback.print_exc()
-            self.event_bus.emit('comparison_error', error_msg)
+            self.event_bus.emit('comparison_error', {
+                'comparison_id': comparison_id,
+                'error': error_msg,
+            })

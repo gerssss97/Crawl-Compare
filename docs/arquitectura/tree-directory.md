@@ -73,6 +73,7 @@ Hoteles/
 │   │
 │   ├── views/
 │   │   ├── vista_resultados.py      # Tabla comparativa multi-periodo ⭐
+│   │   ├── resultados_modal.py      # Modal autónomo de resultados (uno por comparación) ⭐
 │   │   ├── modal_email.py           # Modal para enviar email
 │   │   ├── config_modal.py          # Modal de configuración (4 pestañas)
 │   │   └── historial_modal.py       # Modal de historial de comparaciones previas

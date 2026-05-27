@@ -98,18 +98,31 @@ class CTkPeriodosPanel(CTkCard):
             self._mostrar_mensaje("Sin periodos asignados", es_advertencia=True)
             return
 
-        # Scrollable si hay muchos grupos
-        if sum(len(p) for p in grupos_periodos.values()) > 4:
-            scroll_frame = ctk.CTkScrollableFrame(
-                self.content_frame,
-                fg_color="transparent",
-                scrollbar_button_color=Colors.PRIMARY,
-                scrollbar_button_hover_color=Colors.PRIMARY_HOVER
-            )
-            scroll_frame.pack(fill='both', expand=True)
-            container = scroll_frame
-        else:
-            container = self.content_frame
+        scroll_frame = ctk.CTkScrollableFrame(
+            self.content_frame,
+            fg_color="transparent",
+            scrollbar_button_color=Colors.PRIMARY,
+            scrollbar_button_hover_color=Colors.PRIMARY_HOVER
+        )
+        scroll_frame.pack(fill='both', expand=True)
+
+        _sb = scroll_frame._scrollbar
+        _canvas = scroll_frame._parent_canvas
+
+        def _auto_hide(lo, hi):
+            _sb.set(lo, hi)
+            should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
+            _canvas.after(0, _sb.grid if should_show else _sb.grid_remove)
+
+        _canvas.configure(yscrollcommand=_auto_hide)
+
+        def _fix_scrollbar_wheel(event):
+            _canvas.yview_scroll(int(-event.delta / 6), "units")
+            return "break"
+
+        _sb._canvas.bind("<MouseWheel>", _fix_scrollbar_wheel)
+
+        container = scroll_frame
 
         for nombre_grupo, periodos in grupos_periodos.items():
             self._crear_grupo(container, nombre_grupo, periodos)

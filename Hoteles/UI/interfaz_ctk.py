@@ -6,11 +6,9 @@ logica de negocio, controladores y EventBus intactos.
 
 from debug_config import DEBUG_STARTUP_EXCEL_LOAD
 import customtkinter as ctk
-import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox
-from Core.controller import GestorService, dar_hoteles_excel, generar_texto_email_multiperiodo
-from Core.services.email_senders import MailtoSender
+from Core.controller import GestorService, dar_hoteles_excel
 from Core.excel_resolver import resolver_excel_inicial
 from Core.services import ConfigService
 from UI.state.event_bus import EventBus
@@ -25,9 +23,8 @@ from UI.components import (
     CTkDateInput,
     CTkPrecioPanel,
     CTkPeriodosPanel,
-    CTkProgressPanel,
 )
-from UI.views import VistaResultados, ConfigModal, HistorialModal
+from UI.views import ConfigModal, HistorialModal, ResultadosModal
 from UI.services.historial_service import HistorialService
 from UI.controllers import (
     ControladorHotel,
@@ -59,6 +56,8 @@ class CrawlCompareGUI:
         # mensaje hasta que la UI esté armada para mostrarlo con messagebox.
         self.config_service = ConfigService()
         self.historial_service = HistorialService(self.config_service)
+        self._modales_comparacion = {}   # comparison_id → ResultadosModal
+        self._ctx_pendiente = None       # contexto del intento en curso (para gap modal)
         self._error_excel_inicial = None
         excel_path = resolver_excel_inicial(self.config_service)
         if excel_path:
@@ -140,10 +139,6 @@ class CrawlCompareGUI:
     def _configurar_event_listeners(self):
         """Suscribe los handlers a los eventos del EventBus."""
         self.event_bus.on("comparison_started", self._on_comparison_started)
-        self.event_bus.on("comparison_progress", self._on_comparison_progress)
-        self.event_bus.on("scrape_step", self._on_scrape_step)
-        self.event_bus.on("comparison_completed", self._on_comparison_completed)
-        self.event_bus.on("comparison_error", self._on_comparison_error)
         self.event_bus.on("precios_actualizados", self._on_precios_actualizados)
         self.event_bus.on("gaps_detected", self._on_gaps_detected)
         self.event_bus.on("mostrar_modal_gaps", self._on_mostrar_modal_gaps)
@@ -246,8 +241,7 @@ class CrawlCompareGUI:
             corner_radius=0,
         )
         self._panel_izq_outer.grid(row=0, column=0, sticky="nsew")
-        self._panel_izq_outer.grid_rowconfigure(0, weight=1)   # form + progress se lleva todo el espacio extra
-        self._panel_izq_outer.grid_rowconfigure(1, weight=0)   # resultados: solo su alto natural (compacto)
+        self._panel_izq_outer.grid_rowconfigure(0, weight=1)
         self._panel_izq_outer.grid_columnconfigure(0, weight=1)
 
         # Panel scrollable: solo formulario + progress
@@ -300,66 +294,6 @@ class CrawlCompareGUI:
         self._crear_form_fechas(form_frame)
         self._crear_boton_ejecutar(form_frame)
 
-        # Contenedor externo transparente: apila título + caja de resultados
-        self._resultados_outer = ctk.CTkFrame(
-            self._panel_izq_outer,
-            fg_color=Colors.SURFACE,
-            corner_radius=0,
-            border_width=0,
-        )
-        self._resultados_outer.grid(row=1, column=0, sticky="nsew", padx=Spacing.LG, pady=(Spacing.SM, Spacing.LG))
-        self._resultados_outer.columnconfigure(0, weight=1)
-        self._resultados_outer.rowconfigure(2, weight=1)
-
-        # Fila 0: progress panel (oculto hasta que comience la comparacion)
-        self.progress_panel = CTkProgressPanel(
-            self._resultados_outer,
-            grid_kwargs={"row": 0, "column": 0, "sticky": "ew", "pady": (0, Spacing.XS)},
-        )
-
-        # Fila 1: título con fondo grisado (CTkFrame propio, esquinas arriba redondeadas)
-        titulo_frame = ctk.CTkFrame(
-            self._resultados_outer,
-            fg_color=Colors.BACKGROUND,
-            bg_color=Colors.SURFACE,
-            corner_radius=Spacing.RADIUS_MD,
-            border_width=1,
-            border_color=Colors.BORDER,
-            overwrite_preferred_drawing_method="polygon_shapes",
-        )
-        titulo_frame.grid(row=1, column=0, sticky="ew", pady=(0, 0))
-        titulo_frame.columnconfigure(0, weight=1)
-        ctk.CTkLabel(
-            titulo_frame,
-            text="RESULTADOS DE LA COMPARACION",
-            font=(Typography.FAMILY, Typography.SMALL, Typography.BOLD),
-            text_color=Colors.TEXT_SECONDARY,
-            anchor="w",
-        ).grid(row=0, column=0, sticky="ew", padx=Spacing.CARD_PADDING, pady=Spacing.SM)
-
-        # Fila 1: caja de resultados con borde propio en los 4 lados
-        caja_resultados = ctk.CTkFrame(
-            self._resultados_outer,
-            fg_color=Colors.SURFACE,
-            bg_color=Colors.SURFACE,
-            corner_radius=Spacing.RADIUS_MD,
-            border_width=1,
-            border_color=Colors.BORDER,
-            overwrite_preferred_drawing_method="polygon_shapes",
-        )
-        caja_resultados.grid(row=2, column=0, sticky="nsew", pady=(Spacing.XS, 0))
-        caja_resultados.columnconfigure(0, weight=1)
-        caja_resultados.rowconfigure(0, weight=1)
-
-        self.vista_resultados = VistaResultados(
-            caja_resultados,
-            fonts=self.fonts,
-            bg=Colors.SURFACE,
-        )
-        self.vista_resultados.grid(row=0, column=0, sticky="nsew", padx=Spacing.SM, pady=Spacing.SM)
-
-        # Alias de compatibilidad con codigo legacy
-        self.resultado = self.vista_resultados.obtener_widget_text()
 
     def _crear_form_reserva(self, parent):
         """Crea la card de seleccion de reserva."""
@@ -547,8 +481,6 @@ class CrawlCompareGUI:
         self.periodos_panel = CTkPeriodosPanel(container)
         self.periodos_panel.grid(row=1, column=0, sticky="nsew")
 
-        # Placeholder para el boton de email (se agrega dinamicamente)
-        self._btn_email = None
 
     # =========================================================
     # Carga de datos
@@ -700,150 +632,59 @@ class CrawlCompareGUI:
     # =========================================================
 
     def _ejecutar_comparacion(self):
-        """Delega la ejecucion al ControladorComparacion."""
-        self.controlador_comparacion.ejecutar_comparacion_async()
+        """Genera un comparison_id, guarda el contexto y lanza la comparación."""
+        import datetime
+        comparison_id = datetime.datetime.now().isoformat(timespec='microseconds')
+        snapshot = {
+            'hotel': self.state.hotel.get(),
+            'edificio': self.state.edificio.get() or None,
+            'habitacion': self.state.habitacion.get(),
+            'fecha_entrada': self.state.fecha_entrada_completa.get(),
+            'fecha_salida': self.state.fecha_salida_completa.get(),
+            'adultos': self.state.adultos.get(),
+            'ninos': self.state.ninos.get(),
+            'periodos_precio': list(self.state.periodos_precio),
+        }
+        # Guardar contexto: el modal se crea en _on_comparison_started (caso normal)
+        # o en _on_mostrar_modal_gaps si el usuario confirma continuar con gaps.
+        self._ctx_pendiente = {'id': comparison_id, 'snapshot': snapshot}
+        self.controlador_comparacion.ejecutar_comparacion_async(comparison_id)
+
+    def _lanzar_modal_comparacion(self, comparison_id: str, snapshot: dict):
+        """Crea el ResultadosModal y registra la referencia para cleanup."""
+        offset = len(self._modales_comparacion)
+        modal = ResultadosModal(
+            parent=self.root,
+            comparison_id=comparison_id,
+            snapshot=snapshot,
+            event_bus=self.event_bus,
+            fonts=self.fonts,
+            historial_service=self.historial_service,
+            offset=offset,
+        )
+        self._modales_comparacion[comparison_id] = modal
+
+        def _cleanup(event):
+            if event.widget is modal:
+                self._modales_comparacion.pop(comparison_id, None)
+        modal.bind('<Destroy>', _cleanup)
 
     # =========================================================
     # Event handlers - EventBus
     # =========================================================
 
-    def _on_comparison_started(self, data=None):
-        """Limpia resultados e inicializa el panel de progreso."""
-        def _actualizar():
-            self.resultado.delete("1.0", tk.END)
-            self.resultado.insert(tk.END, "Iniciando comparacion...\n")
-            self.btn_ejecutar.configure(state="disabled")
-            self._panel_izq_outer.grid_rowconfigure(0, weight=0)  # 50%
-            self._panel_izq_outer.grid_rowconfigure(1, weight=2)  # 50%
-            self._total_periodos_progreso = 0
-            if self._btn_email is not None:
-                self._btn_email.grid_forget()
-                self._btn_email = None
-            # El panel se inicializa con 1 periodo temporal; se ajustara
-            # al recibir el primer comparison_progress con el total real.
-            self.progress_panel.iniciar(total_periodos=0)
-        self.root.after(0, _actualizar)
-
-    def _on_comparison_progress(self, data):
-        """Actualiza el panel de progreso con el avance del periodo actual."""
-        def _actualizar():
-            periodo_actual = data.get('periodo_actual', 1)
-            total = data.get('total', 1)
-            estado = data.get('estado', '')
-
-            # Inicializar indicadores la primera vez que conocemos el total
-            if total != self._total_periodos_progreso:
-                self._total_periodos_progreso = total
-                self.progress_panel.iniciar(total_periodos=total)
-
-            self.progress_panel.actualizar(periodo_actual, total, estado)
-
-            # Si el estado indica que el periodo termino, marcar su indicador
-            estado_lower = estado.lower()
-            if "ok" in estado_lower or "coincide" in estado_lower:
-                self.progress_panel.marcar_periodo(periodo_actual - 1, "ok")
-            elif "discrepancia" in estado_lower:
-                self.progress_panel.marcar_periodo(periodo_actual - 1, "discrepancia")
-            elif "error" in estado_lower:
-                self.progress_panel.marcar_periodo(periodo_actual - 1, "error")
-        self.root.after(0, _actualizar)
-
-    def _on_scrape_step(self, data):
-        """Actualiza la barra de progreso con el paso actual del scraping."""
-        step = data.get('step', '')
-        def _actualizar():
-            self.progress_panel.actualizar_step(step)
-        self.root.after(0, _actualizar)
-
-    def _on_comparison_completed(self, resultado_data):
-        """Muestra el resultado de la comparacion."""
-        from Core.comparador_multiperiodo import ResultadoComparacionMultiperiodo
-
-        def _actualizar():
-            self.btn_ejecutar.configure(state="normal")
-
-            if isinstance(resultado_data, ResultadoComparacionMultiperiodo):
-                # Marcar indicadores con resultado final de cada periodo
-                for i, rp in enumerate(resultado_data.periodos):
-                    if rp.precio_excel == "Error":
-                        self.progress_panel.marcar_periodo(i, "error")
-                    elif rp.coincide:
-                        self.progress_panel.marcar_periodo(i, "ok")
-                    else:
-                        self.progress_panel.marcar_periodo(i, "discrepancia")
-
-                exito = not resultado_data.tiene_discrepancias
-                self.progress_panel.finalizar(exito=exito)
-                self.root.after(1500, self.progress_panel.ocultar)
-
-                self.vista_resultados.mostrar_resultado_multiperiodo(resultado_data)
-                self._panel_izq_outer.grid_rowconfigure(0, weight=0)  # 50%
-                self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
-                self.state.resultado_multiperiodo = resultado_data
-                import datetime
-                try:
-                    self.historial_service.agregar({
-                        "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
-                        "hotel": self.state.hotel.get(),
-                        "edificio": self.state.edificio.get() or None,
-                        "habitacion": self.state.habitacion.get(),
-                        "fecha_entrada": self.state.fecha_entrada_completa.get(),
-                        "fecha_salida": self.state.fecha_salida_completa.get(),
-                        "adultos": self.state.adultos.get(),
-                        "ninos": self.state.ninos.get(),
-                        "periodos": [
-                            {
-                                "nombre": rp.periodo.nombre,
-                                "precio_excel": rp.precio_excel,
-                                "precio_web": rp.precio_web,
-                                "coincide": rp.coincide,
-                            }
-                            for rp in resultado_data.periodos
-                        ],
-                    })
-                except Exception as e:
-                    print(f"[historial] Error al guardar entrada: {e}")
-                if resultado_data.tiene_discrepancias:
-                    self._mostrar_email_btn()
-            else:
-                # Resultado legacy (compatibilidad)
-                self.progress_panel.ocultar()
-                self.resultado.delete("1.0", tk.END)
-                mensaje = resultado_data.get("mensaje", "")
-                coincide = resultado_data.get("coincide", False)
-                for linea in mensaje.split("\n"):
-                    tag = ("bold",) if ("Habitacion web" in linea or "diferencia" in linea or "coinciden" in linea) else ()
-                    self.resultado.insert(tk.END, linea + "\n", tag)
-                self._panel_izq_outer.grid_rowconfigure(0, weight=0)  # 50%
-                self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
-                if coincide:
-                    self._mostrar_email_btn()
-        self.root.after(0, _actualizar)
-
-    def _on_comparison_error(self, error_msg):
-        """Muestra el error de la comparacion en el area de resultados."""
-        def _actualizar():
-            self.btn_ejecutar.configure(state="normal")
-            if "Validacion fallida" in error_msg:
-                return
-            self.progress_panel.mostrar_error()
-            self.root.after(2000, self.progress_panel.ocultar)
-
-            # Separar URL del mensaje si viene incluida
-            if "\nURL: " in error_msg:
-                partes = error_msg.split("\nURL: ", 1)
-                msg_limpio = partes[0].strip()
-                url_str = partes[1].strip()
-                self.resultado.insert(tk.END, "Error al acceder a la web:\n", ("bold",))
-                self.resultado.insert(tk.END, f"{msg_limpio}\n\n")
-                self.resultado.insert(tk.END, "URL intentada:\n", ("bold",))
-                self.resultado.insert(tk.END, f"{url_str}\n")
-            else:
-                self.resultado.insert(tk.END, "Error: ", ("bold",))
-                self.resultado.insert(tk.END, f"{error_msg}\n")
-            self._panel_izq_outer.grid_rowconfigure(0, weight=1)  # 50%
-            self._panel_izq_outer.grid_rowconfigure(1, weight=1)  # 50%
-        self.root.after(0, _actualizar)
+    def _on_comparison_started(self, data):
+        """Crea el ResultadosModal para esta comparación."""
+        ctx = self._ctx_pendiente
+        if not ctx:
+            return
+        comparison_id = data.get('comparison_id') if isinstance(data, dict) else None
+        if comparison_id != ctx.get('id'):
+            return
+        def _act():
+            self._lanzar_modal_comparacion(ctx['id'], ctx['snapshot'])
+            self._ctx_pendiente = None
+        self.root.after(0, _act)
 
     def _on_precios_actualizados(self, data):
         """Actualiza el panel de precios segun el evento recibido."""
@@ -863,42 +704,22 @@ class CrawlCompareGUI:
         from UI.components.ctk_modal_advertencia_gaps import CtkModalAdvertenciaGaps
 
         gap_analysis = data['gap_analysis']
+        ctx = self._ctx_pendiente  # snapshot del intento que disparó el gap
 
         def on_gap_response(confirmo):
-            if confirmo:
+            if confirmo and ctx:
                 self.state.gap_confirmado = True
-                self.controlador_comparacion.ejecutar_comparacion_async()
+                self._lanzar_modal_comparacion(ctx['id'], ctx['snapshot'])
+                self.controlador_comparacion.ejecutar_comparacion_async(ctx['id'])
             else:
                 self.state.gap_confirmado = False
+                self._ctx_pendiente = None
 
         self.root.after(0, lambda: CtkModalAdvertenciaGaps(self.root, gap_analysis, on_gap_response))
 
     # =========================================================
     # Funcionalidad de email
     # =========================================================
-
-    def _mostrar_email_btn(self):
-        """Muestra (o actualiza) el boton de envio de email."""
-        if self._btn_email is not None:
-            return
-        self._btn_email = ctk.CTkButton(
-            self._resultados_outer,
-            text="Enviar Email",
-            font=(Typography.FAMILY, Typography.SMALL, Typography.BOLD),
-            fg_color=Colors.SUCCESS,
-            hover_color="#0D9266",
-            text_color=Colors.HEADER_TEXT,
-            corner_radius=Spacing.RADIUS_MD,
-            height=36,
-            command=self._abrir_ventana_email,
-        )
-        self._btn_email.grid(row=3, column=0, sticky="ew", pady=(Spacing.SM, 0))
-
-    def _abrir_ventana_email(self):
-        hotel = self.state.hotel.get()
-        cuerpo = generar_texto_email_multiperiodo(hotel, self.state.resultado_multiperiodo)
-        asunto = f"Discrepancia de precios - {hotel}"
-        MailtoSender().enviar(destinatario="", asunto=asunto, cuerpo=cuerpo)
 
     # =========================================================
     # Selección de Excel y configuración
@@ -997,10 +818,6 @@ class CrawlCompareGUI:
         self.hotel_combo.set_values(nombres)
         self.periodos_panel.limpiar()
         self.precio_panel.limpiar()
-        self.resultado.delete("1.0", tk.END)
-        if self._btn_email is not None:
-            self._btn_email.grid_forget()
-            self._btn_email = None
 
     def _on_validation_failed(self, data):
         """Muestra el messagebox con todos los errores de validación.

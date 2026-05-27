@@ -27,6 +27,7 @@ Problemas conocidos, causas y soluciones encontradas durante el desarrollo.
 - [Layout — grid_remove() en constructor no tiene efecto](#layout--grid_remove-en-constructor-no-tiene-efecto)
 - [CTkLabel — wraplength dinámico no funciona si width=1 está seteado](#ctklabel--wraplength-dinámico-no-funciona-si-width1-está-seteado)
 - [Scroll / MouseWheel — Dos CTkScrollableFrame anidados se scrollean simultáneamente](#scroll--mousewheel--dos-ctkscrollableframe-anidados-se-scrollean-simultáneamente)
+- [Layout — Threshold numérico para decidir si usar CTkScrollableFrame](#layout--threshold-numérico-para-decidir-si-usar-ctkscrollableframe)
 
 ---
 
@@ -1093,6 +1094,75 @@ Cuando un `Toplevel` con `wm_overrideredirect(True)` se cierra en respuesta a un
 
 Ver también:
 - [componentes.md](componentes.md) — Componentes CTk y CTkCustomDropdown
+
+---
+
+## Layout — Threshold numérico para decidir si usar CTkScrollableFrame
+
+**Estado**: ✅ Resuelto
+
+**Archivo afectado**: [UI/components/ctk_precio_panel.py](../../Hoteles/UI/components/ctk_precio_panel.py)
+
+### Síntoma
+
+Un panel que muestra N items dinámicos (periodos de precio) los clipeaba silenciosamente cuando la cantidad superaba el espacio visible, sin mostrar scrollbar. La cantidad máxima que se veía era siempre la misma (1 o 2 de 3-4 posibles), sin error ni advertencia.
+
+### Causa
+
+El código condicionaba la creación del `CTkScrollableFrame` con un número hardcodeado:
+
+```python
+# ❌ MALA PRÁCTICA — número arbitrario que depende del tamaño de pantalla
+if len(precios_data) > 3:
+    scroll_frame = ctk.CTkScrollableFrame(...)
+    container = scroll_frame
+else:
+    container = self.content_frame  # CTkFrame sin scroll → items clippeados
+```
+
+El threshold `> 3` asume que 3 items siempre van a caber visualmente. Eso depende de:
+- El tamaño de la ventana (que el usuario puede cambiar)
+- La resolución y DPI del monitor del usuario
+- El tamaño de cada item (que puede crecer si tiene más texto)
+
+Cualquier número hardcodeado va a ser **correcto para la pantalla del desarrollador y roto para la del usuario**.
+
+### Por qué el clippeo es silencioso
+
+Un `CTkFrame` regular (sin scroll) renderiza sus hijos con `pack` normalmente — no hay error. El contenido simplemente se dibuja fuera del área visible del frame. CTk no lanza advertencia ni recorta visualmente con una línea clara.
+
+### Solución — siempre `CTkScrollableFrame` + auto-hide via `yscrollcommand`
+
+`CTkScrollableFrame` **no auto-oculta su scrollbar** (ver sección [Scroll / Scrollbar — CTkScrollableFrame muestra scrollbar aunque el contenido cabe](#scroll--scrollbar--ctkscrollableframe-muestra-scrollbar-aunque-el-contenido-cabe)). Hay que combinar dos cosas:
+
+1. Eliminar el threshold — siempre usar `CTkScrollableFrame` como container
+2. Hookear `yscrollcommand` para ocultar la scrollbar cuando el contenido cabe
+
+```python
+# ✅ CORRECTO — sin threshold + auto-hide
+scroll_frame = ctk.CTkScrollableFrame(
+    self.content_frame,
+    fg_color="transparent",
+    scrollbar_button_color=Colors.PRIMARY,
+    scrollbar_button_hover_color=Colors.PRIMARY_HOVER
+)
+scroll_frame.pack(fill='both', expand=True)
+
+_sb = scroll_frame._scrollbar
+_canvas = scroll_frame._parent_canvas
+
+def _auto_hide(lo, hi):
+    _sb.set(lo, hi)
+    should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
+    _canvas.after(0, _sb.grid if should_show else _sb.grid_remove)
+
+_canvas.configure(yscrollcommand=_auto_hide)
+container = scroll_frame
+```
+
+### Regla general
+
+**Nunca** condicionar la creación de un `CTkScrollableFrame` con un número hardcodeado de items. Siempre usarlo como container cuando el contenido es dinámico, y siempre aplicar el hook `yscrollcommand` para auto-ocultar la scrollbar. Sin el hook, la scrollbar aparece aunque el contenido entre perfectamente en el viewport.
 
 ---
 

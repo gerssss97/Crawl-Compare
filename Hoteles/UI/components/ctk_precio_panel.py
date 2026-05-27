@@ -94,18 +94,37 @@ class CTkPrecioPanel(CTkCard):
             self._mostrar_mensaje("(Ingrese fechas para ver precios)")
             return
 
-        # Crear scrollable frame si hay muchos períodos
-        if len(precios_data) > 3:
-            scroll_frame = ctk.CTkScrollableFrame(
-                self.content_frame,
-                fg_color="transparent",
-                scrollbar_button_color=Colors.PRIMARY,
-                scrollbar_button_hover_color=Colors.PRIMARY_HOVER
-            )
-            scroll_frame.pack(fill='both', expand=True)
-            container = scroll_frame
-        else:
-            container = self.content_frame
+        # Siempre usar CTkScrollableFrame — CTk muestra/oculta la scrollbar
+        # automáticamente según si el contenido excede el área visible.
+        # NUNCA condicionar esto con un número hardcodeado (ej: "si hay > 3 items"):
+        # la cantidad de items que "caben" depende del tamaño de la ventana y la
+        # resolución del usuario, por lo que cualquier threshold fijo va a clipear
+        # contenido silenciosamente en pantallas pequeñas o con muchos periodos.
+        scroll_frame = ctk.CTkScrollableFrame(
+            self.content_frame,
+            fg_color="transparent",
+            scrollbar_button_color=Colors.PRIMARY,
+            scrollbar_button_hover_color=Colors.PRIMARY_HOVER
+        )
+        scroll_frame.pack(fill='both', expand=True)
+
+        _sb = scroll_frame._scrollbar
+        _canvas = scroll_frame._parent_canvas
+
+        def _auto_hide(lo, hi):
+            _sb.set(lo, hi)
+            should_show = not (float(lo) <= 0.005 and float(hi) >= 0.995)
+            _canvas.after(0, _sb.grid if should_show else _sb.grid_remove)
+
+        _canvas.configure(yscrollcommand=_auto_hide)
+
+        def _fix_scrollbar_wheel(event):
+            _canvas.yview_scroll(int(-event.delta / 6), "units")
+            return "break"
+
+        _sb._canvas.bind("<MouseWheel>", _fix_scrollbar_wheel)
+
+        container = scroll_frame
 
         # Crear entrada por cada periodo
         for item in precios_data:

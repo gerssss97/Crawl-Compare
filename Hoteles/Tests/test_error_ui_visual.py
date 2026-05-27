@@ -83,8 +83,10 @@ def resultado_mixto():
 
 
 def main():
+    import datetime
     import customtkinter as ctk
     from UI.interfaz_ctk import CrawlCompareGUI
+    from UI.views import ResultadosModal
 
     # Elegir escenario
     print("Escenarios disponibles:")
@@ -101,9 +103,44 @@ def main():
     root = ctk.CTk()
     app = CrawlCompareGUI(root)
 
-    # Inyectar el resultado simulado después de que la ventana esté lista
+    # Inyectar el resultado simulado creando el modal directamente
     def _inyectar():
-        app._on_comparison_completed(resultado)
+        fake_id = datetime.datetime.now().isoformat(timespec='microseconds')
+        snapshot = {
+            'hotel': 'Hotel Test',
+            'edificio': None,
+            'habitacion': resultado.habitacion_excel_nombre[:50],
+            'fecha_entrada': '01-06-2026',
+            'fecha_salida': '05-09-2026',
+            'adultos': 1,
+            'ninos': 0,
+            'periodos_precio': [
+                {
+                    'periodo': _hacer_periodo(date(2026, 3, 1), date(2026, 5, 31)),
+                    'precio': 450.00,
+                    'nombre_grupo': 'Temporada Baja',
+                },
+                {
+                    'periodo': _hacer_periodo(date(2026, 6, 1), date(2026, 9, 5)),
+                    'precio': 620.00,
+                    'nombre_grupo': 'Temporada Alta',
+                },
+            ],
+        }
+        ResultadosModal(
+            parent=root,
+            comparison_id=fake_id,
+            snapshot=snapshot,
+            event_bus=app.event_bus,
+            fonts=app.fonts,
+            historial_service=app.historial_service,
+            offset=0,
+        )
+        # Emitir el evento con el nuevo contrato de payload
+        app.event_bus.emit('comparison_completed', {
+            'comparison_id': fake_id,
+            'resultado': resultado,
+        })
 
     root.after(500, _inyectar)
     root.mainloop()
