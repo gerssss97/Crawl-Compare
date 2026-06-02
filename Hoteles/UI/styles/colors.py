@@ -4,6 +4,8 @@ class Colors:
     """Colores centralizados de la aplicación."""
     
     # Primarios
+    PRIMARY_LOWER = "#5C86E1"  
+    PRIMARY_LOWER_HOVER = "#5C86E1"
     PRIMARY = "#2563EB"           # Azul eléctrico (botones, CTAs)
     PRIMARY_HOVER = "#1D4ED8"     # Azul hover
     PRIMARY_LIGHT = "#DBEAFE"     # Azul claro (backgrounds)
@@ -35,3 +37,5 @@ class Colors:
     
     HEADER_BG = "#1E293B"         # Fondo header
     HEADER_TEXT = "#FFFFFF"       # Texto header
+    
+    TAB_BAR_BACKGROUND = "#dddddd"

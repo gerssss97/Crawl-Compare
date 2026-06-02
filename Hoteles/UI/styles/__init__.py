@@ -5,5 +5,6 @@ from .colors import Colors
 from .typography import Typography
 from .spacing import Spacing
 from .button_styles import primary_button, secondary_button
+from .icons import Icons
 
-__all__ = ['FontManager', 'Colors', 'Typography', 'Spacing', 'primary_button', 'secondary_button']
+__all__ = ['FontManager', 'Colors', 'Typography', 'Spacing', 'primary_button', 'secondary_button', 'Icons']

@@ -76,11 +76,12 @@ class CTkCard(CTkBaseComponent):
             pady=(Spacing.SM, Spacing.XS)
         )
 
-        # Ícono con fuente del sistema para emojis a color
         if self.icon:
+            is_image = hasattr(self.icon, "_light_image")
             icon_label = ctk.CTkLabel(
                 self.title_frame,
-                text=self.icon,
+                text="" if is_image else self.icon,
+                image=self.icon if is_image else None,
                 font=("Segoe UI", Typography.SMALL),
                 text_color=Colors.TEXT_SECONDARY,
                 anchor='w'

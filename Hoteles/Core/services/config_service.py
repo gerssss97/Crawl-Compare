@@ -83,3 +83,15 @@ class ConfigService:
 
     def set_historial(self, entradas: list) -> None:
         self.set("historial", entradas)
+
+    def get_email_template(self) -> str | None:
+        return self._cache.get("email_template", None)
+
+    def set_email_template(self, template: str | None) -> None:
+        self.set("email_template", template)
+
+    def get_email_firma(self) -> str:
+        return self._cache.get("email_firma", "Germán Lucero")
+
+    def set_email_firma(self, firma: str | None) -> None:
+        self.set("email_firma", firma)

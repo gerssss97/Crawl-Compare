@@ -4,6 +4,7 @@ import smtplib
 from typing import Optional
 from email.mime.text import MIMEText ##crea msjs con formato adecuado
 from email.mime.multipart import MIMEMultipart
+from Core.email_templates import DEFAULT_EMAIL_TEMPLATE
 
 
 class GestorService:
@@ -171,68 +172,76 @@ def enviar_email_discrepancia(hotel, habitacion_excel, precio_excel, precio_web,
 
     return enviar_correo(remitente, clave, destinatario, asunto, texto_mensaje)
 
-def generar_texto_email_multiperiodo(hotel, resultado_multiperiodo):
-    """Genera texto de email para resultado multi-periodo.
+def _renderizar_template(template: str, hotel: str, resultado, firma: str) -> str:
+    import re
 
-    Args:
-        hotel: Nombre del hotel
-        resultado_multiperiodo: ResultadoComparacionMultiperiodo
+    TAG_FOR = "{% for periodo %}"
+    TAG_END = "{% end %}"
 
-    Returns:
-        str: Texto formateado del email
-    """
-    # Header
-    texto = "Estimado equipo de reservas,\n\n"
-    texto += f"He detectado discrepancias de precios en el hotel {hotel}.\n\n"
+    partes = template.split(TAG_FOR)
+    antes = partes[0]
+    if len(partes) == 1:
+        bloque_raw = ""
+        despues = ""
+    else:
+        resto = partes[1].split(TAG_END)
+        bloque_raw = resto[0]
+        despues = TAG_END.join(resto[1:])
 
-    # Habitaciones
-    texto += f"Habitación Excel: {resultado_multiperiodo.habitacion_excel_nombre}\n"
-    texto += f"Habitación Web: {resultado_multiperiodo.habitacion_web_matcheada.nombre}\n\n"
+    ctx_global = {
+        "hotel": hotel,
+        "habitacion_excel": resultado.habitacion_excel_nombre,
+        "habitacion_web": resultado.habitacion_web_matcheada.nombre,
+        "firma": firma,
+    }
 
-    # Tabla de comparación
-    texto += "COMPARACIÓN POR PERIODO:\n"
-    texto += "=" * 80 + "\n"
-    texto += f"{'Periodo':<25} | {'Fechas':<20} | {'Excel':<10} | {'Web':<10} | {'Diferencia':<12}\n"
-    texto += "-" * 80 + "\n"
+    def _sub_global(m):
+        return ctx_global.get(m.group(1), m.group(0))
 
-    for res_periodo in resultado_multiperiodo.periodos:
-        periodo = res_periodo.periodo
-        nombre_periodo = f"Periodo {periodo.id}"
+    texto_antes   = re.sub(r"\{(\w+)\}", _sub_global, antes)
+    texto_despues = re.sub(r"\{(\w+)\}", _sub_global, despues)
 
-        fecha_inicio_str = periodo.fecha_inicio.strftime("%d/%m/%Y")
-        fecha_fin_str = periodo.fecha_fin.strftime("%d/%m/%Y")
-        fechas_str = f"{fecha_inicio_str}-{fecha_fin_str}"
+    bloques = []
+    for rp in resultado.periodos:
+        p = rp.periodo
+        fecha_inicio_b = rp.fecha_inicio_real.strftime("%d/%m/%Y") if rp.fecha_inicio_real else p.fecha_inicio.strftime("%d/%m/%Y")
+        fecha_fin_b    = rp.fecha_fin_real.strftime("%d/%m/%Y")    if rp.fecha_fin_real    else p.fecha_fin.strftime("%d/%m/%Y")
 
-        if isinstance(res_periodo.precio_excel, (int, float)):
-            precio_excel_str = f"${res_periodo.precio_excel:.2f}"
-            diferencia = abs(res_periodo.precio_excel - res_periodo.precio_web)
-            diferencia_str = f"${diferencia:.2f}"
+        if isinstance(rp.precio_excel, (int, float)):
+            precio_excel_fmt = f"${rp.precio_excel:.2f}"
+            diferencia_fmt   = f"${rp.diferencia:.2f}"
         else:
-            precio_excel_str = str(res_periodo.precio_excel)
-            diferencia_str = "N/A"
+            precio_excel_fmt = str(rp.precio_excel)
+            diferencia_fmt   = "N/A"
 
-        precio_web_str = f"${res_periodo.precio_web:.2f}"
-        if res_periodo.precio_excel == "Error":
-            estado = "❌ ERROR"
+        if rp.precio_excel == "Error":
+            estado = "ERROR"
         else:
-            estado = "OK" if res_periodo.coincide else "⚠️ DIFF"
+            estado = "OK" if rp.coincide else "DIFF"
 
-        fila = f"{nombre_periodo:<25} | {fechas_str:<20} | {precio_excel_str:<10} | {precio_web_str:<10} | {diferencia_str:<12} {estado}\n"
-        texto += fila
+        ctx_periodo = {
+            "periodo_id":            str(p.id),
+            "fecha_inicio_periodo":  p.fecha_inicio.strftime("%d/%m/%Y"),
+            "fecha_fin_periodo":     p.fecha_fin.strftime("%d/%m/%Y"),
+            "fecha_inicio_busqueda": fecha_inicio_b,
+            "fecha_fin_busqueda":    fecha_fin_b,
+            "precio_excel":          precio_excel_fmt,
+            "precio_web":            f"${rp.precio_web:.2f}",
+            "diferencia":            diferencia_fmt,
+            "estado":                estado,
+        }
 
-        if res_periodo.precio_excel == "Error":
-            if res_periodo.error_msg:
-                texto += f"  → Error: {res_periodo.error_msg}\n"
-            if res_periodo.error_url:
-                texto += f"  → URL:   {res_periodo.error_url}\n"
+        def _sub_periodo(m, ctx=ctx_periodo):
+            return ctx.get(m.group(1), m.group(0))
 
-    texto += "=" * 80 + "\n\n"
+        bloques.append(re.sub(r"\{(\w+)\}", _sub_periodo, bloque_raw))
 
-    # Footer
-    texto += "Agradecería si pudieran revisar estas diferencias.\n\n"
-    texto += "Saludos cordiales,\nGermán Lucero"
+    return texto_antes + "".join(bloques) + texto_despues
 
-    return texto
+
+def generar_texto_email_multiperiodo(hotel, resultado_multiperiodo, template: str | None = None, firma: str = "Germán Lucero"):
+    t = template if template is not None else DEFAULT_EMAIL_TEMPLATE
+    return _renderizar_template(t, hotel, resultado_multiperiodo, firma)
 
 
 def enviar_email_multiperiodo(hotel, resultado_multiperiodo, remitente, destinatario, texto_override=None):

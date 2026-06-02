@@ -662,6 +662,36 @@ ctk.CTkComboBox(parent, values=[...]).pack()
 
 ---
 
+### Siempre usar `Icons` para íconos — nunca emojis hardcodeados
+
+**NUNCA** hardcodear emojis en `text=` de widgets CTk (`🕐`, `⚙`, `📁`, etc.).
+**SIEMPRE** usar las constantes de `Icons` con `image=` en `CTkButton` / `CTkLabel`.
+
+Los emojis tienen problemas de encoding multiplataforma y no respetan el DPI de la pantalla. `Icons` carga `CTkImage` con PNGs de alta resolución (48px) que CTk escala correctamente.
+
+```python
+# ✅ Correcto
+from UI.styles.icons import Icons
+
+ctk.CTkButton(parent, text=" Historial", image=Icons.CLOCK, ...)
+ctk.CTkLabel(parent, text=" archivo.xlsx", image=Icons.FOLDER_HEADER, compound="left", ...)
+
+# ❌ Incorrecto
+ctk.CTkButton(parent, text="🕐 Historial", ...)
+ctk.CTkLabel(parent, text="📁 archivo.xlsx", ...)
+```
+
+**Dos variantes disponibles:**
+
+| Constante | Cuándo usarla |
+|-----------|---------------|
+| `Icons.CLOCK` | Widget sobre fondo claro o azul (cards, panels, botones) |
+| `Icons.CLOCK_HEADER` | Widget sobre el header (fondo oscuro `#1E293B`) |
+
+`Icons.load()` se llama una sola vez en `CrawlCompareGUI.__init__()`. Los PNGs viven en `UI/assets/icons/light/` y `UI/assets/icons/dark/`. Para agregar un nuevo ícono: bajar el SVG de [feathericons.com](https://feathericons.com) a `UI/assets/icons/`, correr `python UI/assets/convert_icons.py`, y agregar la constante en `UI/styles/icons.py`.
+
+---
+
 ### Padding en widgets CTk — valores directos, sin condicionales
 
 **NUNCA** usar expresiones condicionales (ternarios) para calcular valores de padding. Siempre pasar valores directos de `Spacing` en `pack()`/`grid()`.

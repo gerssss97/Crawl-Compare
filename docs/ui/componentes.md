@@ -474,8 +474,114 @@ Widget para entrada de fecha con validación en tiempo real. Formato: DD-MM-AAAA
 
 ---
 
+---
+
+## Sistema de Íconos (`Icons`)
+
+**Archivo**: [UI/styles/icons.py](../../Hoteles/UI/styles/icons.py)
+**Assets**: [UI/assets/icons/](../../Hoteles/UI/assets/)
+
+Singleton que carga todos los íconos como `CTkImage` una sola vez al arrancar la app. Los PNGs se generan desde SVGs de [Feather Icons](https://feathericons.com) vía `UI/assets/convert_icons.py`.
+
+### Inicialización
+
+```python
+# En CrawlCompareGUI.__init__() — una sola vez
+Icons.load()
+```
+
+### Uso en widgets
+
+```python
+from UI.styles.icons import Icons
+
+# Botón con ícono
+ctk.CTkButton(parent, text=" Historial", image=Icons.CLOCK, ...)
+
+# Label con ícono a la izquierda
+ctk.CTkLabel(parent, text=" archivo.xlsx", image=Icons.FOLDER_HEADER, compound="left", ...)
+
+# CTkCard con ícono en el título
+CTkCard(parent, title="SELECCIÓN", icon=Icons.HOME)
+```
+
+### Variantes disponibles
+
+| Variante | Trazo | Cuándo usarla |
+|----------|-------|---------------|
+| `Icons.NOMBRE` | Gris oscuro `#374151` | Fondo claro o azul (cards, panels, botones) |
+| `Icons.NOMBRE_HEADER` | Blanco `#F9FAFB` fijo | Header oscuro (`#1E293B`) — no swapea con el appearance mode |
+
+### Íconos disponibles
+
+| Constante | Feather Icon | Uso actual |
+|-----------|-------------|------------|
+| `CLOCK` / `CLOCK_HEADER` | `clock` | Botón Historial |
+| `SETTINGS` / `SETTINGS_HEADER` | `settings` | Botón Configuración |
+| `FOLDER` / `FOLDER_HEADER` | `folder` | Label Excel path |
+| `HOME` / `HOME_HEADER` | `home` | CTkCard Selección de Reserva |
+| `TRASH` / `TRASH_HEADER` | `trash-2` | Botón Limpiar |
+| `DOLLAR` / `DOLLAR_HEADER` | `dollar-sign` | CTkPrecioPanel título |
+| `ALERT` / `ALERT_HEADER` | `alert-triangle` | Advertencias de cobertura parcial |
+| `X_CIRCLE` / `X_CIRCLE_HEADER` | `x-circle` | Disponible |
+| `CHECK_CIRCLE` / `CHECK_CIRCLE_HEADER` | `check-circle` | Disponible |
+
+### Agregar un nuevo ícono
+
+1. Bajar el SVG de [feathericons.com](https://feathericons.com) a `UI/assets/icons/`
+2. Correr `python Hoteles/UI/assets/convert_icons.py`
+3. Agregar las constantes en `Icons` (`_load` + `_load_header`)
+
+---
+
+---
+
+## CTkInlineSuggester
+
+Popup de autocomplete que se activa mientras el usuario escribe dentro de un contexto delimitado (ej: `{`). No es un widget CTk sino una clase helper que se attachea a un `tk.Text` existente.
+
+**Archivo**: `UI/components/ctk_inline_suggester.py`
+
+### Uso
+
+```python
+from UI.components.ctk_inline_suggester import CTkInlineSuggester
+
+suggester = CTkInlineSuggester(
+    text_widget=my_textbox._textbox,   # tk.Text interno
+    options=["hotel", "precio_excel", ...],
+    trigger_char="{",   # default
+    close_char="}",     # default
+    n=1,                # letras mínimas para activar
+)
+suggester.attach()
+```
+
+### Integración vía CTkTextEditor
+
+```python
+CTkTextEditor(
+    parent,
+    autocomplete_options=["hotel", "precio_excel", ...],
+    trigger_char="{",
+    close_char="}",
+    n=1,
+)
+```
+
+### Navegación del popup
+
+| Tecla | Acción |
+|-------|--------|
+| `↑` / `↓` | Moverse entre opciones |
+| `Tab` / `Return` | Confirmar — reemplaza `{prefijo` por `{tag}` |
+| `Escape` | Cerrar sin seleccionar |
+| Click | Confirmar con el mouse |
+
+---
+
 Ver también:
-- [../desarrollo/convenciones.md](../desarrollo/convenciones.md) — Pattern BaseComponent + helpers de botones
+- [../desarrollo/convenciones.md](../desarrollo/convenciones.md) — Pattern BaseComponent + helpers de botones + regla de íconos
 - [vistas.md](vistas.md) — VistaResultados (compartida entre ambas familias)
 - [pantallas.md](pantallas.md) — Layout general de la app
 - [../arquitectura/event-driven-mvc.md](../arquitectura/event-driven-mvc.md) — Integración con EventBus

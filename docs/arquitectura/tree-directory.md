@@ -18,6 +18,7 @@ Hoteles/
 │   ├── excel_resolver.py            # Resuelve qué Excel cargar al arrancar
 │   ├── gestor_datos.py              # Orquestador Excel/Web
 │   ├── periodo_utils.py             # Utilidades de periodos
+│   ├── email_templates.py           # Template predeterminado de email (DEFAULT_EMAIL_TEMPLATE)
 │   ├── servicio_habitaciones.py     # Servicio de habitaciones
 │   └── services/
 │       ├── config_service.py        # Persistencia de config.json (último Excel, etc.) ⭐
@@ -57,15 +58,18 @@ Hoteles/
 │   │   └── app_state.py             # AppState centralizado ⭐
 │   │
 │   ├── components/
-│   │   ├── ctk_base_component.py    # Base para CTk* ⭐
-│   │   ├── ctk_card.py              # Card container
-│   │   ├── ctk_custom_dropdown.py   # Dropdown personalizado
-│   │   ├── ctk_date_input.py        # Input de fechas
-│   │   ├── ctk_labeled_combobox.py  # Combobox con label
-│   │   ├── ctk_labeled_entry.py     # Entry con label
-│   │   ├── ctk_periodos_panel.py    # Panel de periodos ⭐
-│   │   ├── ctk_precio_panel.py      # Panel de precio ⭐
-│   │   └── ctk_progress_panel.py    # Panel de progreso
+│   │   ├── ctk_base_component.py        # Base para CTk* ⭐
+│   │   ├── ctk_card.py                  # Card container
+│   │   ├── ctk_custom_dropdown.py       # Dropdown personalizado
+│   │   ├── ctk_date_input.py            # Input de fechas
+│   │   ├── ctk_labeled_combobox.py      # Combobox con label
+│   │   ├── ctk_labeled_entry.py         # Entry con label
+│   │   ├── ctk_modal_advertencia_gaps.py  # Modal de advertencia para gaps de cobertura
+│   │   ├── ctk_inline_suggester.py      # Autocomplete inline para tk.Text (trigger_char, n, options)
+│   │   ├── ctk_periodos_panel.py        # Panel de periodos ⭐
+│   │   ├── ctk_precio_panel.py          # Panel de precio ⭐
+│   │   ├── ctk_progress_panel.py        # Panel de progreso
+│   │   └── ctk_text_editor.py           # CTkTextbox con shortcuts de edición + autocomplete opcional
 │   │
 │   ├── services/
 │   │   ├── __init__.py
@@ -92,9 +96,17 @@ Hoteles/
 │   ├── styles/
 │   │   ├── colors.py                # Paleta de colores (PRIMARY, SECONDARY, semánticos, neutrales)
 │   │   ├── button_styles.py         # Helpers primary_button() / secondary_button()
+│   │   ├── icons.py                 # Icons singleton — carga CTkImage de cada ícono una sola vez
 │   │   ├── typography.py            # Tipografías
 │   │   ├── fonts.py
 │   │   └── spacing.py               # Espaciados
+│   │
+│   ├── assets/
+│   │   ├── convert_icons.py         # Script one-shot: convierte SVGs de Feather a PNGs light/dark
+│   │   └── icons/
+│   │       ├── *.svg                # SVGs originales de Feather Icons
+│   │       ├── light/               # PNGs trazo #374151 (sobre fondo claro)
+│   │       └── dark/                # PNGs trazo #F9FAFB (sobre fondo oscuro)
 │   │
 │   └── utils/
 │       ├── scrollbar_utils.py
@@ -110,5 +122,8 @@ Hoteles/
     ├── test_extractor.py
     ├── test_gmtp_direct.py
     ├── test_gmtp_validation.py
+│   │   ├── ctk_inline_suggester.py  # CTkInlineSuggester â€” popup de sugerencias inline para tk.Text.
     └── test_periodos_ui.py
+│   ├── inline-suggester.md  # Inline suggester
+│   ├── cheu-fijate-que-el-serene-aurora.md  # Cheu fijate que el serene aurora
 ```

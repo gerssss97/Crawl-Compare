@@ -5,9 +5,10 @@
         "matcher": "Write",
         "hooks": [
           {
-            "type": "agent",
-            "prompt": "Se acaba de escribir un archivo nuevo en el proyecto. El input del tool es: $ARGUMENTS\n\nTu tarea:\n1. Extraer el `file_path` del archivo recién creado desde el JSON de $ARGUMENTS (campo `tool_input.file_path`).\n2. Leer el archivo `docs/arquitectura/tree-directory.md` en la raíz del proyecto (`c:\\Users\\German Lucero\\ProyectosChino\\Crawl-Compare\\docs\\arquitectura\\tree-directory.md`).\n3. Verificar si ese path (o el nombre del archivo) ya aparece en el tree. Si ya aparece, NO hagas nada y termina.\n4. Si NO aparece, editar `tree-directory.md` agregando el archivo en la posición correcta dentro del árbol (respetando la jerarquía de carpetas existente), con un comentario breve describiendo qué hace el archivo basándote en su nombre y ubicación. Usá el mismo formato de las líneas existentes: `├── nombre_archivo.py  # Descripción breve`.\n5. Si el archivo pertenece a una carpeta que tampoco existe en el tree, agregá también la carpeta en la jerarquía correcta.\n\nReglas importantes:\n- Solo editá `tree-directory.md`, ningún otro archivo.\n- Mantené el formato y estilo del árbol existente.\n- Si no podés determinar la ubicación correcta en el árbol, agregalo al final de la sección más cercana a su carpeta padre.\n- No agregues archivos de configuración temporales, archivos `__pycache__`, `.pyc`, ni archivos fuera del directorio del proyecto.",
-            "timeout": 60
+            "type": "command",
+            "command": "python .claude/update_tree.py",
+            "shell": "powershell",
+            "timeout": 15
           }
         ]
       }

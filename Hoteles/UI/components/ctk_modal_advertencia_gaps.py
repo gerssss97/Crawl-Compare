@@ -1,6 +1,7 @@
 """Modal CTk de advertencia para gaps (cobertura parcial de periodos)."""
 
 import customtkinter as ctk
+from UI.styles.icons import Icons
 
 
 class CtkModalAdvertenciaGaps(ctk.CTkToplevel):
@@ -47,7 +48,9 @@ class CtkModalAdvertenciaGaps(ctk.CTkToplevel):
 
         ctk.CTkLabel(
             header,
-            text="⚠️  ADVERTENCIA: Cobertura Parcial de Precios",
+            text="  ADVERTENCIA: Cobertura Parcial de Precios",
+            image=Icons.ALERT,
+            compound="left",
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color="#856404",
         ).place(relx=0.5, rely=0.5, anchor="center")

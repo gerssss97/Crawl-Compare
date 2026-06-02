@@ -1,56 +1,68 @@
-# Handoff — 2026-05-26
+# Handoff — 2026-05-27
 
-> Sesión: ResultadosModal — comparaciones paralelas en modales independientes
+> Sesión: Feature — template de email editable con bloque for-periodo
 
 ## Objetivo
 
-Eliminar la scrollbar del panel izquierdo de la GUI moviendo el área de resultados
-a un `CTkToplevel` autónomo (`ResultadosModal`). Bonus: al hacerlo, se habilitan
-comparaciones paralelas — cada "Ejecutar" abre un modal nuevo e independiente,
-el botón siempre queda habilitado.
+Permitir que el usuario defina su propio template para el body del email de reporte de discrepancias. El template soporta variables globales `{hotel}`, `{habitacion_excel}`, etc., y un bloque repetible `{% for periodo %}...{% end %}` que itera sobre los N periodos del resultado. La UI de edición vive en la tab "Email" del modal de configuración, que era un placeholder hasta esta sesión.
+
+---
 
 ## Progreso actual
 
-**Feature 100% implementada y lista para testear.** No se ejecutó el test visual
-aún (se le dio al usuario el comando para correrlo). Pendiente verificación visual
-en la app real.
+Feature **implementada y funcionando**. Quedan ajustes visuales menores en el modal de config (geometría del modal ajustada manualmente por el usuario a `620x550` al final de la sesión).
 
-Archivos creados/modificados:
-- `Hoteles/UI/views/resultados_modal.py` — **nuevo**, el modal autónomo
-- `Hoteles/UI/controllers/controlador_comparacion.py` — `comparison_id` en firma y todos los eventos
-- `Hoteles/UI/interfaz_ctk.py` — eliminado `_resultados_outer` y handlers de comparación
-- `Hoteles/UI/views/__init__.py` — exporta `ResultadosModal`
-- `Hoteles/Tests/test_error_ui_visual.py` — inyección con nuevo contrato de payload
-- `docs/arquitectura/tree-directory.md` — entrada del nuevo archivo
-- `docs/features/resultados-modal-comparaciones-paralelas.md` — **nuevo**, doc completo
+### Completado ✅
 
-## Lo que funcionó
+- `ConfigService` — métodos `get/set_email_template` y `get/set_email_firma`
+- `controller.py` — función `_renderizar_template()` con mini-parser de `{% for periodo %}`, y `generar_texto_email_multiperiodo` acepta `template` y `firma` opcionales (fallback al hardcodeado si `template is None`)
+- `config_modal.py` — tab "Email" completa: campo firma, chips de variables en 3 filas (Globales / Solo en for / Bloque), CTkTextbox editor con `Typography.MONO`, validación bloqueante en `_validar_template()`, botones Guardar y Restaurar predeterminado
+- `modal_email.py` — `_generar_texto_default` consulta `ConfigService` y pasa `template`/`firma` al controller
+- `typography.py` — agregado `MONO = "Courier New"` para no hardcodear fonts
+- `docs/features/email-template-editable.md` — documentación de la feature creada y actualizada a estado IMPLEMENTADO
 
-- **`comparison_id` como timestamp ISO en el payload de cada evento** (`UI/controllers/controlador_comparacion.py:48`) — solución limpia para aislar múltiples modales sin tocar el EventBus
-- **Filtrado en cada handler del modal** (`UI/views/resultados_modal.py:_filtrar`) — cada modal ignora eventos que no le pertenecen; simple, explícito, sin estado compartido
-- **`_ctx_pendiente` en la GUI** (`UI/interfaz_ctk.py`) — permite que el modal se cree en `_on_comparison_started` (caso normal) o en `_on_mostrar_modal_gaps` (caso con gaps), sin anticipar si habrá gaps o no
-- **`_FakeState` / `_FakeVar`** (`UI/views/resultados_modal.py:_FakeState`) — compatibilidad con `ModalEmail` sin modificarlo
-- **`self.after(0, ...)` en el modal** — correcto para despachar al main thread de Tkinter desde el background thread de asyncio; `CTkToplevel` tiene su propio método `after`
+### Estado visual del modal de config
+
+- Geometría actual: `620x550` (ajustada por el usuario, era `740x660`)
+- `minsize(500, 520)` aplicado
+- El usuario ajustó el tamaño porque `740x660` se veía demasiado grande — tener en cuenta para futuros ajustes
+- Los botones "Guardar" y "Restaurar predeterminado" eran invisibles antes del fix de geometría
+
+---
 
 ## Lo que no funcionó
 
-*(No hubo enfoques fallidos en esta sesión — el diseño fue planificado antes de implementar)*
+- **`740x660` de geometry** — demasiado grande visualmente. El usuario lo achicó a `620x550` manualmente.
+- **Dividir chips "Solo en for" en dos filas** — se propuso como fix al overflow horizontal, pero el problema real era vertical (botones cortados). Se descartó.
+
+---
 
 ## Próximos pasos
 
-1. **Ejecutar `python -m Tests.test_error_ui_visual`** desde `Hoteles/` y verificar que el modal abre con el resultado simulado
-2. **Probar la app real** (`main.py`): confirmar que el panel izquierdo no tiene scroll, que el botón "Ejecutar" queda habilitado, y que dos comparaciones paralelas abren modales independientes
-3. **Ajustes visuales del modal si hacen falta** (tamaño, colores del header, tipografía)
-4. Si todo anda bien → commit de la feature completa
+1. Verificar visualmente que con `620x550` todos los elementos de la tab Email se ven correctamente (firma, chips, textbox, botones)
+2. Considerar si el modal necesita ser `resizable(True, True)` para que el usuario pueda agrandarlo si quiere más espacio de edición
+3. Testing end-to-end del flujo completo: escribir template → guardar → abrir ModalEmail → verificar interpolación
+4. Posible mejora futura: mostrar un template de ejemplo en el textbox cuando está vacío (placeholder text en CTkTextbox)
 
-## Archivos clave tocados
+---
+
+## Variables disponibles en el template
+
+**Globales** (en cualquier parte):
+`{hotel}`, `{habitacion_excel}`, `{habitacion_web}`, `{firma}`
+
+**Solo dentro de `{% for periodo %}...{% end %}`**:
+`{periodo_id}`, `{fecha_inicio_periodo}`, `{fecha_fin_periodo}`, `{fecha_inicio_busqueda}`, `{fecha_fin_busqueda}`, `{precio_excel}`, `{precio_web}`, `{diferencia}`, `{estado}`
+
+---
+
+## Archivos clave tocados esta sesión
 
 | Archivo | Cambio |
 |---------|--------|
-| `Hoteles/UI/views/resultados_modal.py` | **Nuevo** — modal CTkToplevel autónomo con progreso, resultado, historial y email |
-| `Hoteles/UI/controllers/controlador_comparacion.py` | `ejecutar_comparacion_async(comparison_id)` + todos los `emit` envueltos en `{'comparison_id': ..., ...}` |
-| `Hoteles/UI/interfaz_ctk.py` | Eliminados: `_resultados_outer`, `progress_panel`, `vista_resultados`, `resultado`, `_btn_email`, 4 handlers de comparación, 2 métodos de email. Reescritos: `_ejecutar_comparacion`, `_on_comparison_started`, `_on_mostrar_modal_gaps`. Nuevo: `_lanzar_modal_comparacion` |
-| `Hoteles/UI/views/__init__.py` | Agrega `ResultadosModal` al export |
-| `Hoteles/Tests/test_error_ui_visual.py` | Crea `ResultadosModal` directamente y emite `comparison_completed` con nuevo payload |
-| `docs/features/resultados-modal-comparaciones-paralelas.md` | Doc completo del feature |
-| `docs/arquitectura/tree-directory.md` | Entrada de `resultados_modal.py` bajo `UI/views/` |
+| `Hoteles/Core/services/config_service.py` | +`get/set_email_template`, `get/set_email_firma` |
+| `Hoteles/Core/controller.py` | +`_renderizar_template()`, `generar_texto_email_multiperiodo` acepta `template` y `firma` |
+| `Hoteles/UI/views/config_modal.py` | Tab "Email" implementada completa; geometry `620x550`, minsize `500x520` |
+| `Hoteles/UI/views/modal_email.py` | `_generar_texto_default` usa `ConfigService`; `self._config` en `__init__` |
+| `Hoteles/UI/styles/typography.py` | +`MONO = "Courier New"` |
+| `docs/features/email-template-editable.md` | Creado y actualizado a IMPLEMENTADO |

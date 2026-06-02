@@ -2,15 +2,16 @@
 
 class Spacing:
     """Espaciados estandarizados del sistema."""
-    
+
     # Espaciados base
     XXS = 2
     XS = 4
     SM = 8
+    SMP = 12
     MD = 16
     LG = 24
     XL = 32
-    
+
     # Padding para elementos específicos
     CARD_PADDING = 16
     PANEL_PADDING = 32
@@ -19,7 +20,7 @@ class Spacing:
     # Gaps entre elementos
     FORM_GAP = 12
     ELEMENT_GAP = 12
-    
+
     # Border Radius
     RADIUS_SM = 6
     RADIUS_MD = 8

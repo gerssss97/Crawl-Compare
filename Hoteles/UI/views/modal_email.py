@@ -7,6 +7,7 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from Core.controller import generar_texto_email_multiperiodo, enviar_email_multiperiodo
+from Core.services.config_service import ConfigService
 from UI.components import CTkCustomDropdown
 from UI.styles import Colors, Typography, Spacing
 
@@ -27,6 +28,7 @@ class ModalEmail(ctk.CTkToplevel):
         super().__init__(parent)
         self.transient("")  # desvincula relacion transient con el padre
         self._state = state
+        self._config = ConfigService()
 
         self._configurar_ventana()
 
@@ -63,6 +65,8 @@ class ModalEmail(ctk.CTkToplevel):
             return generar_texto_email_multiperiodo(
                 self._state.hotel.get(),
                 resultado,
+                template=self._config.get_email_template(),
+                firma=self._config.get_email_firma(),
             )
         return ""
 

@@ -16,6 +16,7 @@ from UI.state.app_state import AppState
 from UI.styles.fonts import FontManager
 from UI.styles import Colors, Typography, Spacing
 from UI.styles.button_styles import secondary_button
+from UI.styles.icons import Icons
 from UI.components import (
     CTkCard,
     CTkLabeledComboBox,
@@ -81,6 +82,7 @@ class CrawlCompareGUI:
 
         self._inicializar_controladores()
         self._configurar_event_listeners()
+        Icons.load()
         self._crear_interfaz()
         self._cargar_hoteles_excel()
 
@@ -111,7 +113,7 @@ class CrawlCompareGUI:
         """Configura la ventana principal CustomTkinter."""
         ctk.set_appearance_mode("light")
         ctk.set_default_color_theme("blue")
-        self.root.title("Crawl-Compare - Comparador de Precios")
+        self.root.title("Comparador de Precios de Hoteles")
         self.root.configure(fg_color=Colors.BACKGROUND)
 
         # Calcular tamanio inicial que quepa en la pantalla disponible
@@ -178,14 +180,15 @@ class CrawlCompareGUI:
         # Izquierda: título
         ctk.CTkLabel(
             header,
-            text="Crawl-Compare - Comparador de Precios",
+            text="Comparador de Precios de Hoteles",
             font=(Typography.FAMILY, 18, Typography.BOLD),
             text_color=Colors.HEADER_TEXT,
         ).pack(side="left", padx=Spacing.LG, pady=Spacing.MD)
 
         self.btn_historial = ctk.CTkButton(
             header,
-            text="🕐 Historial",
+            text=" Historial",
+            image=Icons.CLOCK,
             width=110,
             height=32,
             font=(Typography.FAMILY, Typography.SMALL),
@@ -201,13 +204,12 @@ class CrawlCompareGUI:
         # Botón ⚙ Configuración
         self.btn_config = ctk.CTkButton(
             header,
-            text="⚙",
+            text="",
+            image=Icons.SETTINGS_HEADER,
             width=36,
             height=32,
-            font=(Typography.FAMILY, 18),
             fg_color="transparent",
             hover_color="#334155",
-            text_color=Colors.HEADER_TEXT,
             command=self._abrir_modal_config,
         )
         self.btn_config.pack(side="right", padx=(Spacing.XS, Spacing.LG), pady=Spacing.SM)
@@ -220,13 +222,16 @@ class CrawlCompareGUI:
             height=32,
             font=(Typography.FAMILY, Typography.SMALL),
             command=self._on_cambiar_excel,
+            **secondary_button(),
         )
         self.btn_cambiar_excel.pack(side="right", padx=Spacing.XS, pady=Spacing.SM)
 
         # Label del Excel actual (se inicializa en _actualizar_label_excel)
         self.label_excel = ctk.CTkLabel(
             header,
-            text="📁 Cargando…",
+            text=" Cargando…",
+            image=Icons.FOLDER_HEADER,
+            compound="left",
             font=(Typography.FAMILY, Typography.SMALL),
             text_color=Colors.HEADER_TEXT,
         )
@@ -297,12 +302,13 @@ class CrawlCompareGUI:
 
     def _crear_form_reserva(self, parent):
         """Crea la card de seleccion de reserva."""
-        card = CTkCard(parent, title="SELECCION DE RESERVA", icon="🏨")
+        card = CTkCard(parent, title="SELECCION DE RESERVA", icon=Icons.HOME)
         card.pack(fill="x", pady=(0, Spacing.MD))
 
         ctk.CTkButton(
             card.title_frame,
-            text="🗑️ Limpiar",
+            text=" Limpiar",
+            image=Icons.TRASH,
             width=80,
             height=24,
             font=(Typography.FAMILY, Typography.SMALL),
@@ -776,14 +782,14 @@ class CrawlCompareGUI:
             return
         if path is None:
             self.label_excel.configure(
-                text="📁 Sin Excel cargado",
+                text=" Sin Excel cargado",
                 text_color=Colors.ERROR,
             )
         else:
             nombre = Path(path).name
             display = nombre if len(nombre) <= 30 else nombre[:27] + "..."
             self.label_excel.configure(
-                text=f"📁 {display}",
+                text=f" {display}",
                 text_color=Colors.HEADER_TEXT,
             )
 
@@ -798,7 +804,7 @@ class CrawlCompareGUI:
                     return
             except Exception:
                 pass
-        self._modal_config = ConfigModal(self.root, self.config_service)
+        self._modal_config = ConfigModal(self.root)
 
     def _aplicar_modo_sin_excel(self):
         """Configura la UI para el estado 'sin Excel cargado'."""

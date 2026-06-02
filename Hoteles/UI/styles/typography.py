@@ -5,6 +5,7 @@ class Typography:
     
     # Familia de fuente
     FAMILY = "Inter"
+    MONO = "Courier New"
     FALLBACK = ("Segoe UI", "Arial", "sans-serif")
     
     # Tamaños (en pixeles)

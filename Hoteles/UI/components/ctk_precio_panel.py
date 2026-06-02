@@ -2,6 +2,7 @@
 
 import customtkinter as ctk
 from UI.styles import Colors, Typography, Spacing
+from UI.styles.icons import Icons
 from .ctk_card import CTkCard
 
 
@@ -43,7 +44,7 @@ class CTkPrecioPanel(CTkCard):
         """
         self.precio_var = textvariable
         
-        super().__init__(parent, title="PRECIO POR NOCHE", icon="💰", **kwargs)
+        super().__init__(parent, title="PRECIO POR NOCHE", icon=Icons.DOLLAR, **kwargs)
         
         # Suscribirse a cambios del precio
         if self.precio_var:
@@ -147,7 +148,9 @@ class CTkPrecioPanel(CTkCard):
 
         ctk.CTkLabel(
             advertencia_frame,
-            text="⚠️  Cobertura parcial — hay fechas sin precio Excel",
+            text="  Cobertura parcial — hay fechas sin precio Excel",
+            image=Icons.ALERT,
+            compound="left",
             font=(Typography.FAMILY, Typography.SMALL, Typography.BOLD),
             text_color="#856404",
             anchor='w',

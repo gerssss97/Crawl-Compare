@@ -28,6 +28,7 @@ Problemas conocidos, causas y soluciones encontradas durante el desarrollo.
 - [CTkLabel — wraplength dinámico no funciona si width=1 está seteado](#ctklabel--wraplength-dinámico-no-funciona-si-width1-está-seteado)
 - [Scroll / MouseWheel — Dos CTkScrollableFrame anidados se scrollean simultáneamente](#scroll--mousewheel--dos-ctkscrollableframe-anidados-se-scrollean-simultáneamente)
 - [Layout — Threshold numérico para decidir si usar CTkScrollableFrame](#layout--threshold-numérico-para-decidir-si-usar-ctkscrollableframe)
+- [Layout — Flow wrap de CTkButton dentro de tk.Text (chips responsivos)](#layout--flow-wrap-de-ctkbutton-dentro-de-tktext-chips-responsivos)
 
 ---
 
@@ -1228,4 +1229,94 @@ Cuando haya dos `CTkScrollableFrame` anidados y el outer interfiera con el scrol
 1. Usar `root.bind("<MouseWheel>", handler, add="+")` con guardia `winfo_containing` + `_es_hijo_de`
 2. Guardar el `bid` que devuelve `bind()` y liberarlo en `<Destroy>` del inner frame
 3. No usar `<Enter>/<Leave>` — no disparan en `CTkScrollableFrame`
+---
+
+## Layout — Flow wrap de CTkButton dentro de tk.Text (chips responsivos)
+
+**Estado**: ✅ Resuelto
+
+**Archivo afectado**: [UI/views/config_modal.py](../../Hoteles/UI/views/config_modal.py)
+
+### Síntoma
+
+Un grupo de `CTkButton` ("chips") necesita fluir automáticamente a la siguiente línea cuando no entran en el ancho disponible, y reajustarse si el usuario redimensiona el modal. Con `pack(side="left")` todos los chips quedan en una sola fila que se clipea horizontalmente.
+
+### Causa raíz
+
+`pack(side="left")` no tiene noción de salto de línea. Tkinter no tiene un geometry manager de tipo "flow" nativo. Las opciones consideradas:
+
+| Opción | Pros | Contras |
+|--------|------|---------|
+| `pack(side="left")` fijo | Simple | No wrappea, clipea |
+| Filas manuales hardcodeadas | Simple | No responsive |
+| `CTkFlowFrame` custom | Correcto | Requiere `<Configure>` + recalcular `place()` |
+| `tk.Text` con `window_create` | Wrapping automático, responsive | Requiere font trick para altura |
+
+### Solución — `tk.Text` con `window_create`
+
+`tk.Text` con `wrap="word"` wrappea sus contenidos automáticamente. Al insertar `CTkButton` como ventanas embebidas con `window_create("end", window=btn)`, cada chip se trata como un "glifo" que el Text reposiciona cuando no entra en la línea.
+
+**Requisito crítico — separador entre chips**: sin un `insert("end", " ")` después de cada `window_create`, el Text trata todos los chips como una sola "palabra" y no puede cortar. El espacio actúa como punto de wrap.
+
+**Requisito crítico — `font` con tamaño igual a la altura del chip**: `tk.Text` usa `height` en líneas, donde una línea = altura de la font. Si `chip_font.size` es menor que la altura real del botón, los chips se clipean verticalmente. La solución es medir la altura real con un chip sonda y pasarla como `size` a `tk.font.Font`:
+
+```python
+# chip sonda: medir altura real DENTRO del contenedor ya layouteado
+_probe = ctk.CTkButton(row, **_chip_normal("", ""))
+_probe.update_idletasks()
+_chip_h = _probe.winfo_reqheight()
+_probe.destroy()
+chip_font = tk.font.Font(size=_chip_h)
+
+container = tk.Text(row, wrap="word", font=chip_font, height=1, ...)
+container.pack(side="left", fill="x", expand=True)
+
+for token, label in chips:
+    btn = ctk.CTkButton(container, **_chip_normal(token, label))
+    container.window_create("end", window=btn, padx=1, pady=0)
+    container.insert("end", " ")   # ← punto de wrap obligatorio
+```
+
+**Recálculo de altura con `displaylines`**: `height` en `tk.Text` es en líneas lógicas, pero `index("end-1c")` también devuelve líneas lógicas — si 6 chips wrappean visualmente en 2 líneas, `"end-1c"` dice `"1.X"` (1 línea lógica). Hay que usar `count("1.0", "end", "displaylines")` que devuelve líneas visuales reales:
+
+```python
+def _recalcular(c=container):
+    c.configure(state="normal")
+    lineas = c.count("1.0", "end", "displaylines")[0]
+    c.configure(height=max(1, lineas), state="disabled")
+
+container.bind("<Configure>", lambda _: container.after(20, lambda: _recalcular(container)))
+container.after(100, lambda: _recalcular(container))
+container.after(300, lambda: _recalcular(container))
+```
+
+El doble `after` (100ms y 300ms) garantiza el recálculo correcto: el primero corre cuando el widget ya está en pantalla, el segundo cubre casos donde el layout de CTk termina de asentarse más tarde.
+
+### Por qué la sonda debe crearse DENTRO del contenedor ya layouteado
+
+Si la sonda se crea antes de que el contenedor padre esté en pantalla (ej: en `tab` antes del `pack`), `winfo_reqheight()` devuelve el tamaño por defecto de CTk (usualmente 0 o muy chico) porque el widget nunca pasó por el geometry manager. La sonda tiene que vivir dentro de `row` — el frame que ya fue empaquetado — para que CTk calcule su tamaño real.
+
+### Intentos anteriores descartados
+
+| # | Intento | Resultado |
+|---|---------|-----------|
+| 1 | `pack(side="left")` sin wrapping | Chips se clipean horizontalmente |
+| 2 | `tk.Text` sin `insert("end", " ")` | Chips en una fila irrompible — el Text los trata como una "palabra" |
+| 3 | `chip_font = tk.font.Font(size=winfo_reqheight())` con sonda en `tab` | Sonda devuelve altura incorrecta (layout no asentado) → chips enormes o invisibles |
+| 4 | `chip_font = tk.font.Font(family=Typography.FAMILY, size=11)` | Font pequeña → chips clipean verticalmente a la mitad |
+| 5 | `tk.font.nametofont` desde `_text_label.cget("font")` de la sonda | Falla silenciosamente o devuelve font incorrecta según el estado interno de CTk |
+| 6 | `height=1` fijo sin recálculo | Chips de la segunda línea en adelante no se ven |
+| 7 | `index("end-1c")` para contar líneas | Cuenta líneas lógicas, no visuales — no detecta el wrap |
+
+### Regla general
+
+Para un grupo de widgets que necesiten flow wrap responsive en CTk/tkinter:
+1. Usar `tk.Text` con `wrap="word"` como contenedor
+2. Insertar cada widget con `window_create("end", window=btn)` seguido de `insert("end", " ")`
+3. Medir la altura del chip con una sonda **dentro del contenedor ya layouteado**
+4. Pasar esa altura como `size` a `tk.font.Font` y usarla en el `tk.Text`
+5. Recalcular `height` con `count("1.0", "end", "displaylines")` al `<Configure>` y con doble `after`
+
+---
+
 - [../desarrollo/debugging.md](../desarrollo/debugging.md) — Debugging general

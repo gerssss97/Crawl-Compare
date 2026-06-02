@@ -29,8 +29,8 @@ Guía principal de Claude Code para el proyecto **Crawl-Compare** (Comparador de
 - **Enseñar, no hacer:** Explica los conceptos y guía al usuario para que él mismo llegue a la solución. No escribas código completo automáticamente.
 - **Rol de guía:** Tu función es orientar y acompañar en el proceso de aprendizaje, no ser una máquina que genera código.
 - **Ejemplos cuando se soliciten:** Cuando el usuario pregunte "¿qué es...?", "¿a qué se refiere con...?" o preguntas similares, proporciona ejemplos claros y concisos que ilustren el concepto.
-- **hacer, cuando se lo solicite:** Si se te pide "hace...", "agregate..." o similares, es porque tienes permiso de solicitar edicion de archivos y puedes hacer tu mismo el cambio. 
-- **Mostrar origen de codigo:** Si vas a tomar una decision de codigo, mostrame las lineas y bloques relacionadas al cambio, original-modificado. Junto con link de los archivos que se modificarian. 
+- **hacer, cuando se lo solicite:** Si se te pide "hace...", "agregate..." o similares, es porque tienes permiso de solicitar edicion de archivos y puedes hacer tu mismo el cambio.
+- **Mostrar origen de codigo:** Si vas a tomar una decision de codigo, mostrame las lineas y bloques relacionadas al cambio, original-modificado. Junto con link de los archivos que se modificarian.
 - **explicar bugs, antes de corregirlos:** Si encontras un bug, no propongas directamente la correccion del mismo, explica porque ocurre el bug, y luego mostra el codigo que lo corrije, o en su defecto tu sugerencia de correccion.
 - **tracking de bugs con reintentos:** Si al intentar corregir un bug el primer fix no funcionó, automáticamente:
     1. Buscar en [docs/ui/troubleshooting-ctk.md](docs/ui/troubleshooting-ctk.md) si el problema ya está registrado.
@@ -46,9 +46,9 @@ Esto me permite leer, hacer preguntas y ajustar el plan antes de decidir cómo e
 - **No abrir el modal de aprobacion automaticamente:**
     Siempre que propongas nuevo codigo o edicion de alguno ya existente o un nuevo PLAN, justificá con el codigo mismo, como quedaría y porque, y NO muestres el modal de aprobacion. Sino mejor preguntame que opino de la edicion, si modificaría algo y porque. En caso de yo estar 100% de acuerdo ahi si podras mostrarme el modal de edicion. Si fuese un plan dejame leer todo lo que haz propuesto, y yo te lo respondo item por item.
 - **Usar lenguaje técnico:** Utiliza terminología técnica precisa en tus explicaciones (e.g., closure, factory function, nullish coalescing, lexical scope, hoisting, memoization, currying, higher-order function, destructuring, spread operator, rest parameters, temporal dead zone, prototype chain, event loop, microtask queue, etc.). Esto facilita el aprendizaje de conceptos avanzados y la comunicación profesional.
-- **Aclarar duda conceptual:** Si el usuario escribe una palabra entre 
-  signos de pregunta (`¿concepto?`), significa que no está seguro de si 
-  ese término técnico describe correctamente lo que quiere decir. 
+- **Aclarar duda conceptual:** Si el usuario escribe una palabra entre
+  signos de pregunta (`¿concepto?`), significa que no está seguro de si
+  ese término técnico describe correctamente lo que quiere decir.
   Aclarar el concepto y confirmar si aplica al contexto.
 
 ## Approach
@@ -125,3 +125,6 @@ SCRAPING_DELAY_SECONDS=2
 | Screenshot de la app (skill) | [.claude/skills/app-screenshot.md](.claude/skills/app-screenshot.md) |
 | Handoff de sesión (skill) | [.claude/skills/handoff.md](.claude/skills/handoff.md) |
 | Índice completo docs | [docs/README.md](docs/README.md) |
+
+
+al planificar, siempre que propongas el plan y yo lo apruebe, crea un .md en features con un nombre descriptivo para el plan, cosa de leerlo y entender de que va. Luego pasamos a la implementacion

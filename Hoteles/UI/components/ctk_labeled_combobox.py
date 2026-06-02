@@ -60,12 +60,14 @@ class CTkLabeledComboBox(CTkBaseComponent):
     
     def _setup_ui(self):
         """Construye el label y el dropdown personalizado."""
-        # Label
-        label_text = f"{self.icon} {self.label_text}" if self.icon else self.label_text
+        is_image = self.icon and hasattr(self.icon, "_light_image")
+        label_text = self.label_text if is_image else (f"{self.icon} {self.label_text}" if self.icon else self.label_text)
 
         self.label = ctk.CTkLabel(
             self,
             text=label_text,
+            image=self.icon if is_image else None,
+            compound="left" if is_image else "center",
             font=(Typography.FAMILY, Typography.BODY, Typography.BOLD),
             text_color=Colors.TEXT_PRIMARY,
             fg_color="transparent",
