@@ -100,11 +100,6 @@ touch Hoteles/.env
 # Obtener en: https://console.groq.com/keys
 GROQ_API_KEY=gsk_tu_api_key_aqui
 
-# Gmail SMTP (OPCIONAL - solo para envío de emails)
-# Usar "Contraseña de aplicación" de Google
-# Guía: https://support.google.com/accounts/answer/185833
-GMTP_KEY=tu_contraseña_de_aplicacion_aqui
-
 # ============================================
 # Configuración del Scraper
 # ============================================
@@ -112,17 +107,10 @@ GMTP_KEY=tu_contraseña_de_aplicacion_aqui
 # Delay entre scraping de periodos (en segundos)
 # Default: 2s (evita rate limiting)
 SCRAPING_DELAY_SECONDS=2
-
-# ============================================
-# Email Config (OPCIONAL)
-# ============================================
-
-# Email desde el cual se envían notificaciones
-SMTP_USER=tu_email@gmail.com
-
-# Email destinatario de notificaciones
-EMAIL_TO=destinatario@example.com
 ```
+
+> El envío de email NO usa SMTP ni credenciales: abre el cliente de email del SO
+> vía `mailto:`. Ver [../negocio/email.md](../negocio/email.md).
 
 ### Obtener Groq API Key (Gratis)
 

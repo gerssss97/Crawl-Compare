@@ -149,7 +149,7 @@ Siempre que crees un `CTkToplevel` flotante (dropdown, tooltip, popup) desde un 
 
 **Estado**: ✅ Resuelto
 
-**Archivos afectados**: [UI/views/modal_email.py](../../Hoteles/UI/views/modal_email.py)
+**Archivos afectados**: `UI/views/modal_email.py` (eliminado — el modal de email ya no existe, ver [../negocio/email.md](../negocio/email.md))
 
 ### Síntoma
 
@@ -459,7 +459,7 @@ for value in values:
 
 **Estado**: ✅ Resuelto
 
-**Archivos afectados**: [UI/views/modal_email.py](../../Hoteles/UI/views/modal_email.py)
+**Archivos afectados**: `UI/views/modal_email.py` (eliminado — el modal de email ya no existe, ver [../negocio/email.md](../negocio/email.md))
 
 ### Síntoma
 
@@ -509,7 +509,7 @@ El `sticky="nsew"` en cada banner hace que se estire tanto en ancho como en alto
 
 **Estado**: ✅ Resuelto (workaround: ocultar el botón via Win32 API)
 
-**Archivos afectados**: [UI/views/modal_email.py](../../Hoteles/UI/views/modal_email.py)
+**Archivos afectados**: `UI/views/modal_email.py` (eliminado — el modal de email ya no existe, ver [../negocio/email.md](../negocio/email.md))
 
 ### Síntoma
 
@@ -562,7 +562,7 @@ En modales `CTkToplevel` en Windows donde el botón minimizar queda bloqueado: o
 
 **Estado**: 🔬 Pendiente — esquinas del hijo rectangular siguen visibles dentro del frame redondeado
 
-**Archivos afectados**: [UI/views/modal_email.py](../../Hoteles/UI/views/modal_email.py)
+**Archivos afectados**: `UI/views/modal_email.py` (eliminado — el modal de email ya no existe, ver [../negocio/email.md](../negocio/email.md))
 
 ### Síntoma
 
@@ -615,7 +615,7 @@ La migración se hizo y se mantiene independientemente de las esquinas, porque C
 
 **Estado**: ✅ Resuelto
 
-**Archivos afectados**: [UI/interfaz_ctk.py](../../Hoteles/UI/interfaz_ctk.py), [UI/views/modal_email.py](../../Hoteles/UI/views/modal_email.py)
+**Archivos afectados**: [UI/interfaz_ctk.py](../../Hoteles/UI/interfaz_ctk.py), `UI/views/modal_email.py` (eliminado — ver [../negocio/email.md](../negocio/email.md))
 
 ### Síntoma
 
@@ -677,7 +677,7 @@ Si un `CTkScrollableFrame` tiene scroll lento sobre la scrollbar, el problema es
 
 **Estado**: 🔬 En investigación
 
-**Archivos afectados**: [UI/views/modal_email.py](../../Hoteles/UI/views/modal_email.py)
+**Archivos afectados**: `UI/views/modal_email.py` (eliminado — el modal de email ya no existe, ver [../negocio/email.md](../negocio/email.md))
 
 ### Síntoma
 

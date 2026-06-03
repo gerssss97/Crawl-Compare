@@ -2,13 +2,30 @@
 
 Documentación de ventanas modales (Toplevel) del proyecto.
 
-## Modal de Email
+## Envío de Email (mailto)
 
 ### Propósito
 
-Preview y edición del email de discrepancia antes de enviar.
+Tras una comparación con discrepancias, el botón "Enviar Email" del
+`ResultadosModal` **no abre un modal propio**: genera el cuerpo del reporte y
+abre el cliente de email predeterminado del SO vía `mailto:`.
 
-### Layout
+> Histórico: existía un modal de redacción (`ModalEmail`) que enviaba por SMTP.
+> Se eliminó. El editor de redacción ahora es el propio cliente de email del SO.
+
+### Flujo
+
+1. Comparación completada con discrepancias → `ResultadosModal` muestra el botón.
+2. Usuario click "Enviar Email" → `ResultadosModal._abrir_email()`.
+3. Se genera el cuerpo con `generar_texto_email_multiperiodo(...)` (template + firma de `ConfigService`).
+4. `MailtoSender().enviar(destinatario="", asunto, cuerpo)` abre el cliente del SO.
+5. El usuario completa destinatario y envía desde su cliente.
+
+Detalle de límites de longitud y fallback a portapapeles: ver
+[../negocio/email.md](../negocio/email.md).
+
+<details>
+<summary>Layout del modal viejo (eliminado, solo referencia histórica)</summary>
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -117,13 +134,7 @@ def crear_pantalla_mail(self, texto_email):
 7. **Opción B**: Click "Cancelar"
    - Cierra modal sin enviar
 
-### Características
-
-- **Modal**: Bloquea ventana principal (grab_set)
-- **Transient**: Siempre sobre ventana principal
-- **Editable**: Usuario puede modificar texto antes de enviar
-- **Scrollable**: Soporta emails largos (multi-período)
-- **Fuente monospace**: Mejor formato de tabla ASCII
+</details>
 
 ---
 
@@ -265,11 +276,11 @@ progress.ventana.destroy()
 │  │ Máximo de reintentos:      [3        ]        │ │
 │  └───────────────────────────────────────────────┘ │
 │                                                     │
-│  Email                                              │
+│  Email (pestaña)                                    │
 │  ┌───────────────────────────────────────────────┐ │
-│  │ SMTP User:        [tu@gmail.com           ]   │ │
-│  │ Email destino:    [destino@example.com    ]   │ │
-│  │ Envío automático: [✓]                         │ │
+│  │ Firma:    [Germán Lucero                  ]   │ │
+│  │ Template del email (editor + chips de tags)   │ │
+│  │ [Estimado equipo de reservas, ...          ] │ │
 │  └───────────────────────────────────────────────┘ │
 │                                                     │
 │                 [Guardar]  [Cancelar]              │

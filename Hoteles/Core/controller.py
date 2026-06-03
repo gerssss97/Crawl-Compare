@@ -1,9 +1,5 @@
 from .gestor_datos import *
-import os
-import smtplib
 from typing import Optional
-from email.mime.text import MIMEText ##crea msjs con formato adecuado
-from email.mime.multipart import MIMEMultipart
 from Core.email_templates import DEFAULT_EMAIL_TEMPLATE
 
 
@@ -122,56 +118,6 @@ async def dar_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fres
         raise ValueError("No se pudieron obtener datos válidos del hotel web")
     return hotel
 
-def generar_texto_email(hotel, habitacion_excel, precio_excel, precio_web):
-    return (
-        "Estimado equipo de reservas,\n\n"
-        f"He notado una discrepancia en los precios de las habitaciones entre el archivo Excel y la página web del hotel {hotel}.\n\n"
-        "Detalles de la comparación:\n"
-        f"- Habitación Excel: {habitacion_excel}\n"
-        f"- Precio en Excel: {precio_excel}\n"
-        f"- Precio en Web: {precio_web}\n\n"
-        "Agradecería si pudieran revisar esta diferencia y proporcionarme una explicación o corrección si es necesario.\n\n"
-        "Gracias por su atención.\n\n"
-        "Saludos cordiales,\n"
-        "Germán Lucero"
-    )
-
-def enviar_email_discrepancia(hotel, habitacion_excel, precio_excel, precio_web, remitente, destinatario, texto_override=None):
-    """Envía email notificando discrepancia de precios.
-
-    Args:
-        hotel: Nombre del hotel
-        habitacion_excel: Nombre de habitación en Excel
-        precio_excel: Precio en Excel
-        precio_web: Precio en web
-        remitente: Email del remitente
-        destinatario: Email del destinatario
-        texto_override: Texto personalizado (opcional)
-
-    Returns:
-        bool: True si el envío fue exitoso, False en caso contrario
-
-    Raises:
-        ValueError: Si GMTP_KEY no está configurada en variables de entorno
-    """
-    clave = os.getenv("GMTP_KEY")
-
-    if not clave:
-        raise ValueError(
-            "GMTP_KEY no está configurada. Configure la variable de entorno "
-            "con su clave de aplicación de Gmail antes de enviar emails.\n"
-            "Ejemplo: set GMTP_KEY=tu_clave_aqui (Windows) o export GMTP_KEY=tu_clave_aqui (Linux/Mac)"
-        )
-
-    asunto = f"Discrepancia de precios - {hotel}"
-
-    if texto_override:
-        texto_mensaje = texto_override
-    else:
-        texto_mensaje = generar_texto_email(hotel, habitacion_excel, precio_excel, precio_web)
-
-    return enviar_correo(remitente, clave, destinatario, asunto, texto_mensaje)
-
 def _renderizar_template(template: str, hotel: str, resultado, firma: str) -> str:
     import re
 
@@ -242,78 +188,5 @@ def _renderizar_template(template: str, hotel: str, resultado, firma: str) -> st
 def generar_texto_email_multiperiodo(hotel, resultado_multiperiodo, template: str | None = None, firma: str = "Germán Lucero"):
     t = template if template is not None else DEFAULT_EMAIL_TEMPLATE
     return _renderizar_template(t, hotel, resultado_multiperiodo, firma)
-
-
-def enviar_email_multiperiodo(hotel, resultado_multiperiodo, remitente, destinatario, texto_override=None):
-    """Envía email con discrepancias multi-periodo.
-
-    Args:
-        hotel: Nombre del hotel
-        resultado_multiperiodo: ResultadoComparacionMultiperiodo
-        remitente: Email del remitente
-        destinatario: Email del destinatario
-        texto_override: Texto personalizado (opcional). Si no se provee, se genera automáticamente.
-
-    Returns:
-        bool: True si el envío fue exitoso, False en caso contrario
-
-    Raises:
-        ValueError: Si GMTP_KEY no está configurada
-    """
-    if not resultado_multiperiodo.tiene_discrepancias:
-        print("No hay discrepancias, no se envía email.")
-        return False
-
-    # Usar texto personalizado si se provee, sino generar automáticamente
-    if texto_override:
-        texto = texto_override
-    else:
-        texto = generar_texto_email_multiperiodo(hotel, resultado_multiperiodo)
-
-    asunto = f"Discrepancias de precios multi-periodo - {hotel}"
-
-    clave = os.getenv("GMTP_KEY")
-    if not clave:
-        raise ValueError(
-            "GMTP_KEY no está configurada. Configure la variable de entorno "
-            "con su clave de aplicación de Gmail antes de enviar emails.\n"
-            "Ejemplo: set GMTP_KEY=tu_clave_aqui (Windows) o export GMTP_KEY=tu_clave_aqui (Linux/Mac)"
-        )
-
-    return enviar_correo(remitente, clave, destinatario, asunto, texto)
-
-
-def enviar_correo(remitente, clave, destinatario, asunto, cuerpo_mensaje):
-    # Configurar el servidor SMTP de Gmail
-    servidor_smtp = "smtp.gmail.com"
-    puerto = 587 # Puerto para TLS
-
-    # Crear un objeto de mensaje
-    msg = MIMEMultipart()
-    msg['From'] = remitente
-    msg['To'] = destinatario
-    msg['Subject'] = asunto
-
-    # Adjuntar el cuerpo del mensaje
-    msg.attach(MIMEText(cuerpo_mensaje, 'plain'))
-
-    try:
-        # Iniciar la conexión segura con TLS
-        server = smtplib.SMTP(servidor_smtp, puerto)
-        server.starttls()
-
-        # Iniciar sesión en la cuenta de Gmail
-        server.login(remitente, clave)
-
-        # Enviar el correo
-        server.sendmail(remitente, destinatario, msg.as_string())
-        print("Correo enviado exitosamente!")
-        return True
-    except Exception as e:
-        print(f"Ocurrió un error al enviar el correo: {e}")
-        return False
-    finally:
-        # Cerrar la conexión
-        server.quit()
 
 

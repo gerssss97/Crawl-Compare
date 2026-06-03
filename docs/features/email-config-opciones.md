@@ -11,15 +11,28 @@ Este documento captura el análisis completo del espacio de soluciones para que 
 
 ## 1. Problema actual
 
-El sistema de envío de email hoy usa una cuenta hardcodeada del developer:
+> **ACTUALIZADO**: el envío SMTP hardcodeado descrito abajo **ya se eliminó**. Hoy
+> el envío usa `mailto:` (la Opción D de este doc): abre el cliente de email del
+> SO sin credenciales (ver [../negocio/email.md](../negocio/email.md)). El resto
+> de este documento sigue valiendo como roadmap si en el futuro se quiere sumar
+> envío automático (servicio transaccional u OAuth) además del `mailto:`.
 
-- [Hoteles/Core/controller.py:156, 266](../../Hoteles/Core/controller.py) — lee `GMTP_KEY` con `os.getenv()`.
-- [Hoteles/Core/controller.py:277-308](../../Hoteles/Core/controller.py) — `enviar_correo()` conecta a `smtp.gmail.com:587` con TLS.
-- [Hoteles/UI/views/modal_email.py:17-18](../../Hoteles/UI/views/modal_email.py) — `REMITENTE` y `DESTINATARIO` hardcodeados con el email del developer (`gerlucero1997@gmail.com`).
-- [Hoteles/UI/views/modal_email.py:594](../../Hoteles/UI/views/modal_email.py) — `enviar_email_multiperiodo(hotel, resultado, remitente, destinatario, texto_override)` usa `self.REMITENTE` fijo.
-- El `.env` define `GMTP_KEY` y `GROQ_API_KEY` (no hay `SMTP_USER` ni `EMAIL_TO`).
+<details>
+<summary>Situación original (SMTP hardcodeado, eliminado)</summary>
 
-**Distribuir el `.exe` = distribuir las credenciales del developer.** Cada cliente final manda desde la cuenta de Germán. Si el cliente quiere mandar desde su cuenta, hoy no puede.
+El sistema de envío de email usaba una cuenta hardcodeada del developer:
+
+- `Core/controller.py` — leía `GMTP_KEY` con `os.getenv()`.
+- `Core/controller.py` — `enviar_correo()` conectaba a `smtp.gmail.com:587` con TLS.
+- `UI/views/modal_email.py` — `REMITENTE` y `DESTINATARIO` hardcodeados con el email del developer (`gerlucero1997@gmail.com`).
+- `enviar_email_multiperiodo(...)` usaba `self.REMITENTE` fijo.
+- El `.env` definía `GMTP_KEY` y `GROQ_API_KEY`.
+
+**Distribuir el `.exe` = distribuir las credenciales del developer.** Cada cliente
+final mandaba desde la cuenta de Germán. Eso ya no ocurre: con `mailto:` cada
+usuario manda desde su propio cliente de email.
+
+</details>
 
 ---
 
@@ -285,7 +298,7 @@ Dos vías de envío que el usuario elige según el contexto.
   - `email_firma: <opcional>`.
 - **Modal de Email config**: dropdown "Modo de envío" → opciones `[mailto:, Resend, SendGrid]`. Si elige uno de los servicios, aparecen los campos correspondientes.
 - **Modal de envío** (cuando el usuario quiere mandar el email de discrepancia): radio "Cómo mandar: [Automático (Resend) / Abrir mi cliente (mailto:)]" pre-seleccionado según preferencia configurada.
-- **Refactor**: reemplazar `enviar_correo()` en [Core/controller.py](../../Hoteles/Core/controller.py) por una **factory** `obtener_sender(config) → Sender` que devuelve `ResendSender`, `SendGridSender`, o `MailtoSender`. Cada uno implementa la misma interfaz `enviar(remitente, destinatario, asunto, cuerpo) → bool`.
+- **Refactor**: introducir una **factory** `obtener_sender(config) → Sender` que devuelve `ResendSender`, `SendGridSender`, o el actual `MailtoSender` ([Core/services/email_senders.py](../../Hoteles/Core/services/email_senders.py)). Cada uno implementa la misma interfaz `enviar(destinatario, asunto, cuerpo)`. (Nota: el viejo `enviar_correo()` SMTP ya se eliminó; `MailtoSender` ya existe.)
 
 ### Pro
 
@@ -422,10 +435,10 @@ Antes de implementar, responder:
 4. Implementar en este orden:
    1. Extender `ConfigService` con las claves nuevas (`email_provider`, `email_user`, `email_from_name`, `email_destinatario_default`, `email_firma`).
    2. Sumar dependencia de `keyring` (común a ambos combos).
-   3. Refactorizar `enviar_correo()` en [Core/controller.py](../../Hoteles/Core/controller.py) a una factory de senders (`obtener_sender(config) → Sender`).
+   3. Crear una factory de senders (`obtener_sender(config) → Sender`) sobre el actual [Core/services/email_senders.py](../../Hoteles/Core/services/email_senders.py).
    4. Implementar `MailtoSender` (común a ambos combos).
    5. Implementar el sender específico del combo elegido (`ResendSender` o `GmailOAuthSender`).
-   6. Modificar [UI/views/modal_email.py](../../Hoteles/UI/views/modal_email.py) para que use el sender configurado.
+   6. Modificar `ResultadosModal._abrir_email()` ([UI/views/resultados_modal.py](../../Hoteles/UI/views/resultados_modal.py)) para que use el sender configurado en vez de `MailtoSender` fijo.
    7. Activar el contenido de la pestaña "Email" en [UI/views/config_modal.py](../../Hoteles/UI/views/config_modal.py) (hoy es placeholder).
    8. Botón "Probar conexión" en la pestaña Email del modal.
 

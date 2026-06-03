@@ -144,10 +144,20 @@ x = px + (pw - w) // 2 + desp
 y = py + (ph - h) // 2 + desp
 ```
 
-### Botón "Enviar Email" — `_FakeState`
+### Botón "Enviar Email"
 
-`ModalEmail` espera un `AppState` completo. Para no modificarlo, `ResultadosModal`
-construye un objeto fake que satisface solo los campos que `ModalEmail` accede:
+> **ACTUALIZADO**: el botón ya no abre el modal `ModalEmail` (eliminado junto al
+> envío SMTP). Ahora `ResultadosModal._abrir_email()` genera el cuerpo con
+> `generar_texto_email_multiperiodo(...)` y abre el cliente de email del SO vía
+> `MailtoSender`. Las clases `_FakeState`/`_FakeVar` (que existían solo para
+> alimentar al modal viejo) también se borraron. Ver
+> [../negocio/email.md](../negocio/email.md).
+
+<details>
+<summary>Diseño original con `_FakeState` (obsoleto)</summary>
+
+`ModalEmail` esperaba un `AppState` completo. Para no modificarlo, `ResultadosModal`
+construía un objeto fake que satisfacía solo los campos que `ModalEmail` accedía:
 
 ```python
 class _FakeState:
@@ -156,6 +166,8 @@ class _FakeState:
         self.resultado_multiperiodo = resultado
         self.periodos_precio = []
 ```
+
+</details>
 
 ---
 
@@ -187,8 +199,9 @@ class _FakeState:
 - `self._btn_email`
 - `self._total_periodos_progreso`
 - Handlers: `_on_comparison_progress`, `_on_scrape_step`, `_on_comparison_completed`, `_on_comparison_error`
-- Métodos: `_mostrar_email_btn`, `_abrir_ventana_email`
-- Imports: `tk`, `CTkProgressPanel`, `VistaResultados`, `MailtoSender`, `generar_texto_email_multiperiodo`
+- Métodos: `_mostrar_btn_email`, `_abrir_email`
+- Imports a nivel módulo: `tk`, `CTkProgressPanel`, `VistaResultados`
+- Imports lazy dentro de `_abrir_email()`: `MailtoSender`, `ConfigService`, `generar_texto_email_multiperiodo`
 - `_panel_izq_outer.grid_rowconfigure(1, weight=0)` (el outer ahora tiene una sola fila)
 
 ---

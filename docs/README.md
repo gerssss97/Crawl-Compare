@@ -97,7 +97,7 @@ Comparación, periodos, emails.
 | [comparacion.md](negocio/comparacion.md) | Fuzzy matching con RapidFuzz |
 | [multiperiodo.md](negocio/multiperiodo.md) | Sistema multi-período completo ⭐ |
 | [periodos.md](negocio/periodos.md) | Extracción, asignación, inferencia |
-| [email.md](negocio/email.md) | SMTP Gmail, generación de texto |
+| [email.md](negocio/email.md) | Envío vía mailto (cliente del SO), generación de texto |
 
 ### UI
 
@@ -276,12 +276,11 @@ python .claude/skills/scripts/commit_custom.py
 3. Ver logs detallados en consola
 4. Usar [compare-debug skill](desarrollo/debugging.md#usar-skill-compare-debug)
 
-### Configurar Email
+### Email
 
-1. Leer [email.md - Configuración](negocio/email.md#configuración)
-2. Obtener contraseña de aplicación de Gmail
-3. Configurar `.env` con `GMTP_KEY`, `SMTP_USER`, `EMAIL_TO`
-4. Testing sin envío: `python .claude/skills/scripts/multiperiodo_test.py --modo fake`
+El envío abre el cliente de email del SO vía `mailto:` (sin SMTP ni
+credenciales). No requiere configuración. Solo el template y la firma son
+editables desde el modal de configuración. Ver [email.md](negocio/email.md).
 
 ---
 
@@ -325,7 +324,6 @@ Ver: [troubleshooting-ctk.md](ui/troubleshooting-ctk.md) ⭐
 ### APIs
 
 - [Groq API Docs](https://console.groq.com/docs) - LLM provider
-- [Gmail SMTP](https://support.google.com/mail/answer/7126229) - Email sending
 
 ---
 

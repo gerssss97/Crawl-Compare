@@ -71,7 +71,7 @@ Saludos,
 | `Hoteles/Core/services/config_service.py` | +4 métodos: `get/set_email_template`, `get/set_email_firma` |
 | `Hoteles/Core/controller.py` | +`_renderizar_template()`, `generar_texto_email_multiperiodo` acepta `template` y `firma` |
 | `Hoteles/UI/views/config_modal.py` | Tab "Email" implementada completa (firma, chips, editor, validación, guardar/restaurar) |
-| `Hoteles/UI/views/modal_email.py` | `_generar_texto_default` consulta `ConfigService` y pasa `template`/`firma` al controller |
+| `Hoteles/UI/views/modal_email.py` | (eliminado) `_generar_texto_default` consultaba `ConfigService` y pasaba `template`/`firma` al controller. Esa lógica vive ahora en `ResultadosModal._abrir_email()` ([resultados_modal.py](../../Hoteles/UI/views/resultados_modal.py)) |
 
 ### Detalles de implementación
 
@@ -81,19 +81,19 @@ Saludos,
 
 **`config_modal.py`** — Chips en dos filas (Globales / Solo en for). Font monospace `Courier New 12` en el editor para que el template sea más legible. Validación en `_validar_template()` cubre los 3 errores bloqueantes.
 
-**`modal_email.py`** — `self._config = ConfigService()` instanciado en `__init__`, consumido en `_generar_texto_default`.
+**Consumo del template** — originalmente en `ModalEmail._generar_texto_default` (modal eliminado). Hoy lo consume `ResultadosModal._abrir_email()`: instancia `ConfigService()` y pasa `get_email_template()` / `get_email_firma()` a `generar_texto_email_multiperiodo(...)`, cuyo resultado va a `MailtoSender`.
 
 ---
 
 ## Verificación end-to-end
 
-1. Sin template guardado → `ModalEmail` muestra el texto hardcodeado de siempre (fallback intacto)
+1. Sin template guardado → el cuerpo del email usa el texto hardcodeado de siempre (fallback intacto)
 2. Guardar template con `{hotel}` y bloque `{% for periodo %}` con `{precio_web}` → `config.json` tiene `"email_template"`
-3. Reabrir `ModalEmail` → textbox muestra texto interpolado con valores reales
+3. Click "Enviar Email" → el `mailto:` lleva el texto interpolado con valores reales
 4. Intentar guardar `{precio_web}` FUERA del bloque → error bloqueante, no se guarda
 5. Intentar guardar `{prcio_web}` (typo) → error bloqueante "variable desconocida"
 6. Intentar guardar `{% for periodo %}` sin `{% end %}` → error bloqueante "bloque mal formado"
 7. Template sin bloque ni variables de-periodo → se guarda con aviso informativo
 8. Click en chip "Precio Web" → `{precio_web}` se inserta en la posición del cursor
-9. Restaurar predeterminado → `config.json` sin `"email_template"`, `ModalEmail` vuelve al hardcodeado
+9. Restaurar predeterminado → `config.json` sin `"email_template"`, el cuerpo vuelve al hardcodeado
 10. Firma "Equipo Soporte" + `{firma}` en template → email pre-relleno muestra "Equipo Soporte"

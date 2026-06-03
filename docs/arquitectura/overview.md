@@ -97,7 +97,7 @@ Funciones tipo API para acceso desde UI/externos:
 - `dar_hotel_web(force_fresh=False)` - Obtiene datos web con caché
 - `comparar_habitaciones()` - Matching fuzzy + comparación de precios
 - `generar_texto_email_multiperiodo()` - Genera texto de email con breakdown
-- `enviar_email_multiperiodo()` - Envía email via SMTP
+  (el envío lo hace `MailtoSender` abriendo el cliente del SO vía `mailto:`)
 
 #### gestor_datos.py - Orquestador de Datos
 Clase `GestorDatos` que maneja el flujo entre fuentes Excel y web:
@@ -258,7 +258,7 @@ Funciones para manejo de habitaciones y periodos:
 
 5. Email (opcional):
    Si hay discrepancias → Usuario click "Enviar email"
-   → generar_texto_email_multiperiodo() → SMTP Gmail
+   → generar_texto_email_multiperiodo() → MailtoSender → cliente de email del SO
 ```
 
 ## Patrones de Diseño Utilizados

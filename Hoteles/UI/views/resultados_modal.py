@@ -9,25 +9,6 @@ from UI.components import CTkProgressPanel
 from UI.views.vista_resultados import VistaResultados
 
 
-class _FakeVar:
-    """StringVar/IntVar fake para satisfacer la interfaz que ModalEmail espera de AppState."""
-    def __init__(self, value):
-        self._v = value
-
-    def get(self):
-        return self._v
-
-
-class _FakeState:
-    """AppState fake — expone solo los campos que ModalEmail necesita."""
-    def __init__(self, snapshot: dict, resultado):
-        self.hotel = _FakeVar(snapshot.get('hotel', ''))
-        self.edificio = _FakeVar(snapshot.get('edificio') or '')
-        self.habitacion = _FakeVar(snapshot.get('habitacion', ''))
-        self.resultado_multiperiodo = resultado
-        self.periodos_precio = []
-
-
 class ResultadosModal(ctk.CTkToplevel):
     """Modal independiente que muestra el progreso y resultado de una comparación.
 
@@ -377,9 +358,22 @@ class ResultadosModal(ctk.CTkToplevel):
     def _abrir_email(self):
         if not self._resultado:
             return
-        from UI.views.modal_email import ModalEmail
-        fake_state = _FakeState(self._snapshot, self._resultado)
-        ModalEmail(self, fake_state)
+        from Core.controller import generar_texto_email_multiperiodo
+        from Core.services.config_service import ConfigService
+        from Core.services.email_senders import MailtoSender
+
+        config = ConfigService()
+        hotel = self._snapshot.get('hotel', '')
+        cuerpo = generar_texto_email_multiperiodo(
+            hotel,
+            self._resultado,
+            template=config.get_email_template(),
+            firma=config.get_email_firma(),
+        )
+        asunto = f"Reporte de Discrepancias - {hotel}"
+        # Destinatario vacio: el usuario lo completa en su cliente de email.
+        # A futuro: lista de destinatarios segun el hotel elegido.
+        MailtoSender().enviar(destinatario="", asunto=asunto, cuerpo=cuerpo)
 
     # =========================================================
     # Posicionamiento

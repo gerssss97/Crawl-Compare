@@ -94,9 +94,10 @@ Esto me permite leer, hacer preguntas y ajustar el plan antes de decidir cómo e
 **Variables de entorno** (en `Hoteles/.env`):
 ```
 GROQ_API_KEY=gsk_...           # Obligatorio para scraping
-GMTP_KEY=...                   # Opcional para emails
 SCRAPING_DELAY_SECONDS=2
 ```
+
+**Email**: se abre el cliente de email del SO vía `mailto:` (no SMTP, sin credenciales). Ver [docs/negocio/email.md](docs/negocio/email.md).
 
 ---
 

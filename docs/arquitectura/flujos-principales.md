@@ -18,7 +18,7 @@ Este flujo se ejecuta al iniciar la aplicación (`python Hoteles/app.py`).
 
 ```mermaid
 flowchart TD
-    Start([Inicio: python app.py]) --> LoadEnv[Cargar .env<br/>GROQ_API_KEY, GMTP_KEY]
+    Start([Inicio: python app.py]) --> LoadEnv[Cargar .env<br/>GROQ_API_KEY]
     LoadEnv --> TestExtractor[Ejecutar testExtractor2.py<br/>Generar validación Excel]
     TestExtractor --> CreateRoot[Crear ventana Tkinter<br/>root = tk.Tk]
     CreateRoot --> CreateApp[InterfazApp.__init__]
@@ -58,7 +58,7 @@ if not os.getenv("GROQ_API_KEY"):
 ```
 
 **Archivos involucrados**:
-- `Hoteles/.env` - Contiene `GROQ_API_KEY`, `GMTP_KEY`
+- `Hoteles/.env` - Contiene `GROQ_API_KEY`
 
 ---
 
@@ -365,11 +365,8 @@ flowchart TD
     ShowEmailBtn --> UserEmail{Usuario click<br/>email?}
     UserEmail -->|No| End2
     UserEmail -->|Sí| GenEmail[generar_texto_email_multiperiodo]
-    GenEmail --> ShowEmailUI[crear_pantalla_mail<br/>Modal editable]
-    ShowEmailUI --> UserSend{Usuario<br/>envía?}
-    UserSend -->|No| End2
-    UserSend -->|Sí| SendSMTP[enviar_email_multiperiodo<br/>SMTP Gmail]
-    SendSMTP --> End3([Fin - Email enviado])
+    GenEmail --> OpenMailto[MailtoSender.enviar<br/>webbrowser.open mailto:]
+    OpenMailto --> End3([Fin - Cliente de email abierto])
 
     style Start fill:#e1f5ff
     style End2 fill:#c8e6c9
@@ -560,20 +557,14 @@ def _on_comparison_completed(self, resultado):
 Si usuario clickea "Envío de email":
 
 ```python
-def crear_pantalla_mail(self):
-    # Generar texto
-    texto_email = generar_texto_email_multiperiodo(hotel, resultado)
+def _abrir_email(self):  # ResultadosModal
+    # Generar texto (template + firma desde ConfigService)
+    cuerpo = generar_texto_email_multiperiodo(hotel, resultado)
+    asunto = f"Reporte de Discrepancias - {hotel}"
 
-    # Mostrar en ventana editable
-    email_window = tk.Toplevel()
-    text_widget = tk.Text(email_window)
-    text_widget.insert('1.0', texto_email)
-
-    # Botón enviar
-    def enviar():
-        enviar_email_multiperiodo(hotel, resultado, remitente, destinatario)
-
-    ttk.Button(email_window, text="Enviar Email", command=enviar).pack()
+    # Abre el cliente de email del SO con el contenido precargado.
+    # Destinatario vacío: lo completa el usuario en su cliente.
+    MailtoSender().enviar(destinatario="", asunto=asunto, cuerpo=cuerpo)
 ```
 
 ---
@@ -586,7 +577,7 @@ def crear_pantalla_mail(self):
 | Selección hotel/edificio/habitación | Instantáneo (<100ms) |
 | Comparación multi-periodo (3 periodos) | ~15s (3x2s scraping + 3x2s delay) |
 | Generación email | <1s |
-| Envío email SMTP | ~2-3s |
+| Apertura cliente email (mailto) | Instantáneo |
 
 ---
 

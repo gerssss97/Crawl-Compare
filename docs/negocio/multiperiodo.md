@@ -433,10 +433,9 @@ SCRAPING_DELAY_SECONDS=2
 
 # API key de Groq (obligatorio)
 GROQ_API_KEY=gsk_...
-
-# Gmail app password (opcional, para emails)
-GMTP_KEY=...
 ```
+
+> El email no usa credenciales: abre el cliente del SO vía `mailto:`. Ver [email.md](email.md).
 
 ### Modificar Delay
 
