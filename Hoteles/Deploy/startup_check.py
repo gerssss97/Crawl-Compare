@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+from typing import Optional, Callable
 
 
 def _get_base_dir() -> str:
@@ -95,6 +96,11 @@ def check_playwright() -> None:
         sys.exit(1)
 
 
-def run_checks() -> None:
+def run_checks(on_progress: Optional[Callable[[str], None]] = None) -> None:
+    _notify = on_progress or (lambda msg: None)
+
+    _notify("Verificando configuración...")
     check_env()
+
+    _notify("Verificando navegador...")
     check_playwright()

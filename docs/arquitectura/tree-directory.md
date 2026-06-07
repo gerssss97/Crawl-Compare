@@ -78,7 +78,6 @@ Hoteles/
 │   ├── views/
 │   │   ├── vista_resultados.py      # Tabla comparativa multi-periodo ⭐
 │   │   ├── resultados_modal.py      # Modal autónomo de resultados (uno por comparación) ⭐
-│   │   ├── modal_email.py           # Modal para enviar email
 │   │   ├── config_modal.py          # Modal de configuración (4 pestañas)
 │   │   └── historial_modal.py       # Modal de historial de comparaciones previas
 │   │
@@ -117,13 +116,13 @@ Hoteles/
 │
 └── Tests/
     ├── testExtractor2.py
-    ├── test_email_modal_visual.py
     ├── test_error_ui_visual.py
     ├── test_extractor.py
-    ├── test_gmtp_direct.py
-    ├── test_gmtp_validation.py
 │   │   ├── ctk_inline_suggester.py  # CTkInlineSuggester â€” popup de sugerencias inline para tk.Text.
+│   ├── error_logger.py  # Logger persistente para .exe: tee de stdout/stderr + excepthook con messagebox.
+│   ├── splash.py  # Splash screen de arranque del .exe: ventana tk pura con label de estado y barra indeterminada.
     └── test_periodos_ui.py
 │   ├── inline-suggester.md  # Inline suggester
 │   ├── cheu-fijate-que-el-serene-aurora.md  # Cheu fijate que el serene aurora
+│   ├── splash-screen-y-logging.md  # Splash screen y logging
 ```

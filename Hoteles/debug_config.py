@@ -50,3 +50,25 @@ DEBUG_STARTUP_EXCEL_LOAD = False
 # - Confirmación de scraping fresco (gestor_datos)
 # - URL construida para el scraper y JSON crudo extraído del LLM (scraper_utils)
 DEBUG_COMPARISON_PIPELINE = False
+
+# ============================================================
+# Override automático en producción (.exe)
+# ============================================================
+# En el .exe queremos ciertos logs SIEMPRE activos, sin importar
+# lo que diga el código fuente más arriba. Así, si el usuario reporta
+# un bug, ya tenemos información del runtime en crawl_compare_YYYYMMDD.log
+# sin necesidad de rebuildear con flags distintos.
+#
+# En dev (sin sys.frozen) los flags quedan como los configuraste arriba.
+# ============================================================
+import sys as _sys
+if getattr(_sys, "frozen", False):
+    DEBUG_SCRAPING_PIPELINE = True       # pipeline de cada intento de scrape
+    DEBUG_FUZZY_MATCHING = True          # scores del matching Excel↔Web
+    DEBUG_COMPARISON_PIPELINE = True     # contexto multi-periodo + URLs + JSON
+    DEBUG_STARTUP_EXCEL_LOAD = True      # carga de Excel al arrancar
+    DEBUG_CRAWL4AI_VERBOSE = True        # verbose interno de Crawl4AI + cache
+
+    # Los siguientes quedan en False INCLUSO en .exe:
+    # DEBUG_LLM_MARKDOWN     — genera un archivo por intento (llena disco)
+    # DEBUG_EXCEL_PARSING    — muy verboso, solo útil para diagnosticar parseo

@@ -7,14 +7,30 @@ if sys.stdout and hasattr(sys.stdout, 'buffer'):
 if sys.stderr and hasattr(sys.stderr, 'buffer'):
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-from Deploy.startup_check import run_checks
-run_checks()
+# Logger ANTES de todo: si algo más abajo crashea, queda registrado.
+from Deploy.error_logger import setup_error_logging
+setup_error_logging()
+
+# Splash solo en .exe. En dev ya se ve la consola y el arranque es <1s.
+# El import va adentro del if para no cargar tk innecesariamente en dev.
+_splash = None
+if getattr(sys, "frozen", False):
+    from Deploy.splash import SplashScreen
+    _splash = SplashScreen()
 
 # Smoke test post-build: si se invoca con --self-test, corre verificaciones
 # de bundling y sale (no levanta la UI). Se ejecuta en build.bat tras compilar.
 if "--self-test" in sys.argv:
     from Deploy.smoke_test import run_smoke_test
     run_smoke_test()
+
+from Deploy.startup_check import run_checks
+run_checks(on_progress=_splash.update_status if _splash else None)
+
+if _splash:
+    _splash.update_status("Iniciando interfaz...")
+    _splash.close()
+    _splash = None
 
 import customtkinter as ctk
 from Core.gestor_datos import *
