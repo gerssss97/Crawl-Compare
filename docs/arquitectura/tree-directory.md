@@ -121,6 +121,7 @@ Hoteles/
 │   │   ├── ctk_inline_suggester.py  # CTkInlineSuggester â€” popup de sugerencias inline para tk.Text.
 │   ├── error_logger.py  # Logger persistente para .exe: tee de stdout/stderr + excepthook con messagebox.
 │   ├── splash.py  # Splash screen de arranque del .exe: ventana tk pura con label de estado y barra indeterminada.
+│   ├── _verif_urls.py  # Verificacion temporal: renderiza el texto del resultado mixto y mixto-OK.
     └── test_periodos_ui.py
 │   ├── inline-suggester.md  # Inline suggester
 │   ├── cheu-fijate-que-el-serene-aurora.md  # Cheu fijate que el serene aurora
@@ -130,4 +131,12 @@ Hoteles/
 │   ├── optimized-beaming-hare.md  # Optimized beaming hare
 │   ├── distribucion-handoff.md  # Distribucion handoff
 │   ├── plan-instalador-diferenciado.md  # Plan instalador diferenciado
+│   ├── mira-docs-deploy-build-deploy-md-y-docs-luminous-petal.md  # Mira docs deploy build deploy md y docs luminous petal
+│   ├── resize_probe.py  # Mide el costo de re-layout durante un resize simulado de la ventana principal.
+│   ├── resize_bisect.py  # BisecciÃ³n del costo de re-layout en resize.
+│   ├── feedback_explicar_solucion_sin_modal.md  # Feedback explicar solucion sin modal
+│   ├── resize_drawmethod.py  # Compara el costo de resize segun el preferred_drawing_method de CTk.
+│   ├── resize_subtree.py  # Mide el impacto de ocultar subarboles durante el resize (opcion A').
+│   ├── resize_placeholder.py  # Mide la opcion A' real: durante el drag, reemplazar todo el content_frame
+│   ├── HANDOFF.md  # Handoff
 ```

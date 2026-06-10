@@ -159,8 +159,15 @@ class CrawlCompareGUI:
         self._content_frame = ctk.CTkFrame(self.root, fg_color=Colors.BACKGROUND)
         self._content_frame.pack(fill="both", expand=True)
 
-        self._content_frame.grid_columnconfigure(0, weight=65, minsize=480, uniform="cols")
-        self._content_frame.grid_columnconfigure(1, weight=35, minsize=360, uniform="cols")
+        # NOTA: sin uniform="cols" a propósito. El uniform forzaba a Tk a re-resolver
+        # el sistema de restricciones proporcional de ambas columnas en CADA evento
+        # <Configure> del resize, y como cada columna contiene un CTkScrollableFrame
+        # (canvas + interior con reqwidth dinámico), ese recálculo se propagaba en
+        # cascada → freeze al arrastrar el borde. weight mantiene la proporción 65/35
+        # y minsize evita el colapso. El "salto de ancho" que motivó el uniform ya
+        # está resuelto por el overlay place() de la scrollbar (Fix 1 en _crear_panel_izquierdo).
+        self._content_frame.grid_columnconfigure(0, weight=65, minsize=480)
+        self._content_frame.grid_columnconfigure(1, weight=35, minsize=360)
         self._content_frame.grid_rowconfigure(0, weight=1)
 
         self._crear_panel_izquierdo()

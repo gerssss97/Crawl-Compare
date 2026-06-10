@@ -53,12 +53,16 @@ a = Analysis(
 
 pyz = PYZ(a.pure)
 
+# Modelo --onedir: el EXE NO lleva binaries/datas adentro (exclude_binaries=True).
+# Esos archivos los junta COLLECT(...) en la carpeta dist/CrawlCompare/, dejando
+# un _internal/ adyacente con paths ESTABLES entre ejecuciones. Eso evita la
+# descompresión a %TEMP%\_MEI<random>\ de cada arranque (más rápido) y arregla el
+# bug del Excel persistido en config.json. sys._MEIPASS pasa a apuntar a _internal/.
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name="CrawlCompare",
     debug=False,
     bootloader_ignore_signals=False,
@@ -68,4 +72,14 @@ exe = EXE(
     runtime_tmpdir=None,
     console=True,   # True mientras se testea, cambiar a False para distribuir
     icon=None,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name="CrawlCompare",   # nombre de la CARPETA de salida en dist/
 )

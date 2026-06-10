@@ -10,6 +10,8 @@ set CONDA_ENV=crawler
 set SPEC_FILE=%~dp0crawl_compare.spec
 set DIST_DIR=%~dp0dist
 set BUILD_DIR=%~dp0build
+:: Modelo --onedir: el .exe queda dentro de dist\CrawlCompare\ (con _internal\ al lado).
+set EXE_PATH=%DIST_DIR%\CrawlCompare\CrawlCompare.exe
 
 echo.
 echo =============================================
@@ -64,7 +66,7 @@ if errorlevel 1 (
 echo.
 echo [4/4] Corriendo smoke test del .exe...
 echo.
-"%DIST_DIR%\CrawlCompare.exe" --self-test
+"%EXE_PATH%" --self-test
 if errorlevel 1 (
     echo.
     echo [ERROR] Smoke test FALLO. El .exe tiene problemas de bundling.
@@ -77,7 +79,7 @@ if errorlevel 1 (
 echo.
 echo =============================================
 echo  Build exitoso!
-echo  Ejecutable: %DIST_DIR%\CrawlCompare.exe
+echo  Ejecutable: %EXE_PATH%
 echo  Smoke test: OK
 echo =============================================
 echo.

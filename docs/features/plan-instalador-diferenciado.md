@@ -1,8 +1,9 @@
 # Plan: Instalador diferenciado (onedir + ruta a instalador real)
 
-## Estado: PLANIFICADO 📝
+## Estado: FASE 1 IMPLEMENTADA ✅ · FASE 2 PLANIFICADA 📝
 
 Fecha de planificación: 2026-06-09
+Fase 1 (`--onedir`) implementada: 2026-06-09
 Branch sugerido: `feature/onedir-distribution`
 
 ---
@@ -36,7 +37,12 @@ Razones para no saltar directo a Opción 3:
 
 ---
 
-## Fase 1 — Pasar a `--onedir`
+## Fase 1 — Pasar a `--onedir` ✅ IMPLEMENTADA
+
+> Implementado el 2026-06-09. El `.spec` ya tiene `EXE(exclude_binaries=True)` + `COLLECT(...)`,
+> el `build.bat` apunta al nuevo path (`dist\CrawlCompare\CrawlCompare.exe`), y el bug del Excel
+> persistido quedó resuelto por construcción (path estable en `_internal/`, no requirió tocar
+> `excel_resolver.py`). Lo que sigue es la descripción de los cambios realizados.
 
 ### Cambios al `crawl_compare.spec`
 
@@ -306,15 +312,15 @@ Filename: "{app}\CrawlCompare.exe"; Description: "Ejecutar Crawl Compare ahora";
 
 ## Checklist accionable
 
-### Fase 1 (cuando se aborde)
-- [ ] Modificar `crawl_compare.spec`: `EXE(exclude_binaries=True)` + `COLLECT(...)`.
+### Fase 1 ✅ IMPLEMENTADA (2026-06-09)
+- [x] Modificar `crawl_compare.spec`: `EXE(exclude_binaries=True)` + `COLLECT(...)`.
+- [x] Ajustar `build.bat` con el nuevo path del smoke test (variable `EXE_PATH`).
+- [x] Actualizar docs (`build-deploy.md`, este plan).
+- [x] Decidir formato de distribución: `.zip` de la carpeta + `README.txt`.
 - [ ] Build de prueba: validar que `dist/CrawlCompare/` se genera y contiene `.exe` + `_internal/`.
 - [ ] Confirmar con `--self-test` que `_MEIPASS` apunta a `_internal/` y los 9 checks pasan.
-- [ ] Ajustar `build.bat` con el nuevo path del smoke test.
 - [ ] Doble click al `.exe`, validar arranque rápido y sin descompresión.
 - [ ] Cerrar y reabrir, verificar que el bug del Excel embebido desapareció.
-- [ ] Actualizar docs.
-- [ ] Decidir formato de distribución (`.zip` directo o esperar Fase 2).
 
 ### Fase 2 (cuando se aborde)
 - [ ] Instalar Inno Setup 6.

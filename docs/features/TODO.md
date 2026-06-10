@@ -2,9 +2,19 @@
 
 ## Bugs
 
-### Excel embebido se persiste en config.json con ruta de `_MEIPASS`
+### Excel embebido se persiste en config.json con ruta de `_MEIPASS` — MITIGADO por `--onedir` (2026-06-09)
 
-**Síntoma**: en cada arranque del `.exe` aparece en el log:
+> **Estado**: el síntoma "se repite en cada arranque" quedó **resuelto al migrar a `--onedir`**
+> (Fase 1 de [plan-instalador-diferenciado.md](plan-instalador-diferenciado.md)). Ahora `_MEIPASS`
+> apunta a `_internal/` adyacente al `.exe`, un path **estable** entre ejecuciones, así que el
+> path guardado en `config.json` sigue siendo válido al reabrir.
+>
+> **Caso residual NO cubierto**: si el usuario **mueve la carpeta** `CrawlCompare/` a otro lado,
+> el path absoluto guardado vuelve a quedar muerto (una sola vez, hasta que el resolver lo limpie).
+> El "Fix propuesto" de abajo (no persistir paths del Excel embebido por default) sigue siendo la
+> solución prolija definitiva si se quiere cubrir ese caso. Prioridad baja.
+
+**Síntoma** (histórico, modelo `--onefile`): en cada arranque del `.exe` aparecía en el log:
 ```
 [excel_resolver] Último Excel (..._MEI87562\Data\Extracto_prueba2.xlsx) ya no existe. Limpiando config.
 ```
