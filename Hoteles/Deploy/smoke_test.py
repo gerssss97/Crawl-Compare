@@ -86,6 +86,54 @@ def _check_excel_path():
     return f"{excel.name} ({excel.stat().st_size:,} bytes)"
 
 
+# Mínimo esperado de íconos por variante (light/ y dark/). Si agregás un
+# ícono nuevo a UI/assets/icons/ Y lo usás en UI/styles/icons.py, bumpeá
+# este número. Si te olvidás, el check de paridad light↔dark igual va a
+# detectar inconsistencias parciales.
+_MIN_ICONS_POR_VARIANTE = 9
+
+
+def _icons_base_dir():
+    """Devuelve la ruta base de UI/assets/icons (dev o bundle)."""
+    from pathlib import Path
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS) / "UI" / "assets" / "icons"
+    return Path(__file__).parent.parent / "UI" / "assets" / "icons"
+
+
+def _check_icons_bundled():
+    """Bug histórico: íconos no incluidos en EXTRA_DATAS → FileNotFoundError
+    en UI/styles/icons.py al instanciar CTkImage. Verifica dos invariantes:
+    1) hay al menos _MIN_ICONS_POR_VARIANTE PNGs en cada variante;
+    2) cada PNG en light/ tiene su contraparte en dark/."""
+    base = _icons_base_dir()
+    if not base.exists():
+        raise FileNotFoundError(f"Directorio de íconos no existe: {base}")
+
+    light = {p.stem for p in (base / "light").glob("*.png")}
+    dark  = {p.stem for p in (base / "dark").glob("*.png")}
+
+    if len(light) < _MIN_ICONS_POR_VARIANTE:
+        raise FileNotFoundError(
+            f"Solo {len(light)} íconos en light/ (mínimo esperado: "
+            f"{_MIN_ICONS_POR_VARIANTE}). ¿EXTRA_DATAS incluye "
+            "UI/assets/icons/ en build_manifest.py?"
+        )
+    if len(dark) < _MIN_ICONS_POR_VARIANTE:
+        raise FileNotFoundError(
+            f"Solo {len(dark)} íconos en dark/ (mínimo esperado: "
+            f"{_MIN_ICONS_POR_VARIANTE})."
+        )
+
+    sin_par = light ^ dark
+    if sin_par:
+        raise FileNotFoundError(
+            f"PNGs sin par light↔dark: {', '.join(sorted(sin_par))}"
+        )
+
+    return f"{len(light)} íconos con paridad light↔dark"
+
+
 # Lista declarativa de checks — agregar uno nuevo cada vez que se
 # descubra un bug de bundling para que no vuelva a pasar silenciosamente.
 CHECKS = [
@@ -97,6 +145,7 @@ CHECKS = [
     ("fake_http_header",  _check_fake_http_header),
     (".env loaded",       _check_env_loaded),
     ("Excel embebido",    _check_excel_path),
+    ("Íconos bundled",    _check_icons_bundled),
 ]
 
 

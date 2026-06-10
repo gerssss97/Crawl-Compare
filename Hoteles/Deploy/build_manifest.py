@@ -47,9 +47,15 @@ EXTRA_HIDDEN_IMPORTS = [
 
 # Recursos del proyecto: (origen_relativo_a_ROOT, destino_en_MEIPASS)
 # ROOT = Hoteles/
+#
+# Para incluir un DIRECTORIO completo, pasar la carpeta como origen — PyInstaller
+# resuelve glob internamente. Verificar siempre con smoke_test que los assets
+# críticos llegan al bundle.
 EXTRA_DATAS = [
     ("Data/Extracto_prueba2.xlsx", "Data"),
     (".env", "."),
+    ("UI/assets/icons/light", "UI/assets/icons/light"),
+    ("UI/assets/icons/dark",  "UI/assets/icons/dark"),
 ]
 
 # Binarios externos al venv: rutas absolutas en el sistema del developer.

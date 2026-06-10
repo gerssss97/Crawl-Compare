@@ -11,6 +11,17 @@
             "timeout": 15
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/check_build_deps.py",
+            "shell": "powershell",
+            "timeout": 10
+          }
+        ]
       }
     ]
   }

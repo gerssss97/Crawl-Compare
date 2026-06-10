@@ -82,8 +82,14 @@ class SplashScreen:
         self._root.update()
 
     def update_status(self, mensaje: str) -> None:
-        """Actualiza el label de estado y fuerza redibujado sin mainloop."""
+        """Actualiza el label de estado y fuerza redibujado sin mainloop.
+        Además imprime a stdout con prefijo [startup] para que quede en el
+        log persistente y en la consola si está visible."""
         self._status_var.set(mensaje)
+        try:
+            print(f"[startup] {mensaje}", flush=True)
+        except Exception:
+            pass
         self._root.update()
 
     def close(self) -> None:

@@ -125,4 +125,9 @@ Hoteles/
 │   ├── inline-suggester.md  # Inline suggester
 │   ├── cheu-fijate-que-el-serene-aurora.md  # Cheu fijate que el serene aurora
 │   ├── splash-screen-y-logging.md  # Splash screen y logging
+│   ├── check_build_deps.py  # Hook PostToolUse: avisa cuando se modifican archivos del build (manifest, spec, assets).
+│   ├── TODO.md  # Todo
+│   ├── optimized-beaming-hare.md  # Optimized beaming hare
+│   ├── distribucion-handoff.md  # Distribucion handoff
+│   ├── plan-instalador-diferenciado.md  # Plan instalador diferenciado
 ```
