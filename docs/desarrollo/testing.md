@@ -510,7 +510,7 @@ Antes de hacer commit de cambios importantes:
 cd Hoteles
 
 # Verificar que el entorno esté activado
-conda activate deep-seek-crawler
+conda activate crawler
 ```
 
 ### Tests de scraper fallan con timeout

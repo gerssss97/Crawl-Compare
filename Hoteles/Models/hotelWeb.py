@@ -15,6 +15,7 @@ class HabitacionWeb(BaseModel):
 class HotelWeb(BaseModel):
     habitacion: List[HabitacionWeb]
     detalles: str
+    url_visitada: Optional[str] = None
 
 class ParametrosBusqueda(BaseModel):
     fecha_entrada: date

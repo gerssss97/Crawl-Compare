@@ -119,11 +119,19 @@ class VistaResultados(tk.Frame):
         """Hace scroll hasta el final del texto."""
         self._text.see(tk.END)
 
-    def _agregar_link(self, url: str):
-        """Inserta una URL como hipervínculo clicable."""
+    def _agregar_link(self, url: str, lmargin: int = 0):
+        """Inserta una URL como hipervínculo clicable.
+
+        lmargin: margen izquierdo en px para el wrap de líneas largas.
+        """
         import webbrowser
         tag_name = f"link_{id(url)}_{self._text.index(tk.END)}"
-        self._text.tag_configure(tag_name, foreground="#0066CC", underline=True)
+        self._text.tag_configure(
+            tag_name,
+            foreground="#0066CC",
+            underline=True,
+            lmargin2=lmargin,
+        )
         self._text.insert(tk.END, url, (tag_name,))
         self._text.tag_bind(tag_name, "<Button-1>", lambda e, u=url: webbrowser.open(u))
         self._text.tag_bind(tag_name, "<Enter>", lambda e: self._text.config(cursor="hand2"))
@@ -233,8 +241,8 @@ class VistaResultados(tk.Frame):
 
                 self.agregar(f"  {fecha_inicio_str} - {fecha_fin_str}:\n", tags=("bold",))
                 if rp.error_url:
-                    self.agregar("    URL:   ")
-                    self._agregar_link(rp.error_url)
+                    self.agregar("    URL consultada: ")
+                    self._agregar_link(rp.error_url, lmargin=38)
                     self.agregar("\n")
                 if rp.error_msg:
                     self.agregar(f"    Error: {rp.error_msg}\n")
@@ -265,7 +273,17 @@ class VistaResultados(tk.Frame):
 
                 # Mostrar periodo y precio (nombre si existe, sino solo fechas)
                 etiqueta = periodo.nombre if periodo.nombre else f"{fecha_inicio_str} - {fecha_fin_str}"
-                self.agregar(f"    {etiqueta}: ")
-                self.agregar(f"${res_periodo.precio_web:.2f}\n", tags=("bold",))
+                self.agregar(f"    Periodo: {etiqueta}\n")
+                if res_periodo.coincide:
+                    self.agregar(f"    ${res_periodo.precio_web:.2f}\n", tags=("bold",))
+                else:
+                    self.agregar(f"    ${res_periodo.precio_web:.2f}", tags=("bold", "rojo"))
+                    self.agregar(f"  (Excel: ${res_periodo.precio_excel:.2f} — diferencia: ${res_periodo.diferencia:.2f})\n", tags=("rojo",))
+
+                # URL real scrapeada en este periodo (para que el usuario corrobore)
+                if res_periodo.url_visitada:
+                    self.agregar("    URL consultada: ")
+                    self._agregar_link(res_periodo.url_visitada, lmargin=38)
+                    self.agregar("\n")
 
         self.scroll_to_end()

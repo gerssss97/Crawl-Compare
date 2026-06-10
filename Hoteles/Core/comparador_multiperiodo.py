@@ -53,7 +53,8 @@ class ResultadoPeriodo:
     def __init__(self, periodo: Periodo, precio_excel: float | str,
                  precio_web: float, diferencia: float, coincide: bool,
                  fecha_inicio_real: date = None, fecha_fin_real: date = None,
-                 error_msg: str = None, error_url: str = None):
+                 error_msg: str = None, error_url: str = None,
+                 url_visitada: str = None):
         self.periodo = periodo
         self.precio_excel = precio_excel
         self.precio_web = precio_web
@@ -62,7 +63,8 @@ class ResultadoPeriodo:
         self.fecha_inicio_real = fecha_inicio_real  # Fecha específica ingresada (overlap con periodo)
         self.fecha_fin_real = fecha_fin_real  # Fecha específica ingresada (overlap con periodo)
         self.error_msg = error_msg  # Mensaje de error si el scraping falló
-        self.error_url = error_url  # URL que se intentó acceder
+        self.error_url = error_url  # URL que se intentó acceder (caso error)
+        self.url_visitada = url_visitada  # URL real scrapeada en este periodo (caso éxito)
 
 
 class ResultadoComparacionMultiperiodo:
@@ -244,7 +246,8 @@ async def comparar_multiperiodo(
                 diferencia=diferencia,
                 coincide=coincide,
                 fecha_inicio_real=fecha_scrape_inicio,
-                fecha_fin_real=fecha_scrape_fin
+                fecha_fin_real=fecha_scrape_fin,
+                url_visitada=hotel_web.url_visitada,
             ))
 
         except Exception as e:
@@ -259,34 +262,15 @@ async def comparar_multiperiodo(
             fecha_scrape_inicio = max(fecha_entrada, periodo.fecha_inicio)
             fecha_scrape_fin = min(fecha_salida, periodo.fecha_fin)
 
-            # Extraer URL del mensaje de error si está presente
+            # Extraer URL del mensaje de error si está presente.
+            # El scraper embebe la URL real que intentó visitar (scraper_utils.py),
+            # asi que la tomamos de ahi en vez de reconstruirla a mano.
             error_url = None
             error_msg_clean = error_str
             if "\nURL: " in error_str:
                 partes = error_str.split("\nURL: ", 1)
                 error_msg_clean = partes[0]
                 error_url = partes[1].strip()
-
-            # Si el scraper no embebió la URL en el error, la construimos nosotros
-            # con los mismos params que usa crawler.py (hardcodeado hasta que el
-            # scraper devuelva la URL que visitó)
-            if not error_url:
-                from urllib.parse import urlencode
-                _params = {
-                    "adult": adultos,
-                    "child": ninos,
-                    "arrive": fecha_scrape_inicio.strftime("%Y-%m-%d"),
-                    "depart": fecha_scrape_fin.strftime("%Y-%m-%d"),
-                    "chain": 24447,
-                    "hotel": 6933,
-                    "currency": "USD",
-                    "level": "hotel",
-                    "locale": "en-US",
-                    "productcurrency": "USD",
-                    "rooms": 1,
-                    "src": 30,
-                }
-                error_url = "https://be.synxis.com/?" + urlencode(_params)
 
             # Agregar resultado con error
             resultados_periodos.append(ResultadoPeriodo(

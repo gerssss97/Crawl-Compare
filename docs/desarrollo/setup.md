@@ -24,10 +24,10 @@ cd Hoteles
 
 ```bash
 # Crear entorno con Python 3.12
-conda create -n deep-seek-crawler python=3.12 -y
+conda create -n crawler python=3.12 -y
 
 # Activar entorno
-conda activate deep-seek-crawler
+conda activate crawler
 ```
 
 **Verificar versión de Python:**
@@ -279,7 +279,7 @@ Hoteles/
 
 ```bash
 # Verificar que el entorno esté activado
-conda activate deep-seek-crawler
+conda activate crawler
 
 # Re-instalar dependencias
 pip install -r requirements.txt
@@ -334,7 +334,7 @@ Una vez que el setup esté completo:
 Agregá este alias a tu `.bashrc` o `.zshrc`:
 
 ```bash
-alias hoteles='cd /path/to/Hoteles && conda activate deep-seek-crawler && python app.py'
+alias hoteles='cd /path/to/Hoteles && conda activate crawler && python app.py'
 ```
 
 Luego simplemente ejecutá:

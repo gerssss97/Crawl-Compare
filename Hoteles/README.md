@@ -3,8 +3,8 @@
 1. **Create and Activate a Conda Environment**
 
    ```bash
-   conda create -n deep-seek-crawler python=3.12 -y
-   conda activate deep-seek-crawler
+   conda create -n crawler python=3.12 -y
+   conda activate crawler
    ```
 
 2. **Install Dependencies**

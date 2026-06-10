@@ -103,7 +103,7 @@ def fechas_validas(fecha_entrada: date, fecha_salida: date) -> bool:
         return False
     return True
 
-async def procesar_resultado_scraping(result):
+async def procesar_resultado_scraping(result, url_visitada=None):
     if not (result.success and result.extracted_content):
         print(f"Error: No hay contenido extraído o extracción no exitosa")
         print(f"Success: {result.success}")
@@ -140,7 +140,8 @@ async def procesar_resultado_scraping(result):
                 
             hotel = HotelWeb(
                 detalles="Alvear Palace Hotel",
-                habitacion=habitaciones
+                habitacion=habitaciones,
+                url_visitada=url_visitada,
             )
             return hotel
         else:
@@ -297,7 +298,7 @@ async def fetch_and_process_page(
 
                 if habitaciones_data and len(habitaciones_data) > 0:
                     print(f"Datos extraídos exitosamente en el intento {intento + 1}")
-                    return await procesar_resultado_scraping(result)
+                    return await procesar_resultado_scraping(result, url_visitada=url_completa)
                 elif DEBUG_SCRAPING_PIPELINE:
                     print(f"[PIPELINE][L3-Groq] ❌ marcado_incompleto habitaciones_data={habitaciones_data!r}")
             elif DEBUG_SCRAPING_PIPELINE:
