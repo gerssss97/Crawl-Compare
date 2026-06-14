@@ -122,6 +122,14 @@ Hoteles/
 │   ├── error_logger.py  # Logger persistente para .exe: tee de stdout/stderr + excepthook con messagebox.
 │   ├── splash.py  # Splash screen de arranque del .exe: ventana tk pura con label de estado y barra indeterminada.
 │   ├── _verif_urls.py  # Verificacion temporal: renderiza el texto del resultado mixto y mixto-OK.
+│   │   ├── observable.py  # ObservableVar: reemplazo de tk.Variable con la misma API, respaldado por Signal de Qt.
+│   │   ├── theme.py  # Paletas dual-mode (light/dark) y generador de QSS desde las constantes del proyecto.
+│   │   ├── event_bridge.py  # Puente EventBus -> Qt Signals (thread-safe). Fase 6 del plan de migracion.
+│   │   ├── qt_resultados_modal.py  # Modal de resultado de una comparacion (QDialog no-modal, uno por comparison_id).
+│   │   ├── qt_historial_modal.py  # Modal de historial de comparaciones previas (QDialog).
+│   │   ├── qt_config_modal.py  # Modal de configuracion (QDialog + QTabWidget). Porta ConfigModal.
+│   ├── test_resultado_qt_visual.py  # Test visual Qt: simula resultados de comparacion y muestra el modal PySide6 completo.
+│   ├── startup_worker.py  # Worker QThread para correr run_checks() sin bloquear el hilo principal.
     └── test_periodos_ui.py
 │   ├── inline-suggester.md  # Inline suggester
 │   ├── cheu-fijate-que-el-serene-aurora.md  # Cheu fijate que el serene aurora
@@ -139,4 +147,20 @@ Hoteles/
 │   ├── resize_subtree.py  # Mide el impacto de ocultar subarboles durante el resize (opcion A').
 │   ├── resize_placeholder.py  # Mide la opcion A' real: durante el drag, reemplazar todo el content_frame
 │   ├── HANDOFF.md  # Handoff
+│   ├── plan-migracion-gui.md  # Plan migracion gui
+│   ├── project-migracion-pyside6.md  # Project migracion pyside6
+│   ├── project-conda-env-crawler.md  # Project conda env crawler
+│   ├── spike_resize.py  # Spike de Fase 0: prototipo PySide6 que reproduce el layout 2-columnas y mide el resize.
+│   ├── troubleshooting-qt.md  # Troubleshooting qt
+│   ├── spike_visual.py  # Mini test visual de Fase 0: abre la ventana del spike y la deja abierta para probar el resize a mano.
+│   ├── test_fase1_headless.py  # Test headless de Fase 1: AppState v2 (sin Tkinter) + controladores reales sin cambios.
+│   ├── interfaz_qt.py  # Ventana principal PySide6 (Fase 2: shell + estilo).
+│   ├── qt_labeled_combo.py  # Combo con label arriba, sincronizado con una ObservableVar del AppState.
+│   ├── qt_date_edit.py  # Campo de fecha: QDateEdit con calendario desplegable + escritura manual.
+│   ├── qt_form_reserva.py  # Card 'Seleccion de Reserva': hotel + edificio (dinamico) + habitacion.
+│   ├── qt_form_fechas.py  # Card 'Fechas y Huespedes': fecha entrada/salida (con validacion cruzada) + adultos/ninos.
+│   ├── qt_precio_panel.py  # Panel de precio con desglose multiperiodo (spec aprobada en Figma).
+│   ├── qt_periodos_panel.py  # Panel de periodos con filas expandibles (spec aprobada en Figma).
+│   ├── qt_vista_resultados.py  # Vista de resultados de comparacion: QTextEdit readonly que renderiza HTML.
+│   ├── qt_progress_panel.py  # Panel de progreso del scraping: label de estado + QProgressBar.
 ```

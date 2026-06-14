@@ -22,3 +22,6 @@ debug_llm_input_*.txt
 
 # User config (creado por ConfigService en modo dev)
 Hoteles/config.json
+
+# Iconos PNG generados en runtime por la UI Qt
+Hoteles/UI_qt/styles/_generated/

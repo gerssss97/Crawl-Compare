@@ -2,7 +2,6 @@
 
 import asyncio
 import threading
-import tkinter as tk
 from Core.controller import (
     dar_hotel_web,
     comparar_habitaciones,
@@ -11,6 +10,7 @@ from Core.controller import (
     normalizar_precio_str,
     imprimir_habitacion_web
 )
+from UI.utils import normalizar_hotel_nombre
 
 
 class ControladorComparacion:
@@ -98,7 +98,7 @@ class ControladorComparacion:
             fecha_salida = datetime.strptime(fecha_salida_str, "%d-%m-%Y").date()
 
             # Obtener hotel actual
-            hotel_nombre = self.estado_app.hotel.get().lower() + " (a)"
+            hotel_nombre = normalizar_hotel_nombre(self.estado_app.hotel.get())
             hotel_actual = None
             for hotel in self.estado_app.hoteles_excel:
                 if hotel.nombre.lower() == hotel_nombre:
@@ -178,3 +178,29 @@ class ControladorComparacion:
                 'comparison_id': comparison_id,
                 'error': error_msg,
             })
+
+    def confirmar_gap(self) -> None:
+        """El usuario aceptó continuar con cobertura parcial."""
+        self.estado_app.gap_confirmado = True
+
+    def resetear_gap(self) -> None:
+        """Resetea la confirmación de gap (al recalcular fechas o al completar)."""
+        self.estado_app.gap_confirmado = False
+
+    def enviar_email(self, resultado, snapshot: dict) -> None:
+        """Genera el cuerpo del email y abre el cliente de correo vía mailto."""
+        from Core.controller import generar_texto_email_multiperiodo
+        from Core.services.config_service import ConfigService
+        from Core.services.email_senders import MailtoSender
+        config = ConfigService()
+        hotel = snapshot.get("hotel", "")
+        cuerpo = generar_texto_email_multiperiodo(
+            hotel, resultado,
+            template=config.get_email_template(),
+            firma=config.get_email_firma(),
+        )
+        MailtoSender().enviar(
+            destinatario="",
+            asunto=f"Reporte de Discrepancias - {hotel}",
+            cuerpo=cuerpo,
+        )

@@ -1,7 +1,10 @@
 """Controlador de lógica de hoteles, edificios y habitaciones."""
 
-from Core.controller import dar_hoteles_excel
+from Core.controller import dar_hoteles_excel, GestorService
+from Core.excel_resolver import resolver_excel_inicial
 from Core.servicio_habitaciones import unificar_habitaciones
+from UI.utils import normalizar_hotel_nombre
+
 
 
 class ControladorHotel:
@@ -30,6 +33,26 @@ class ControladorHotel:
         self.event_bus.on('hotel_changed', self.on_hotel_changed)
         self.event_bus.on('edificio_changed', self.on_edificio_changed)
         self.event_bus.on('excel.loaded', self.on_excel_loaded)
+
+    def cargar_excel(self, path: str) -> None:
+        """Carga un Excel nuevo y emite excel.loaded para que la UI se actualice."""
+        GestorService.cargar(path)
+        self.event_bus.emit("excel.loaded", {"path": path})
+
+    def cargar_excel_inicial(self, config_service) -> str | None:
+        """Carga el último Excel configurado al arrancar. Retorna el path si lo cargó."""
+        path = resolver_excel_inicial(config_service)
+        if path:
+            GestorService.cargar(path)
+        return path
+
+    def get_excel_path(self) -> str | None:
+        """Retorna el path del Excel actualmente cargado."""
+        return GestorService.get_current_path()
+
+    def esta_cargado(self) -> bool:
+        """Retorna True si hay un Excel cargado."""
+        return GestorService.esta_cargado()
 
     def on_excel_loaded(self, payload=None):
         """Resetea selecciones y re-puebla hoteles desde el Excel recién cargado.
@@ -76,7 +99,7 @@ class ControladorHotel:
         Returns:
             list: Lista de nombres de edificios SIN grupo de periodo
         """
-        hotel = hotel_nombre.lower() + " (a)"
+        hotel = normalizar_hotel_nombre(hotel_nombre)
 
         for hotel_excel in self.estado_app.hoteles_excel:
             if hotel_excel.nombre.lower() == hotel:
@@ -101,7 +124,7 @@ class ControladorHotel:
         Returns:
             list: Lista de nombres únicos de habitaciones (sin duplicados)
         """
-        hotel = hotel_nombre.lower() + " (a)"
+        hotel = normalizar_hotel_nombre(hotel_nombre)
         hotel_excel = None
 
         for h in self.estado_app.hoteles_excel:
@@ -149,7 +172,7 @@ class ControladorHotel:
         if not hotel_nombre:
             return
 
-        hotel = hotel_nombre.lower() + " (a)"
+        hotel = normalizar_hotel_nombre(hotel_nombre)
 
         for hotel_excel in self.estado_app.hoteles_excel:
             if hotel_excel.nombre.lower() == hotel:

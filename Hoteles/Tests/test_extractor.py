@@ -333,61 +333,56 @@ def exportar_datos_a_excel(datos_excel, archivo_salida):
 
 
 def main():
+    """Extrae un Excel y exporta todo a otro Excel para validación visual.
+
+    Uso:
+        python test_extractor.py <path_entrada> [path_salida]
+
+    Si no se pasan argumentos usa Data/Extracto_prueba2.xlsx como entrada
+    y Data/Extracto_Validacion.xlsx como salida.
     """
-    Función principal que ejecuta el proceso de extracción y exportación.
-    """
+    import sys
+    import os
+
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    default_entrada = os.path.join(base, "Data", "Extracto_prueba2.xlsx")
+    default_salida  = os.path.join(base, "Data", "Extracto_Validacion.xlsx")
+
+    path_excel_entrada = sys.argv[1] if len(sys.argv) > 1 else default_entrada
+    path_excel_salida  = sys.argv[2] if len(sys.argv) > 2 else default_salida
+
     print("=" * 60)
     print("TESTING DEL EXTRACTOR DE DATOS - EXCEL")
     print("=" * 60)
+    print(f"[>] Entrada: {path_excel_entrada}")
+    print(f"[>] Salida:  {path_excel_salida}")
     print()
 
-    # Configuración de rutas
-    path_excel_entrada = "./Data/Extracto2.xlsx"
-    path_excel_salida = "./Data/Extracto_Validacion.xlsx"
-
-    print(f"[>] Archivo de entrada: {path_excel_entrada}")
-    print(f"[>] Archivo de salida:  {path_excel_salida}")
-    print()
-
-    # Cargar datos del Excel
     print("[*] Cargando y extrayendo datos del Excel...")
     datos = cargar_excel(path_excel_entrada)
-
-    print(f"[OK] Extracción completada")
-    print(f"     - Total de hoteles extraídos: {len(datos.hoteles)}")
+    print(f"[OK] {len(datos.hoteles)} hoteles extraídos")
     print()
 
-    # Mostrar resumen de lo extraído
-    print("RESUMEN DE DATOS EXTRAIDOS:")
+    print("RESUMEN:")
     print("-" * 60)
     for hotel in datos.hoteles:
-        total_hab_por_tipo = sum(len(tipo.habitaciones) for tipo in hotel.tipos)
-        total_habitaciones = len(hotel.habitaciones_directas) + total_hab_por_tipo
-
+        total_por_tipo = sum(len(t.habitaciones) for t in hotel.tipos)
         print(f"\nHOTEL: {hotel.nombre}")
-        print(f"   |-- Periodos_ group: {len(hotel.periodos_group)}")
-        print(f"   |-- Tipos de habitación: {len(hotel.tipos)}")
-        print(f"   |-- Habitaciones directas: {len(hotel.habitaciones_directas)}")
-        print(f"   |-- Habitaciones por tipo: {total_hab_por_tipo}")
-        print(f"   |-- TOTAL HABITACIONES: {total_habitaciones}")
-        print(f"   |-- Extras: {len(hotel.extras)}")
+        print(f"   |-- Grupos de periodos:      {len(hotel.periodos_group)}")
+        print(f"   |-- Tipos de habitación:     {len(hotel.tipos)}")
+        print(f"   |-- Habitaciones directas:   {len(hotel.habitaciones_directas)}")
+        print(f"   |-- Habitaciones por tipo:   {total_por_tipo}")
+        print(f"   |-- TOTAL:                   {len(hotel.habitaciones_directas) + total_por_tipo}")
+        print(f"   |-- Extras:                  {len(hotel.extras)}")
 
     print()
-    print("-" * 60)
-    print()
-
-    # Exportar a Excel
-    print("[*] Exportando datos a Excel para validación...")
+    print("[*] Exportando a Excel...")
     exportar_datos_a_excel(datos, path_excel_salida)
-
     print()
     print("=" * 60)
-    print("PROCESO COMPLETADO CON EXITO")
-    print("=" * 60)
-    print()
-    print(">> Abre el archivo para validar visualmente los datos extraídos:")
+    print("COMPLETADO — abrí el archivo para validar:")
     print(f"   {path_excel_salida}")
-    print()
+    print("=" * 60)
 
 
 if __name__ == "__main__":

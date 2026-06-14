@@ -1,6 +1,5 @@
-"""State management layer for the application."""
+"""State management layer — solo EventBus (AppState migrado a UI_qt/state/)."""
 
 from .event_bus import EventBus
-from .app_state import AppState
 
-__all__ = ['EventBus', 'AppState']
+__all__ = ['EventBus']

@@ -47,6 +47,15 @@ Esto me permite leer, hacer preguntas y ajustar el plan antes de decidir cómo e
     Siempre que propongas nuevo codigo o edicion de alguno ya existente o un nuevo PLAN, justificá con el codigo mismo, como quedaría y porque, y NO muestres el modal de aprobacion. Sino mejor preguntame que opino de la edicion, si modificaría algo y porque. En caso de yo estar 100% de acuerdo ahi si podras mostrarme el modal de edicion. Si fuese un plan dejame leer todo lo que haz propuesto, y yo te lo respondo item por item.
 - **No mostrar el modal de aprobación NI de elección de opción al explicar una solución:**
     Cuando me expliques la solución a un problema (diagnóstico + opciones de fix), presentá TODO como texto en el chat: el diagnóstico, las opciones disponibles para resolverlo, sus trade-offs y tu recomendación. NO uses el tool de elección de opciones (AskUserQuestion) ni abras ningún modal de aprobación en ese momento. La idea es que pueda leer con calma qué sucede, evaluar las opciones que pueden resolverlo, o proponer algo yo mismo. Solo después de que yo elija o confirme por escrito podrás avanzar (y, si corresponde, mostrar el modal). **Este comportamiento se respeta tanto en plan mode como en edit mode.**
+- **REGLA TAJANTE — NUNCA usar AskUserQuestion al explicar, analizar, comparar, recomendar o planificar:**
+    El tool de opciones (AskUserQuestion, las "ventanitas") queda PROHIBIDO en
+    CUALQUIER momento de: explicación, diagnóstico, comparación de alternativas,
+    recomendación, o presentación de un plan/propuesta. TODO eso va SIEMPRE como
+    texto en el chat. Después de exponerlo, me detengo y ESPERO tu respuesta por
+    escrito. Recién cuando vos confirmes explícitamente por escrito puedo, si
+    corresponde, abrir un modal de aprobación. **Ante la duda de si usar el tool:
+    NO usarlo, escribir texto.** Esta regla consolida y tiene prioridad sobre las
+    anteriores sobre el mismo tema.
 - **Usar lenguaje técnico:** Utiliza terminología técnica precisa en tus explicaciones (e.g., closure, factory function, nullish coalescing, lexical scope, hoisting, memoization, currying, higher-order function, destructuring, spread operator, rest parameters, temporal dead zone, prototype chain, event loop, microtask queue, etc.). Esto facilita el aprendizaje de conceptos avanzados y la comunicación profesional.
 - **Aclarar duda conceptual:** Si el usuario escribe una palabra entre
   signos de pregunta (`¿concepto?`), significa que no está seguro de si
@@ -92,6 +101,11 @@ Esto me permite leer, hacer preguntas y ajustar el plan antes de decidir cómo e
 **Flujo**: selección hotel/habitación → ControladorPrecios calcula precio → "Ejecutar Comparación" → scraping por periodo → fuzzy matching → VistaResultados
 
 **Interfaz activa**: `interfaz_ctk.py` (CustomTkinter). Legacy: `interfaz.py` (Tkinter). Toggle en `main.py`.
+
+**Entorno Python**: Conda, entorno `crawler` (Python 3.12). Siempre activar antes de correr cualquier comando con `python` o `pip`. Nunca ejecutar sobre el entorno base.
+```powershell
+conda activate crawler
+```
 
 **Variables de entorno** (en `Hoteles/.env`):
 ```

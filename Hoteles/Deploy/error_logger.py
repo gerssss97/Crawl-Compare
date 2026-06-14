@@ -1,4 +1,4 @@
-"""Logger persistente para .exe: tee de stdout/stderr + excepthook con messagebox."""
+"""Logger persistente para .exe: tee de stdout/stderr + excepthook con QMessageBox."""
 import sys
 import traceback
 import datetime
@@ -47,14 +47,12 @@ def _get_log_dir() -> Path:
 
 
 def setup_error_logging():
-    """Instala tee de stdout/stderr + sys.excepthook con messagebox. Solo activo en .exe."""
+    """Instala tee de stdout/stderr + sys.excepthook con QMessageBox. Solo activo en .exe."""
     if not getattr(sys, "frozen", False):
-        return  # En dev no tocamos nada
+        return
 
     log_path = _get_log_dir() / f"crawl_compare_{datetime.date.today():%Y%m%d}.log"
 
-    # Los flags ya vienen forzados por el override de debug_config.py.
-    # Acá solo envolvemos stdout/stderr para que los print() vayan al log también.
     sys.stdout = _TeeStream(sys.stdout or _DummyStream(), log_path)
     sys.stderr = _TeeStream(sys.stderr or _DummyStream(), log_path)
 
@@ -66,23 +64,31 @@ def setup_error_logging():
             f.write(f"{'='*60}\n")
             traceback.print_exception(exc_type, exc_value, exc_tb, file=f)
 
-        # 2. Avisar al usuario con un messagebox simple (tk puro, sin CTk)
+        # 2. Mostrar diálogo al usuario via Qt si está disponible,
+        #    o via Win32 MessageBox nativo como fallback (sin dependencia de Qt).
+        #    Importante: NO intentar crear QApplication si ya falló su __init__,
+        #    porque un segundo intento puede segfault en Windows.
+        _msg = (
+            f"Ocurrió un error y la aplicación debe cerrarse.\n\n"
+            f"Se guardó un log con los detalles en:\n{log_path}\n\n"
+            f"Por favor envía ese archivo para diagnóstico."
+        )
         try:
-            import tkinter as tk
-            from tkinter import messagebox
-            root = tk.Tk()
-            root.withdraw()
-            messagebox.showerror(
-                "Crawl Compare — Error inesperado",
-                f"Ocurrió un error y la aplicación debe cerrarse.\n\n"
-                f"Se guardó un log con los detalles en:\n{log_path}\n\n"
-                f"Por favor envía ese archivo para diagnóstico."
-            )
-            root.destroy()
+            from PySide6.QtWidgets import QApplication, QMessageBox
+            if QApplication.instance() is not None:
+                QMessageBox.critical(None, "Crawl Compare — Error inesperado", _msg)
+            else:
+                raise RuntimeError("no QApplication")
         except Exception:
-            pass  # Si el messagebox falla, al menos el log ya está escrito
+            try:
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(
+                    0, _msg, "Crawl Compare — Error inesperado", 0x10  # MB_ICONERROR
+                )
+            except Exception:
+                pass  # si Win32 también falla, el log al menos está escrito
 
-        # 3. Delegar al excepthook original (consola si existe)
+        # 3. Delegar al excepthook original
         sys.__excepthook__(exc_type, exc_value, exc_tb)
 
     sys.excepthook = _excepthook

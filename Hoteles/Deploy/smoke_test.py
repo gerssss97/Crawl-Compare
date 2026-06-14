@@ -59,10 +59,20 @@ def _check_fake_http_header():
     return "instantiated OK"
 
 
-def _check_customtkinter():
-    """Carga themes JSON al inicializar."""
-    import customtkinter as ctk
-    return f"v{ctk.__version__}"
+def _check_pyside6():
+    """Verifica que PySide6 core importe y que el plugin de plataforma Windows exista."""
+    from pathlib import Path
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import __version__ as qt_version
+
+    # En modo frozen, el plugin qwindows.dll debe estar en _MEIPASS/PySide6/plugins/platforms/
+    if getattr(sys, "frozen", False):
+        plugin = Path(sys._MEIPASS) / "PySide6" / "plugins" / "platforms" / "qwindows.dll"
+        if not plugin.exists():
+            raise FileNotFoundError(f"Plugin Qt no encontrado: {plugin}")
+        return f"Qt {qt_version}, qwindows.dll OK"
+
+    return f"Qt {qt_version} (dev mode)"
 
 
 def _check_env_loaded():
@@ -86,10 +96,6 @@ def _check_excel_path():
     return f"{excel.name} ({excel.stat().st_size:,} bytes)"
 
 
-# Mínimo esperado de íconos por variante (light/ y dark/). Si agregás un
-# ícono nuevo a UI/assets/icons/ Y lo usás en UI/styles/icons.py, bumpeá
-# este número. Si te olvidás, el check de paridad light↔dark igual va a
-# detectar inconsistencias parciales.
 _MIN_ICONS_POR_VARIANTE = 9
 
 
@@ -102,10 +108,7 @@ def _icons_base_dir():
 
 
 def _check_icons_bundled():
-    """Bug histórico: íconos no incluidos en EXTRA_DATAS → FileNotFoundError
-    en UI/styles/icons.py al instanciar CTkImage. Verifica dos invariantes:
-    1) hay al menos _MIN_ICONS_POR_VARIANTE PNGs en cada variante;
-    2) cada PNG en light/ tiene su contraparte en dark/."""
+    """Verifica que los PNGs de íconos Feather estén en el bundle con paridad light↔dark."""
     base = _icons_base_dir()
     if not base.exists():
         raise FileNotFoundError(f"Directorio de íconos no existe: {base}")
@@ -134,18 +137,34 @@ def _check_icons_bundled():
     return f"{len(light)} íconos con paridad light↔dark"
 
 
-# Lista declarativa de checks — agregar uno nuevo cada vez que se
-# descubra un bug de bundling para que no vuelva a pasar silenciosamente.
+def _check_chevrons_bundled():
+    """Los chevrons pre-generados deben estar en _MEIPASS/UI_qt/styles/_generated/."""
+    from pathlib import Path
+    if not getattr(sys, "frozen", False):
+        return "dev mode (se generan en runtime)"
+
+    gen_dir = Path(sys._MEIPASS) / "UI_qt" / "styles" / "_generated"
+    if not gen_dir.exists():
+        raise FileNotFoundError(f"Directorio _generated no existe: {gen_dir}")
+
+    pngs = list(gen_dir.glob("chevron_*.png"))
+    if not pngs:
+        raise FileNotFoundError(f"No hay chevrons PNG en {gen_dir}")
+
+    return f"{len(pngs)} chevrons encontrados"
+
+
 CHECKS = [
-    ("customtkinter",     _check_customtkinter),
-    ("tiktoken encoding", _check_tiktoken),
-    ("playwright",        _check_playwright),
+    ("PySide6",            _check_pyside6),
+    ("tiktoken encoding",  _check_tiktoken),
+    ("playwright",         _check_playwright),
     ("playwright_stealth", _check_playwright_stealth),
-    ("crawl4ai",          _check_crawl4ai),
-    ("fake_http_header",  _check_fake_http_header),
-    (".env loaded",       _check_env_loaded),
-    ("Excel embebido",    _check_excel_path),
-    ("Íconos bundled",    _check_icons_bundled),
+    ("crawl4ai",           _check_crawl4ai),
+    ("fake_http_header",   _check_fake_http_header),
+    (".env loaded",        _check_env_loaded),
+    ("Excel embebido",     _check_excel_path),
+    ("Íconos bundled",     _check_icons_bundled),
+    ("Chevrons bundled",   _check_chevrons_bundled),
 ]
 
 
@@ -162,8 +181,8 @@ def run_smoke_test():
     total = len(results)
     print("=" * 60)
     if all(results):
-        print(f"[SMOKE] ✅ TODOS LOS CHECKS PASARON ({passed}/{total})")
+        print(f"[SMOKE] TODOS LOS CHECKS PASARON ({passed}/{total})")
         sys.exit(0)
     else:
-        print(f"[SMOKE] ❌ FALLARON {total - passed}/{total} CHECKS")
+        print(f"[SMOKE] FALLARON {total - passed}/{total} CHECKS")
         sys.exit(1)

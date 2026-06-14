@@ -1,3 +1,4 @@
+"""Checks de arranque: .env, Playwright/Chromium. Sin dependencia de Tkinter."""
 import os
 import sys
 import subprocess
@@ -7,26 +8,39 @@ from typing import Optional, Callable
 def _get_base_dir() -> str:
     """Devuelve el directorio base: carpeta temporal de PyInstaller en producción, o Hoteles/ en dev."""
     if getattr(sys, "frozen", False):
-        return sys._MEIPASS  # PyInstaller extrae los datas del .spec acá en runtime
+        return sys._MEIPASS
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+_qapp_instance = None  # referencia a nivel de módulo para evitar GC prematuro
+
+
+def _qapp():
+    """Devuelve el QApplication activo o crea uno y lo retiene en módulo."""
+    global _qapp_instance
+    from PySide6.QtWidgets import QApplication
+    existing = QApplication.instance()
+    if existing is not None:
+        return existing
+    _qapp_instance = QApplication(sys.argv)
+    return _qapp_instance
+
+
 def check_env() -> None:
-    """Carga el .env desde base_dir. Si no existe, aborta con mensaje claro."""
+    """Carga el .env desde base_dir. Si no existe, muestra error y aborta."""
     from dotenv import load_dotenv
 
     base_dir = _get_base_dir()
     env_path = os.path.join(base_dir, ".env")
 
     if not os.path.exists(env_path):
-        import tkinter as tk
-        from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
-        messagebox.showerror(
+        from PySide6.QtWidgets import QMessageBox
+        app = _qapp()
+        QMessageBox.critical(
+            None,
             "Archivo .env no encontrado",
             f"No se encontró el archivo .env en:\n{env_path}\n\n"
-            "Asegurate de que esté en la misma carpeta que el programa."
+            "Asegurate de que esté en la misma carpeta que el programa.",
         )
         sys.exit(1)
 
@@ -46,7 +60,6 @@ def _chromium_installed() -> bool:
 def check_playwright() -> None:
     """Apunta PLAYWRIGHT_BROWSERS_PATH a los browsers embebidos en el .exe, o instala si estamos en dev."""
     if getattr(sys, "frozen", False):
-        # En .exe: Chromium está embebido en _MEIPASS, apuntamos Playwright ahí
         os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(
             sys._MEIPASS, "playwright", "driver", "package", ".local-browsers"
         )
@@ -55,28 +68,21 @@ def check_playwright() -> None:
     if _chromium_installed():
         return
 
-    import tkinter as tk
-    from tkinter import ttk
+    from PySide6.QtWidgets import QProgressDialog, QMessageBox
+    from PySide6.QtCore import Qt
 
-    root = tk.Tk()
-    root.title("Crawl Compare — Primera ejecución")
-    root.geometry("420x140")
-    root.resizable(False, False)
-    root.eval("tk::PlaceWindow . center")
-
-    tk.Label(
-        root,
-        text="Instalando dependencias del navegador...\nEsto solo ocurre la primera vez (puede tardar ~2 min).",
-        pady=16,
-        justify="center",
-    ).pack()
-
-    bar = ttk.Progressbar(root, mode="indeterminate", length=340)
-    bar.pack()
-    bar.start(12)
-
-    root.update_idletasks()
-    root.update()
+    app = _qapp()
+    dlg = QProgressDialog(
+        "Instalando dependencias del navegador...\nEsto solo ocurre la primera vez (puede tardar ~2 min).",
+        None,  # sin botón cancelar
+        0, 0,  # min=max=0 → indeterminado
+    )
+    dlg.setWindowTitle("Crawl Compare — Primera ejecución")
+    dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
+    dlg.setMinimumWidth(420)
+    dlg.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
+    dlg.show()
+    app.processEvents()
 
     result = subprocess.run(
         [sys.executable, "-m", "playwright", "install", "chromium"],
@@ -84,14 +90,13 @@ def check_playwright() -> None:
         text=True,
     )
 
-    root.destroy()
+    dlg.close()
 
     if result.returncode != 0:
-        root2 = tk.Tk()
-        root2.withdraw()
-        tk.messagebox.showerror(
+        QMessageBox.critical(
+            None,
             "Error instalando Playwright",
-            f"No se pudo instalar Chromium:\n\n{result.stderr[-500:]}"
+            f"No se pudo instalar Chromium:\n\n{result.stderr[-500:]}",
         )
         sys.exit(1)
 

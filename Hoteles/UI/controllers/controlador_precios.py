@@ -3,6 +3,7 @@
 from datetime import datetime
 from Models.habitacion_unificada import HabitacionUnificada
 from Core.servicio_habitaciones import analizar_cobertura
+from UI.utils import normalizar_hotel_nombre
 
 
 class ControladorPrecios:
@@ -103,8 +104,8 @@ class ControladorPrecios:
         fecha_entrada = datetime.strptime(fecha_entrada_str, "%d-%m-%Y").date()
         fecha_salida = datetime.strptime(fecha_salida_str, "%d-%m-%Y").date()
 
-        # Obtener hotel actual (agregar sufijo "(A)" para búsqueda)
-        hotel_nombre = self.estado_app.hotel.get().lower() + " (a)"
+        # Obtener hotel actual
+        hotel_nombre = normalizar_hotel_nombre(self.estado_app.hotel.get())
         hotel_actual = None
         for hotel in self.estado_app.hoteles_excel:
             if hotel.nombre.lower() == hotel_nombre:

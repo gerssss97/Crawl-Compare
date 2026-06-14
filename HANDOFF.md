@@ -1,88 +1,71 @@
-# Handoff — 2026-06-09
+# Handoff — 2026-06-14
 
-> Sesión: Deploy onedir (completado) + diagnóstico de performance de resize → decisión de evaluar migración de framework UI
+> Sesión: migración CustomTkinter → PySide6. **Fases 0-6 completas + modales + estética.**
+> La app Qt está **funcionalmente completa**. Faltan: empaquetado (Fase 7) y limpieza (Fase 8).
 
-## Objetivo
+## Contexto
 
-Dos temas en la sesión:
-1. **Deploy**: aplicar la Opción 2 del plan de instalador (pasar PyInstaller de `--onefile` a `--onedir`, app "portable"). **Completado.**
-2. **Performance**: resolver el freeze al hacer resize de la ventana CTk. Se diagnosticó a fondo, se midió todo, y **se decidió NO seguir con workarounds**: la próxima sesión va a evaluar migrar a otro framework de UI de Python, porque el cuello de botella es estructural de CustomTkinter.
+Se migra la capa de vista de CustomTkinter a PySide6 porque el freeze de resize de CTk es estructural (rasterización software single-thread). Plan maestro: [docs/features/plan-migracion-gui.md](docs/features/plan-migracion-gui.md). Gotchas de Qt: [docs/ui/troubleshooting-qt.md](docs/ui/troubleshooting-qt.md).
 
----
+**Entorno**: conda env `crawler` (Python 3.12.11). PySide6 6.11.0 instalado por **conda-forge** (NO pip: choca con ICU). Correr la app:
+```
+"C:/Users/German Lucero/anaconda3/envs/crawler/python.exe" Hoteles/UI_qt/interfaz_qt.py
+```
+(en cmd: sin el `&`; en PowerShell: con `&` adelante por las comillas).
 
-## Parte 1 — Deploy onedir ✅ COMPLETADO
+## Lo hecho (Fases 0-6 + modales + estética) ✅
 
-### Qué se hizo
-- `crawl_compare.spec`: `EXE(...)` ahora con `exclude_binaries=True` y sin `a.binaries`/`a.datas` adentro; se agregó `COLLECT(...)` que arma la carpeta `dist/CrawlCompare/` con `.exe` + `_internal/`.
-- `build.bat`: variable `EXE_PATH=%DIST_DIR%\CrawlCompare\CrawlCompare.exe`, usada en el smoke test `[4/4]` y el mensaje final.
-- Docs actualizados: `build-deploy.md`, `plan-instalador-diferenciado.md` (Fase 1 marcada implementada), `TODO.md` (bug del Excel marcado MITIGADO, no resuelto del todo — ver abajo).
-
-### Clave técnica
-En onedir `sys._MEIPASS` apunta a `_internal/` (path estable), así que **cero cambios de código de runtime**. El bug del Excel persistido en `config.json` se mitiga por construcción.
-
-### PENDIENTE de verificar (no se buildeó)
-- Falta correr `Deploy\build.bat` desde Anaconda Prompt y confirmar smoke test 9/9 + portabilidad de la carpeta. Todo el cambio es estático hasta ahora.
-- **Caso residual del bug del Excel**: si el usuario MUEVE la carpeta `CrawlCompare/`, el path absoluto en `config.json` vuelve a quedar muerto una vez. El fix prolijo (no persistir path del Excel embebido por default) sigue en `docs/features/TODO.md`, prioridad baja.
-
----
-
-## Parte 2 — Performance de resize: DIAGNÓSTICO CERRADO, decisión de migrar
-
-### Síntoma
-Al arrastrar el borde de la ventana, la UI **se congela ~1 segundo**. Pasa en toda la ventana desde el arranque, sin depender de contenido cargado.
-
-### Causa raíz (MEDIDA, no teorizada)
-CustomTkinter dibuja las esquinas redondeadas/bordes/fondo de **cada widget** sobre un `CTkCanvas` propio. La ventana tiene **44 canvas**. En cada frame de resize se disparan **~67 eventos `<Configure>`** y cada canvas afectado se rasteriza de nuevo, en un único hilo Tcl/Tk. Resultado: **avg ~1000ms, peor ~2000ms por frame**.
-
-Esto es **estructural de CTk**, no de nuestro código. El maintainer cerró el issue oficial de resize-lag como **"not planned"** (CTk #2690). El propio draw_engine dice "no much I can do with the limited capabilities tkinter.Canvas offers".
-
-### Lo que se probó y NO funcionó (medido, para NO repetir)
-| Enfoque | Resultado | Veredicto |
+| Fase | Estado | Qué |
 |---|---|---|
-| Sacar `uniform="cols"` del grid (interfaz_ctk.py:162) | 969ms | No sirvió. **Quedó aplicado igual** (era costo innecesario, invisible). |
-| `preferred_drawing_method = "polygon_shapes"` | 804ms (-30%) | Insuficiente, sigue siendo freeze. |
-| Saltear redibujos redundantes | CTk YA lo hace (`_update_dimensions_event` en ctk_base_class.py:184 solo redibuja si cambió el tamaño) | Nada que cortar. |
-| Aplanar CTkFrame transparentes (opción E) | Solo 8 de 44 canvas son aplanables → techo ~730ms | Descartada. |
-| Ocultar solo el panel derecho durante drag | 1263ms (PEOR que baseline) | Contraproducente: el `uniform`/weight agranda el panel izq (el más pesado). |
+| 0 — Spike resize | ✅ | GATE superado: 18ms/frame vs ~1000ms CTk (~55x). |
+| 1 — Núcleo desacoplado | ✅ | `ObservableVar` (Signal Qt con API de tk.Variable), `AppState` v2 sin Tkinter. Controladores reutilizados SIN tocar. |
+| 2 — Shell + estilo | ✅ | `MainWindow` + QSS dual-mode (`theme.py`) + toggle tema en vivo. |
+| 3 — Formulario | ✅ | Combos, fechas (QDateEdit calendario+manual+validación cruzada), huéspedes. |
+| 4 — Paneles resultado | ✅ | Precio multiperiodo (desglose por tramos) + Períodos (rango directo). |
+| 5+6 — Modales + threading | ✅ | `EventBridge` (EventBus→Qt Signals thread-safe), `QtResultadosModal` (paralelas), progreso, scraping real validado sin congelar. |
+| 5 — Modales secundarios | ✅ | `QtHistorialModal`, `QtConfigModal`. |
+| Iconos + estética | ✅ | QIcon+PNG (Feather), fondos de modales temados, HTML temado, file dialog nativo, períodos simplificados. |
 
-### Lo que SÍ funcionó (medido)
-| Enfoque | Resultado |
-|---|---|
-| Ocultar AMBOS paneles durante drag | 212ms |
-| **Placeholder plano (tkinter.Frame, 1 canvas) durante drag** | **67ms/frame** (17x más rápido), restore al soltar ~400ms (un solo frame) |
+**Estructura nueva** (toda en `Hoteles/UI_qt/`):
+- `interfaz_qt.py` — `MainWindow` (orquestador, reemplaza interfaz_ctk.py).
+- `state/` — `observable.py`, `app_state.py`, `event_bridge.py` (EventBus se reusa de `UI/`).
+- `widgets/` — combos, fechas, forms, paneles precio/periodos, vista resultados, progress.
+- `views/` — modales (resultados, historial, config).
+- `styles/` — `theme.py` (QSS+paletas), `qt_icons.py` (QIcon/PNG), `icons_gen.py` (chevrons QPainter→PNG), `_generated/` (PNG cacheados, gitignored).
 
-La opción A' (placeholder plano durante el drag + restaurar al soltar) era la candidata técnica ganadora.
+**Decisión clave de threading**: NO se usó el Patrón C (QThread/worker) del plan. Se dejó el `threading.Thread` del `ControladorComparacion` intacto + `EventBridge` del lado UI. Cero cambios al Core.
 
-### Por qué NO se implementó A' (lo que destrabó la decisión de migrar)
-El usuario rechazó el trade-off visual: durante el arrastre **no se ve el contenido**, se ve un rectángulo plano del color de fondo. Además A' depende inevitablemente de un debounce interno (Tk no tiene evento "fin de drag", solo `<Configure>` durante). Ninguna opción en CTk da las 3 cosas juntas: **ver el contenido + reacomodándose en vivo + sin lag**. Esa combinación es imposible con 44 canvas en single-thread.
+## Bugs resueltos en el camino (todos en troubleshooting-qt.md)
 
-**Conclusión del usuario**: si la fluidez de resize importa, conviene evaluar otro framework antes de invertir en workarounds que igual sacrifican algo.
+1. **ICU**: pip choca con conda → instalar por conda-forge.
+2. **Labels con rectángulo negro**: no pintar `background-color` en `QWidget` base; `QLabel { background: transparent }`.
+3. **Bootstrap sys.path**: al tope del archivo, guardado por `if __package__ in (None,"")`.
+4. **SVG en QSS no renderiza** (plugin qsvg ausente en el env) → PNG por path / QPainter.
+5. **Día calendario no se resaltaba** → `QTextCharFormat` (no QSS).
+6. **UnicodeEncodeError (`→`)** en prints del Core sobre cp1252 → `sys.stdout.reconfigure(utf-8)` en bootstrap.
+7. **Fondo negro en modales (light)** → reglas QSS para QDialog/QTextBrowser/etc.
+8. **File dialog nativo no abría** → era por lanzar en background; normal anda.
+
+## Pendiente (próximas sesiones)
+
+### Fase 7 — Empaquetado (PyInstaller) ⏳
+- Adaptar `Hoteles/Deploy/crawl_compare.spec` / `build_manifest.py` de CTk a PySide6.
+- **Excluir módulos Qt no usados** (QtWebEngine, Qt3D, QtCharts, QtQuick, QtMultimedia, QtBluetooth...) para no inflar el .exe (PySide6-addons pesa ~168MB).
+- Incluir assets: PNG de iconos (`UI/assets/icons/`), y asegurar que los chevrons de `_generated/` se generen en runtime (o pre-generarlos en el build).
+- **Cuidado con la ICU/plugins de Qt**: el .exe debe llevar las DLLs de Qt correctas (las de conda-forge). Verificar que arranque el .exe portable y compare OK (smoke test). El plugin qsvg no se usa, no hace falta incluirlo.
+
+### Fase 8 — Toggle + limpieza ⏳
+- `main.py`: activar `UI_FRAMEWORK = "pyside6"` para arrancar la versión Qt.
+- Una vez validado el .exe Qt: borrar `interfaz_ctk.py`, componentes `ctk_*`, dependencia `customtkinter`, y `icons_gen.py`/CTk icons si quedan sin uso.
+- Renombrar `UI_qt/` → `UI/` (o mantener) y actualizar `docs/` (tree-directory, componentes, convenciones).
+
+### Pulido estético adicional (opcional)
+- El usuario fue puliendo sobre la marcha. La dirección visual (dual mode) está aprobada; mockup en Figma "Scrawler" (`B2s0j02LH07YYTdCTxTu6t`).
+
+## Orden recomendado
+Empaquetado (Fase 7) ANTES de borrar nada (Fase 8), así la CTk queda de respaldo si el .exe Qt falla.
 
 ---
 
-## Próximos pasos (próxima sesión)
-
-1. **Verificar el build onedir**: correr `Deploy\build.bat`, confirmar 9/9 + portabilidad. (Tema 1, queda colgado de verificación.)
-2. **Explorar migración de framework UI de Python**. Foco: que el resize sea fluido manteniendo estética moderna. Candidatos a evaluar (NO investigados aún esta sesión):
-   - **PySide6 / PyQt6** (Qt) — rendering nativo acelerado, resize fluido, el más maduro. Curva de aprendizaje y reescritura grande.
-   - **Flet** (Flutter para Python) — moderno, declarativo.
-   - **Toga / BeeWare**, **Dear PyGui** (GPU-accelerated, muy fluido), **wxPython**.
-   - Criterios a sopesar: fluidez de resize, esfuerzo de migración desde la arquitectura Event-Driven MVC actual (EventBus + controladores son agnósticos a la UI → reutilizables), look & feel, distribución/empaquetado (ya tenemos PyInstaller andando).
-3. La lógica de negocio (Core, controladores, EventBus, AppState) **es reutilizable** en cualquier framework — solo se reescribe la capa de vista (`UI/`). Eso baja el costo de migrar.
-
----
-
-## Archivos clave tocados esta sesión
-
-| Archivo | Cambio |
-|---------|--------|
-| `Hoteles/Deploy/crawl_compare.spec` | onefile → onedir (`exclude_binaries=True` + `COLLECT`) |
-| `Hoteles/Deploy/build.bat` | `EXE_PATH` con nuevo path del smoke test |
-| `Hoteles/UI/interfaz_ctk.py:162` | quitado `uniform="cols"` (fix parcial de resize, invisible, quedó aplicado) |
-| `docs/deploy/build-deploy.md` | output ahora carpeta + `_internal/`, distribución por `.zip` |
-| `docs/features/plan-instalador-diferenciado.md` | Fase 1 marcada IMPLEMENTADA |
-| `docs/features/TODO.md` | bug del Excel marcado MITIGADO por onedir |
-| `CLAUDE.md` | nueva regla: no mostrar modales al explicar soluciones (solo texto) |
-| `.claude/skills/scripts/resize_*.py` | scripts de medición de performance (probe, bisect, drawmethod, subtree, placeholder) — referencia para la evaluación de migración |
-
-> **Nota sobre los scripts de medición**: `resize_placeholder.py`, `resize_subtree.py`, etc. en `.claude/skills/scripts/` quedan como evidencia reproducible. Si en la migración se quiere comparar el nuevo framework contra CTk, el patrón de medición (drag simulado con `geometry()` + cronometrar `update_idletasks()`) sirve de baseline.
+## (Histórico) Sesión 2026-06-09 — origen de esta migración
+Deploy onedir completado + diagnóstico de resize de CTk (~1000ms/frame, estructural, no arreglable con workarounds). Se decidió migrar de framework. Esa decisión derivó en todo lo de arriba.
