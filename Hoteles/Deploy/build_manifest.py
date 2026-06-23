@@ -56,6 +56,8 @@ EXTRA_DATAS = [
     ("UI/assets/icons/dark",  "UI/assets/icons/dark"),
     # Chevrons pre-generados: en _MEIPASS son read-only, icons_gen.py los lee sin regenerar
     ("UI_qt/styles/_generated", "UI_qt/styles/_generated"),
+    # Ícono de la aplicación (titlebar + taskbar en runtime)
+    ("UI_qt/assets/app_icon.ico", "UI_qt/assets"),
 ]
 
 # Resolución dinámica de rutas: funciona en cualquier máquina con el env crawler activo.

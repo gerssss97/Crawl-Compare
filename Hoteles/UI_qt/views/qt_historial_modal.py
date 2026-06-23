@@ -54,27 +54,43 @@ class _FilaHistorial(QFrame):
             partes.append(ts[:16].replace("T", " "))
         t3 = QLabel("   •   ".join(partes)); t3.setObjectName("mutedLabel"); v.addWidget(t3)
 
-        for p in entrada.get("periodos", []):
-            coincide = p.get("coincide", True)
-            icono = "✓" if coincide else "⚠"
-            nombre = p.get("nombre") or ""
-            prefijo = f"{nombre}   " if nombre else ""
-            texto = f"{prefijo}Excel: {_fmt(p.get('precio_excel',''))}   Web: {_fmt(p.get('precio_web',''))}   {icono}"
-            lp = QLabel(texto)
-            lp.setObjectName("mutedLabel" if coincide else "accentValue")
-            lp.setWordWrap(True)
-            v.addWidget(lp)
+        periodos = entrada.get("periodos", [])
+        has_result = on_ver and entrada.get("html_resultado")
 
-        if on_ver and entrada.get("html_resultado"):
-            footer = QHBoxLayout()
-            footer.setContentsMargins(0, 6, 0, 0)
-            footer.addStretch()
+        if has_result:
+            row = QHBoxLayout()
+            row.setContentsMargins(0, 4, 0, 0)
+            row.setSpacing(8)
+            prices_col = QVBoxLayout()
+            prices_col.setSpacing(2)
+            for p in periodos:
+                coincide = p.get("coincide", True)
+                icono = "✓" if coincide else "⚠"
+                nombre = p.get("nombre") or ""
+                prefijo = f"{nombre}   " if nombre else ""
+                texto = f"{prefijo}Excel: {_fmt(p.get('precio_excel',''))}   Web: {_fmt(p.get('precio_web',''))}   {icono}"
+                lp = QLabel(texto)
+                lp.setObjectName("mutedLabel" if coincide else "accentValue")
+                lp.setWordWrap(True)
+                prices_col.addWidget(lp)
+            row.addLayout(prices_col, stretch=1)
             btn = QPushButton("Ver resultado")
             btn.setObjectName("btnSecondary")
             btn.setCursor(Qt.PointingHandCursor)
             btn.clicked.connect(lambda: on_ver(self._entrada))
-            footer.addWidget(btn)
-            v.addLayout(footer)
+            row.addWidget(btn, alignment=Qt.AlignVCenter)
+            v.addLayout(row)
+        else:
+            for p in periodos:
+                coincide = p.get("coincide", True)
+                icono = "✓" if coincide else "⚠"
+                nombre = p.get("nombre") or ""
+                prefijo = f"{nombre}   " if nombre else ""
+                texto = f"{prefijo}Excel: {_fmt(p.get('precio_excel',''))}   Web: {_fmt(p.get('precio_web',''))}   {icono}"
+                lp = QLabel(texto)
+                lp.setObjectName("mutedLabel" if coincide else "accentValue")
+                lp.setWordWrap(True)
+                v.addWidget(lp)
 
     def mousePressEvent(self, event):
         self._on_click(self._entrada)
@@ -101,18 +117,11 @@ class _ResultadoViewerDialog(QDialog):
         browser.setHtml(entrada.get("html_resultado", "<i>Sin datos guardados.</i>"))
         lay.addWidget(browser, stretch=1)
 
-        footer = QHBoxLayout()
         if on_email and entrada.get("tiene_discrepancias"):
-            btn_mail = QPushButton("Enviar mail")
+            btn_mail = QPushButton("Enviar Email")
             btn_mail.setObjectName("btnPrimary")
             btn_mail.clicked.connect(lambda: on_email(entrada))
-            footer.addWidget(btn_mail)
-        footer.addStretch()
-        btn_close = QPushButton("Cerrar")
-        btn_close.setObjectName("btnSecondary")
-        btn_close.clicked.connect(self.accept)
-        footer.addWidget(btn_close)
-        lay.addLayout(footer)
+            lay.addWidget(btn_mail)
 
 
 class QtHistorialModal(QDialog):

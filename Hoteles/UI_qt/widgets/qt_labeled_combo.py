@@ -14,7 +14,7 @@ el ciclo WM_ACTIVATE que Qt genera al crear ventanas Qt::Popup desde codigo exte
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QComboBox, QCompleter, QFrame, QApplication
 from PySide6.QtCore import Qt, QStringListModel, QObject, QEvent, QTimer
-from UI_qt.styles.theme import LIGHT
+from UI_qt.styles import LIGHT
 from UI.styles import Spacing
 
 _R = Spacing.RADIUS_MD

@@ -70,8 +70,8 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,   # True mientras se testea, cambiar a False para distribuir
-    icon=None,
+    console=False,
+    icon=os.path.join(ROOT, "UI_qt", "assets", "app_icon.ico"),
 )
 
 coll = COLLECT(

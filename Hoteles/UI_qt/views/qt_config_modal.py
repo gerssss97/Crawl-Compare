@@ -1,7 +1,7 @@
 """Modal de configuracion (QDialog + QTabWidget). Porta ConfigModal.
 
-4 pestañas: General (info Excel), Email (firma + template editable con validacion),
-API Keys y Scraping (placeholders). El editor de template usa un QTextEdit plano
+3 pestañas: General (info Excel), Email (firma + template editable con validacion),
+Historial (TTL de retención). El editor de template usa un QTextEdit plano
 (sin los chips clicables ni autocomplete inline del original; las variables se tipean
 a mano). La validacion del template se reutiliza intacta del modal CTk.
 """
@@ -9,8 +9,8 @@ a mano). La validacion del template se reutiliza intacta del modal CTk.
 import re
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTabWidget, QWidget,
-    QTextEdit, QPushButton, QMessageBox, QTextBrowser, QComboBox, QLayout,
+    QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QTabWidget, QWidget,
+    QTextEdit, QPushButton, QMessageBox, QTextBrowser, QComboBox, QLayout, QCheckBox,
 )
 from UI_qt.widgets.qt_spin_stepper import QtSpinStepper
 from PySide6.QtCore import Qt, QRect, QPoint, QSize
@@ -84,13 +84,16 @@ class _FlowLayout(QLayout):
 class QtConfigModal(QDialog):
     """Modal de configuracion con pestañas."""
 
-    def __init__(self, parent, excel_path: str | None = None):
+    def __init__(self, parent, excel_path: str | None = None, on_excel_changed=None,
+                 on_periodos_setting_changed=None, config_service: ConfigService | None = None):
         super().__init__(parent)
         self.setWindowTitle("Configuración")
         self.resize(620, 560)
         self.setModal(True)
-        self._config = ConfigService()
+        self._config = config_service if config_service is not None else ConfigService()
         self._excel_path = excel_path
+        self._on_excel_changed = on_excel_changed
+        self._on_periodos_setting_changed = on_periodos_setting_changed
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(16, 16, 16, 16)
@@ -101,20 +104,64 @@ class QtConfigModal(QDialog):
         self.tabs.addTab(self._tab_general(), "General")
         self.tabs.addTab(self._tab_email(), "Email")
         self.tabs.addTab(self._tab_historial(), "Historial")
-        self.tabs.addTab(self._tab_placeholder("Próximamente: GROQ_API_KEY"), "API Keys")
-        self.tabs.addTab(self._tab_placeholder("Próximamente: delays, timeouts, modo headless."), "Scraping")
 
     def _tab_general(self):
         w = QWidget()
         v = QVBoxLayout(w)
-        v.setSpacing(8)
+        v.setSpacing(12)
         v.setAlignment(Qt.AlignTop)
-        t = QLabel("Archivo Excel actual"); t.setObjectName("cardTitle"); v.addWidget(t)
-        lbl = QLabel(self._excel_path if self._excel_path else "No hay archivo Excel cargado.")
-        lbl.setObjectName("mutedLabel"); lbl.setWordWrap(True); v.addWidget(lbl)
-        hint = QLabel('Para cambiar el archivo, cerrá este modal y usá el botón "Cambiar" de la barra superior.')
-        hint.setObjectName("mutedLabel"); hint.setWordWrap(True); v.addWidget(hint)
+
+        t = QLabel("Archivo Excel actual")
+        t.setObjectName("cardTitle")
+        v.addWidget(t)
+
+        self._lbl_excel_path = QLabel(
+            self._excel_path if self._excel_path else "No hay archivo Excel cargado."
+        )
+        self._lbl_excel_path.setWordWrap(True)
+        v.addWidget(self._lbl_excel_path)
+
+        btn_row = QHBoxLayout()
+        btn_cambiar = QPushButton("Cambiar archivo Excel")
+        btn_cambiar.setObjectName("btnPrimarySmall")
+        btn_cambiar.clicked.connect(self._cambiar_excel_modal)
+        btn_row.addWidget(btn_cambiar)
+        btn_row.addStretch()
+        v.addLayout(btn_row)
+
+        self._chk_vencidos = QCheckBox("Ocultar períodos con fechas vencidas")
+        self._chk_vencidos.setChecked(self._config.get_ocultar_periodos_vencidos())
+        self._chk_vencidos.stateChanged.connect(self._on_ocultar_vencidos_changed)
+        v.addWidget(self._chk_vencidos)
+
         return w
+
+    def _on_ocultar_vencidos_changed(self, _):
+        self._config.set_ocultar_periodos_vencidos(self._chk_vencidos.isChecked())
+        if self._on_periodos_setting_changed:
+            self._on_periodos_setting_changed()
+
+    def _cambiar_excel_modal(self):
+        from pathlib import Path
+        from PySide6.QtWidgets import QFileDialog
+        current = self._excel_path
+        initialdir = str(Path(current).parent) if current else str(Path.home())
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Seleccionar archivo Excel", initialdir,
+            "Archivos Excel (*.xlsx *.xls);;Todos los archivos (*.*)",
+        )
+        if not path:
+            return
+        if self._on_excel_changed:
+            try:
+                self._on_excel_changed(path)
+                self._excel_path = path
+                self._lbl_excel_path.setText(path)
+            except Exception as e:
+                QMessageBox.critical(
+                    self, "Error al cargar Excel",
+                    f"No se pudo cargar el archivo:\n{path}\n\nDetalle: {e}",
+                )
 
     def _tab_historial(self):
         w = QWidget()
@@ -147,14 +194,6 @@ class QtConfigModal(QDialog):
         self._config.set_historial_ttl_dias(self._ttl_spin.value())
         QMessageBox.information(self, "Guardado", "Configuración del historial guardada.")
 
-    def _tab_placeholder(self, mensaje):
-        w = QWidget()
-        v = QVBoxLayout(w)
-        lbl = QLabel(mensaje)
-        lbl.setObjectName("mutedLabel"); lbl.setWordWrap(True); lbl.setAlignment(Qt.AlignCenter)
-        v.addWidget(lbl)
-        return w
-
     def _tab_email(self):
         w = QWidget()
         v = QVBoxLayout(w)
@@ -170,7 +209,7 @@ class QtConfigModal(QDialog):
 
         v.addWidget(self._lbl("Firma"))
         self._firma = QTextEdit()
-        self._firma.setFixedHeight(70)
+        self._firma.setFixedHeight(48)
         self._firma.setPlainText(self._config.get_email_firma() or "")
         v.addWidget(self._firma)
 
@@ -254,25 +293,33 @@ class QtConfigModal(QDialog):
 
     def _vars_chips(self):
         container = QWidget()
-        lay = QVBoxLayout(container)
-        lay.setContentsMargins(0, 0, 0, 4)
-        lay.setSpacing(4)
+        grid = QGridLayout(container)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(2)
+        grid.setColumnStretch(1, 1)
 
+        lbl_glob = QLabel("Globales:")
+        lbl_glob.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        grid.addWidget(lbl_glob, 0, 0)
         glob_w = QWidget()
-        glob_lay = _FlowLayout(glob_w, h_spacing=4, v_spacing=3)
-        glob_lay.addWidget(QLabel("Globales:"))
+        glob_lay = _FlowLayout(glob_w, h_spacing=4, v_spacing=2)
+        glob_lay.setContentsMargins(0, 0, 0, 0)
         for var in ["hotel", "habitacion_excel", "habitacion_web", "firma"]:
             glob_lay.addWidget(self._chip(var))
-        lay.addWidget(glob_w)
+        grid.addWidget(glob_w, 0, 1)
 
+        lbl_per = QLabel("En bloque for:")
+        lbl_per.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        grid.addWidget(lbl_per, 1, 0)
         per_w = QWidget()
-        per_lay = _FlowLayout(per_w, h_spacing=4, v_spacing=3)
-        per_lay.addWidget(QLabel("En bloque for:"))
+        per_lay = _FlowLayout(per_w, h_spacing=4, v_spacing=2)
+        per_lay.setContentsMargins(0, 0, 0, 0)
         for var in ["periodo_id", "fecha_inicio_periodo", "fecha_fin_periodo",
                     "fecha_inicio_busqueda", "fecha_fin_busqueda",
                     "precio_excel", "precio_web", "diferencia", "estado"]:
             per_lay.addWidget(self._chip(var))
-        lay.addWidget(per_w)
+        grid.addWidget(per_w, 1, 1)
 
         return container
 
@@ -280,7 +327,7 @@ class QtConfigModal(QDialog):
         btn = QPushButton(f"{{{var_name}}}")
         btn.setObjectName("varChip")
         btn.setCursor(Qt.PointingHandCursor)
-        btn.clicked.connect(lambda checked=False, v=var_name: self._template.insertPlainText(f"{{{v}}}"))
+        btn.clicked.connect(lambda _, v=var_name: self._template.insertPlainText(f"{{{v}}}"))
         return btn
 
     # ---- vista previa ----

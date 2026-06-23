@@ -118,3 +118,9 @@ class ConfigService:
 
     def set_historial_ttl_dias(self, dias: int) -> None:
         self.set("historial_ttl_dias", int(dias))
+
+    def get_ocultar_periodos_vencidos(self) -> bool:
+        return bool(self._cache.get("ocultar_periodos_vencidos", False))
+
+    def set_ocultar_periodos_vencidos(self, valor: bool) -> None:
+        self.set("ocultar_periodos_vencidos", bool(valor))

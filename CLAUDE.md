@@ -139,7 +139,7 @@ SCRAPING_DELAY_SECONDS=2
 | Multi-periodo | [docs/negocio/multiperiodo.md](docs/negocio/multiperiodo.md) |
 | Email | [docs/negocio/email.md](docs/negocio/email.md) |
 | Skills custom | [.claude/skills/](.claude/skills/) |
-| Screenshot de la app (skill) | [.claude/skills/app-screenshot.md](.claude/skills/app-screenshot.md) |
+| Debugging visual (skill) | [.claude/skills/visual-bug-fix.md](.claude/skills/visual-bug-fix.md) |
 | Handoff de sesión (skill) | [.claude/skills/handoff.md](.claude/skills/handoff.md) |
 | Índice completo docs | [docs/README.md](docs/README.md) |
 

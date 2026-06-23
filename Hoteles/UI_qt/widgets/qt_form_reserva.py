@@ -89,6 +89,7 @@ class QtFormReserva(QFrame):
                     habs = self.ctrl.cargar_habitaciones(self._normalizar(hotel))
                     self.combo_habitacion.set_values(habs)
                     self.state.habitacion.set("")
+                self.event_bus.emit("habitacion_unificada_changed", None)
                 return
 
     def _on_edificio_changed(self, edificio):

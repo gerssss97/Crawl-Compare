@@ -1,5 +1,20 @@
-"""Estilos de la capa PySide6: paletas dual-mode y generador de QSS desde las constantes del proyecto."""
+"""Estilos de la capa PySide6: paletas dual-mode, constantes y generador de QSS."""
 
-from UI_qt.styles.theme import PALETTES, build_qss, Palette
+from UI_qt.styles.palette import Palette, LIGHT, DARK, PALETTES
+from UI_qt.styles.stylesheet import build_qss
+from UI_qt.styles.constants import (
+    WINDOW_DEFAULT_W, WINDOW_DEFAULT_H, WINDOW_MIN_W, WINDOW_MIN_H,
+    HEADER_HEIGHT, HEADER_BTN_SIZE,
+    INPUT_HEIGHT, BUTTON_HEIGHT_PRIMARY, STEPPER_HEIGHT, MESSAGEBOX_BTN_MIN_W,
+    APP_ICON_GRAPHIC_PX, APP_ICON_CANVAS_PX, APP_ICON_CANVAS_OFFSET, APP_ICON_TINT,
+    APP_WIN_ICON_PX, APP_WIN_ICON_PAD_PX,
+)
 
-__all__ = ['PALETTES', 'build_qss', 'Palette']
+__all__ = [
+    "Palette", "LIGHT", "DARK", "PALETTES", "build_qss",
+    "WINDOW_DEFAULT_W", "WINDOW_DEFAULT_H", "WINDOW_MIN_W", "WINDOW_MIN_H",
+    "HEADER_HEIGHT", "HEADER_BTN_SIZE",
+    "INPUT_HEIGHT", "BUTTON_HEIGHT_PRIMARY", "STEPPER_HEIGHT", "MESSAGEBOX_BTN_MIN_W",
+    "APP_ICON_GRAPHIC_PX", "APP_ICON_CANVAS_PX", "APP_ICON_CANVAS_OFFSET", "APP_ICON_TINT",
+    "APP_WIN_ICON_PX", "APP_WIN_ICON_PAD_PX",
+]

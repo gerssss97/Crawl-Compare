@@ -1,5 +1,6 @@
 import sys
 import io
+import os
 import time
 from datetime import datetime
 
@@ -26,7 +27,18 @@ _trace("error_logger setup completo")
 
 # QApplication debe existir antes de cualquier widget Qt (incluido el splash).
 from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtGui import QIcon, QPixmap, QPainter
+from PySide6.QtCore import Qt, QSize
 _qt_app = QApplication.instance() or QApplication(sys.argv)
+_app_icon_path = os.path.join(os.path.dirname(__file__), "UI_qt", "assets", "app_icon.ico")
+if os.path.exists(_app_icon_path):
+    _src = QIcon(_app_icon_path).pixmap(QSize(32, 32))
+    _padded = QPixmap(QSize(44, 32))   # 12px transparentes a la derecha
+    _padded.fill(Qt.transparent)
+    _p = QPainter(_padded)
+    _p.drawPixmap(0, 0, _src)
+    _p.end()
+    _qt_app.setWindowIcon(QIcon(_padded))
 _trace("QApplication creada")
 
 # Smoke test post-build: si se invoca con --self-test, corre verificaciones
@@ -35,31 +47,23 @@ if "--self-test" in sys.argv:
     from Deploy.smoke_test import run_smoke_test
     run_smoke_test()
 
-import Core.gestor_datos  # pre-carga el módulo sin contaminar el namespace
-_trace("Core.gestor_datos importado")
-
-from UI_qt.interfaz_qt import MainWindow
-_trace("MainWindow importado")
-
-
 def run_app():
     global _qt_app
+    _splash = None
 
-    # En .exe mostramos splash y corremos los checks en un QThread worker para
-    # que la animación del splash no se congele durante I/O bloqueante.
     if getattr(sys, "frozen", False):
         from Deploy.splash import SplashScreen
         from Deploy.startup_worker import StartupWorker
         from PySide6.QtCore import QEventLoop
 
-        splash = SplashScreen()
+        _splash = SplashScreen()
         _trace("SplashScreen creado y visible")
 
         loop = QEventLoop()
         _error_msg = []
 
         worker = StartupWorker()
-        worker.progreso.connect(splash.update_status)
+        worker.progreso.connect(_splash.update_status)
         worker.listo.connect(loop.quit)
         worker.error.connect(lambda msg: (_error_msg.append(msg), loop.quit()))
         worker.start()
@@ -68,15 +72,25 @@ def run_app():
         loop.exec()   # el event loop corre libre: splash anima, worker trabaja
         _trace("QEventLoop terminado")
 
-        splash.close()
-
         if _error_msg:
+            _splash.close()
             QMessageBox.critical(None, "Error de arranque", _error_msg[0])
             sys.exit(1)
+
+        _splash.update_status("Cargando interfaz...")
     else:
-        # En dev corremos los checks directamente (sin splash, sin worker)
         from Deploy.startup_check import run_checks
         run_checks()
+
+    # Imports pesados: el splash sigue visible mientras esto carga (solo en .exe)
+    import Core.gestor_datos  # noqa: F401
+    _trace("Core.gestor_datos importado")
+
+    from UI_qt.interfaz_qt import MainWindow
+    _trace("MainWindow importado")
+
+    if _splash:
+        _splash.close()
 
     _trace("instanciando MainWindow")
     window = MainWindow()

@@ -9,6 +9,7 @@ Cableada al AppState v2 (UI_qt/state) de la Fase 1.
 import sys
 import os
 import datetime
+from pathlib import Path
 
 # UTF-8 en stdout/stderr: el Core hace print() con caracteres Unicode (ej. "→") y la
 # consola de Windows usa cp1252 por default -> UnicodeEncodeError que el scraping
@@ -32,7 +33,7 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QGraphicsDropShadowEffect, QSizePolicy,
 )
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QIcon, QPixmap, QPainter
 
 from UI_qt.styles import qt_icons
 
@@ -129,6 +130,9 @@ class MainWindow(QMainWindow):
     def _on_habitacion_para_periodos(self, data):
         """Actualiza el panel de periodos con la habitacion elegida."""
         habitacion = data.get("value") if isinstance(data, dict) else data
+        if habitacion is None:
+            self.periodos_panel.limpiar()
+            return
         hotel_nombre = normalizar_hotel_nombre(self.state.hotel.get())
         hotel_actual = next(
             (h for h in self.state.hoteles_excel if h.nombre.lower() == hotel_nombre), None
@@ -136,7 +140,10 @@ class MainWindow(QMainWindow):
         if hotel_actual is None:
             self.periodos_panel.limpiar()
             return
-        self.periodos_panel.actualizar_periodos(habitacion, hotel_actual)
+        self.periodos_panel.actualizar_periodos(
+            habitacion, hotel_actual,
+            ocultar_vencidos=self.config_service.get_ocultar_periodos_vencidos(),
+        )
 
     # ===================== Ejecucion de la comparacion =====================
     def _ejecutar_comparacion(self):
@@ -205,6 +212,15 @@ class MainWindow(QMainWindow):
 
 
     # ===================== Header: acciones =====================
+    def _apply_excel(self, path: str):
+        """Carga el Excel y refresca toda la UI. Puede lanzar excepciones."""
+        self.controlador_hotel.cargar_excel(path)
+        self._excel_path = path
+        self.config_service.set_last_excel_path(path)
+        self._actualizar_label_excel(path)
+        self.btn_ejecutar.setEnabled(True)
+        self.form_reserva.cargar_hoteles()
+
     def _cambiar_excel(self):
         """File picker para cambiar el Excel; recarga y refresca la UI."""
         from pathlib import Path
@@ -215,21 +231,15 @@ class MainWindow(QMainWindow):
         self.raise_()
         path, _ = QFileDialog.getOpenFileName(
             self, "Seleccionar archivo Excel", initialdir,
-            "Archivos Excel (*.xlsx);;Todos los archivos (*.*)",
+            "Archivos Excel (*.xlsx *.xls);;Todos los archivos (*.*)",
         )
         if not path:
             return
         try:
-            self.controlador_hotel.cargar_excel(path)
+            self._apply_excel(path)
         except Exception as e:
             QMessageBox.critical(self, "Error al cargar Excel",
                                  f"No se pudo cargar el archivo:\n{path}\n\nDetalle: {e}")
-            return
-        self._excel_path = path
-        self.config_service.set_last_excel_path(path)
-        self._actualizar_label_excel(path)
-        self.btn_ejecutar.setEnabled(True)
-        self.form_reserva.cargar_hoteles()
 
     def _actualizar_label_excel(self, path):
         from pathlib import Path
@@ -342,7 +352,25 @@ class MainWindow(QMainWindow):
 
     def _abrir_config(self):
         """Abre el modal de configuracion."""
-        QtConfigModal(self, excel_path=self.controlador_hotel.get_excel_path()).exec()
+        def _refresh_periodos():
+            hab = self.state.habitacion_unificada_actual
+            hotel_nombre = normalizar_hotel_nombre(self.state.hotel.get())
+            hotel_actual = next(
+                (h for h in self.state.hoteles_excel if h.nombre.lower() == hotel_nombre), None
+            )
+            if hab and hotel_actual:
+                self.periodos_panel.actualizar_periodos(
+                    hab, hotel_actual,
+                    ocultar_vencidos=self.config_service.get_ocultar_periodos_vencidos(),
+                )
+
+        QtConfigModal(
+            self,
+            excel_path=self.controlador_hotel.get_excel_path(),
+            on_excel_changed=self._apply_excel,
+            on_periodos_setting_changed=_refresh_periodos,
+            config_service=self.config_service,
+        ).exec()
 
     # ===================== Header =====================
     def _build_header(self) -> QFrame:
@@ -352,6 +380,28 @@ class MainWindow(QMainWindow):
         lay = QHBoxLayout(header)
         lay.setContentsMargins(24, 0, 24, 0)
         lay.setSpacing(16)
+
+        _ico_path = Path(__file__).parent / "assets" / "app_icon.ico"
+        if _ico_path.exists():
+            # Ícono más chico (22px) centrado en canvas de 28px → 3px de aire en cada lado
+            raw = QIcon(str(_ico_path)).pixmap(QSize(22, 22))
+            padded = QPixmap(QSize(28, 28))
+            padded.fill(Qt.transparent)
+            p = QPainter(padded)
+            p.drawPixmap(3, 3, raw)
+            p.end()
+            # Tint cremita sobre el alpha del ícono (SourceIn preserva la forma)
+            tinted = QPixmap(QSize(28, 28))
+            tinted.fill(Qt.transparent)
+            p = QPainter(tinted)
+            p.setCompositionMode(QPainter.CompositionMode_Source)
+            p.drawPixmap(0, 0, padded)
+            p.setCompositionMode(QPainter.CompositionMode_SourceIn)
+            p.fillRect(tinted.rect(), QColor("#DDD5C8"))
+            p.end()
+            lbl_icon = QLabel()
+            lbl_icon.setPixmap(tinted)
+            lay.addWidget(lbl_icon)
 
         title = QLabel("Comparador de Precios de Hoteles")
         title.setObjectName("headerTitle")

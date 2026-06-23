@@ -21,6 +21,8 @@ from PySide6.QtCore import Qt
 def _fmt_money(v):
     if isinstance(v, (int, float)):
         return f"${v:,.2f}"
+    if v is None:
+        return "—"
     return str(v)
 
 
@@ -66,6 +68,7 @@ class QtPrecioPanel(QFrame):
 
     # ---- API publica ----
     def mostrar_mensaje(self, mensaje):
+        self._title.setText("PRECIO ESTIMADO")
         self._clear_body()
         lbl = QLabel(mensaje)
         lbl.setObjectName("mutedLabel")
@@ -88,8 +91,14 @@ class QtPrecioPanel(QFrame):
         numericos = [p['precio'] for p in precios_data if isinstance(p['precio'], (int, float))]
         if numericos:
             mn, mx = min(numericos), max(numericos)
-            monto = _fmt_money(mn) if mn == mx else f"{_fmt_money(mn)} – {_fmt_money(mx)}"
+            if mn == mx:
+                self._title.setText("PRECIO ESTIMADO")
+                monto = _fmt_money(mn)
+            else:
+                self._title.setText("RANGO DE PRECIO")
+                monto = f"{_fmt_money(mn)} – {_fmt_money(mx)}"
         else:
+            self._title.setText("PRECIO ESTIMADO")
             monto = _fmt_money(precios_data[0]['precio'])
         val = QLabel(monto)
         val.setObjectName("priceValue")

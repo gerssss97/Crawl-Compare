@@ -8,6 +8,7 @@ API: actualizar_periodos(habitacion, hotel_excel) y limpiar().
 """
 
 from collections import OrderedDict
+from datetime import date
 
 from PySide6.QtWidgets import (
     QFrame, QVBoxLayout, QLabel, QScrollArea, QWidget,
@@ -82,7 +83,7 @@ class QtPeriodosPanel(QFrame):
     def limpiar(self):
         self._mostrar_mensaje("(ninguna seleccionada)")
 
-    def actualizar_periodos(self, habitacion, hotel_excel):
+    def actualizar_periodos(self, habitacion, hotel_excel, ocultar_vencidos: bool = False):
         self._clear()
 
         if isinstance(habitacion, HabitacionUnificada):
@@ -97,10 +98,15 @@ class QtPeriodosPanel(QFrame):
             return
 
         # Agrupar por nombre de grupo (como el panel CTk)
+        hoy = date.today()
+        tuvo_periodos = False
         grupos = OrderedDict()
         for pid in periodo_ids:
             periodo = hotel_excel.periodo_por_id(pid)
             if not periodo:
+                continue
+            tuvo_periodos = True
+            if ocultar_vencidos and periodo.fecha_fin < hoy:
                 continue
             nombre_grupo = None
             for grupo in hotel_excel.periodos_group:
@@ -111,7 +117,9 @@ class QtPeriodosPanel(QFrame):
                 grupos.setdefault(nombre_grupo, []).append(periodo)
 
         if not grupos:
-            self._mostrar_mensaje("Sin períodos asignados")
+            msg = ("Todos los períodos están vencidos." if (ocultar_vencidos and tuvo_periodos)
+                   else "Sin períodos asignados")
+            self._mostrar_mensaje(msg)
             return
 
         for nombre_grupo, periodos in grupos.items():

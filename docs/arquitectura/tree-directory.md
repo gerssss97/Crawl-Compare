@@ -130,6 +130,9 @@ Hoteles/
 │   │   ├── qt_config_modal.py  # Modal de configuracion (QDialog + QTabWidget). Porta ConfigModal.
 │   ├── test_resultado_qt_visual.py  # Test visual Qt: simula resultados de comparacion y muestra el modal PySide6 completo.
 │   ├── startup_worker.py  # Worker QThread para correr run_checks() sin bloquear el hilo principal.
+│   │   ├── palette.py  # Tokens de color del design system Qt (dual-mode light/dark).
+│   │   ├── constants.py  # Constantes de dimensiÃ³n Qt-especÃ­ficas del design system.
+│   │   ├── stylesheet.py  # Generador del QSS global desde las constantes del design system.
     └── test_periodos_ui.py
 │   ├── inline-suggester.md  # Inline suggester
 │   ├── cheu-fijate-que-el-serene-aurora.md  # Cheu fijate que el serene aurora
@@ -167,4 +170,9 @@ Hoteles/
 │   ├── app-screenshot.md  # App screenshot
 │   ├── qt_spin_stepper.py  # Widget stepper [-] value [+] para cantidades pequeÃ±as (adultos, niÃ±os).
 │   ├── historial-viewer-persistido.md  # Historial viewer persistido
+│   ├── make_ico.py  # Make ico
+│   ├── visual-bug-fix.md  # Visual bug fix
+│   ├── qt_interact_template.py  # Qt interact template
+│   ├── screenshot_dark.py  # Lanza MainWindow en dark mode y captura un screenshot.
+│   ├── split-qt-styles.md  # Split qt styles
 ```

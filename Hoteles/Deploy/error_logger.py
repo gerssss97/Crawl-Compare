@@ -5,7 +5,39 @@ import datetime
 from pathlib import Path
 
 
+# Flags que identifican mensajes de error — se persisten en el log
+_ERROR_FLAGS: frozenset = frozenset({
+    "[ERROR]",               # extractor.py — fila inválida
+    "[ConfigService] Error", # config_service.py — I/O de config.json
+    "[EventBus] Error",      # event_bus.py — listener que explota
+    "[historial] Error",     # qt_resultados_modal.py — persistencia historial
+    "ERROR en periodo",      # comparador_multiperiodo.py — fallo en un periodo
+    "Error:",                # scraper_utils.py — errores de extracción/HTTP
+    "Error en intento",      # scraper_utils.py — retry fallido
+    "Error decodificando",   # scraper_utils.py — JSON inválido
+    "Error procesando",      # scraper_utils.py — habitación inválida
+    "Error inesperado",      # scraper_utils.py — catch-all
+})
+
+# Flags de mensajes informativos — documentados, NO van al log
+# Reservado para futura subcategorización (ej: modo verbose)
+_INFO_FLAGS: frozenset = frozenset({
+    "[DEBUG]",
+    "[PIPELINE]",
+    "[startup]",
+    "[TESTING MODE]",
+    "[EventBus] Emitiendo:",
+    "Mejor match para",
+    "COMPARACIÓN MULTI-PERIODO",
+    "Precio Excel:",
+    "MEJOR NOMBRE WEB",
+    "COMBO ELEGIDO",
+    "→ ",
+})
+
+
 class _TeeStream:
+    """Tee completo — todo lo que escribe el stream original va también al log."""
     def __init__(self, original, log_path):
         self._orig = original
         self._log = open(log_path, "a", encoding="utf-8", buffering=1)
@@ -17,6 +49,30 @@ class _TeeStream:
     def flush(self):
         self._orig.flush()
         self._log.flush()
+
+    @property
+    def encoding(self):
+        return self._orig.encoding
+
+    @property
+    def errors(self):
+        return self._orig.errors
+
+
+class _FilteredTeeStream:
+    """Tee filtrado — solo persiste al log las líneas que matchean _ERROR_FLAGS."""
+    def __init__(self, original, log_path):
+        self._orig = original
+        self._log_path = log_path
+
+    def write(self, text):
+        self._orig.write(text)
+        if any(flag in text for flag in _ERROR_FLAGS):
+            with open(self._log_path, "a", encoding="utf-8") as f:
+                f.write(text)
+
+    def flush(self):
+        self._orig.flush()
 
     @property
     def encoding(self):
@@ -53,7 +109,7 @@ def setup_error_logging():
 
     log_path = _get_log_dir() / f"crawl_compare_{datetime.date.today():%Y%m%d}.log"
 
-    sys.stdout = _TeeStream(sys.stdout or _DummyStream(), log_path)
+    sys.stdout = _FilteredTeeStream(sys.stdout or _DummyStream(), log_path)
     sys.stderr = _TeeStream(sys.stderr or _DummyStream(), log_path)
 
     def _excepthook(exc_type, exc_value, exc_tb):
