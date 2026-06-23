@@ -32,6 +32,7 @@ class _RoundedCombo(QComboBox):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._open_completer = None  # inyectado por QtLabeledCombo tras construir el completer
         self._configure_popup()
 
     def _configure_popup(self):
@@ -49,17 +50,8 @@ class _RoundedCombo(QComboBox):
         QApplication.setEffectEnabled(Qt.UIEffect.UI_AnimateCombo, False)
 
     def showPopup(self):
-        super().showPopup()
-        container = self.view().parentWidget()
-        if container is None:
-            return
-        container.setStyleSheet(f"""
-            QFrame {{
-                background-color: {_SURFACE};
-                border: 1px solid {_BORDER};
-                border-radius: {_R}px;
-            }}
-        """)
+        if self._open_completer:
+            self._open_completer()
 
 
 class _LineEditClickFilter(QObject):
@@ -76,13 +68,8 @@ class _LineEditClickFilter(QObject):
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.MouseButtonPress:
-            native_open = self._combo.view().isVisible()
-            completer_open = self._combo.completer().popup().isVisible()
-            if not native_open and not completer_open:
-                def _open():
-                    self._combo.completer().setCompletionPrefix("")
-                    self._combo.completer().complete()
-                QTimer.singleShot(0, _open)
+            if self._combo._open_completer and not self._combo.completer().popup().isVisible():
+                QTimer.singleShot(0, self._combo._open_completer)
         return False
 
 
@@ -158,6 +145,7 @@ class QtLabeledCombo(QWidget):
         self._completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
         self.combo.setCompleter(self._completer)
         self._configure_completer_popup()
+        self.combo._open_completer = self._open_completer_popup
 
         # Click en el field abre el completer popup (no el native dropdown)
         self.combo.lineEdit().installEventFilter(_LineEditClickFilter(self.combo))
@@ -174,6 +162,17 @@ class QtLabeledCombo(QWidget):
         lay.addWidget(self.combo)
 
         self._var.trace_add('write', self._on_var_changed)
+
+    def _open_completer_popup(self):
+        popup = self._completer.popup()
+        if popup.isVisible():
+            return
+        self._completer.setCompletionPrefix("")
+        row_h = popup.sizeHintForRow(0)
+        if row_h <= 0:
+            row_h = 26
+        popup.setMaximumHeight(row_h * Spacing.DROPDOWN_MAX_VISIBLE + 4)
+        self._completer.complete()
 
     def _configure_completer_popup(self):
         popup = self._completer.popup()

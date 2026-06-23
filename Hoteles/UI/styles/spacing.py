@@ -28,3 +28,6 @@ class Spacing:
 
     # Scrollbars
     SCROLLBAR_WIDTH = 14
+
+    # Dropdowns
+    DROPDOWN_MAX_VISIBLE = 4
