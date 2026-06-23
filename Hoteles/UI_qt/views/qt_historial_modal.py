@@ -2,10 +2,13 @@
 
 Porta HistorialModal. Lista scrollable de comparaciones; click en una fila la restaura
 (rellena el formulario) y cierra. Boton para limpiar todo el historial.
+Filas con html_resultado persitido muestran boton "Ver resultado" que abre
+_ResultadoViewerDialog sin cerrar el historial.
 """
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea, QWidget, QPushButton,
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea, QWidget,
+    QPushButton, QTextBrowser,
 )
 from PySide6.QtCore import Qt
 
@@ -20,7 +23,7 @@ def _fmt(v):
 class _FilaHistorial(QFrame):
     """Fila clicable de una entrada del historial."""
 
-    def __init__(self, entrada, on_click, parent=None):
+    def __init__(self, entrada, on_click, on_ver=None, parent=None):
         super().__init__(parent)
         self.setObjectName("chipRow")
         self._entrada = entrada
@@ -34,8 +37,8 @@ class _FilaHistorial(QFrame):
         hotel = entrada.get("hotel", "")
         edificio = entrada.get("edificio") or ""
         nombre_hotel = f"{hotel} — {edificio}" if edificio else hotel
-        t1 = QLabel(nombre_hotel); t1.setObjectName("cardTitle"); v.addWidget(t1)
-        t2 = QLabel(entrada.get("habitacion", "")); t2.setObjectName("fieldLabel"); v.addWidget(t2)
+        t1 = QLabel(nombre_hotel); t1.setObjectName("cardTitle"); t1.setWordWrap(True); v.addWidget(t1)
+        t2 = QLabel(entrada.get("habitacion", "")); t2.setObjectName("fieldLabel"); t2.setWordWrap(True); v.addWidget(t2)
 
         partes = []
         fe, fs = entrada.get("fecha_entrada", ""), entrada.get("fecha_salida", "")
@@ -59,19 +62,69 @@ class _FilaHistorial(QFrame):
             texto = f"{prefijo}Excel: {_fmt(p.get('precio_excel',''))}   Web: {_fmt(p.get('precio_web',''))}   {icono}"
             lp = QLabel(texto)
             lp.setObjectName("mutedLabel" if coincide else "accentValue")
+            lp.setWordWrap(True)
             v.addWidget(lp)
+
+        if on_ver and entrada.get("html_resultado"):
+            footer = QHBoxLayout()
+            footer.setContentsMargins(0, 6, 0, 0)
+            footer.addStretch()
+            btn = QPushButton("Ver resultado")
+            btn.setObjectName("btnSecondary")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(lambda: on_ver(self._entrada))
+            footer.addWidget(btn)
+            v.addLayout(footer)
 
     def mousePressEvent(self, event):
         self._on_click(self._entrada)
 
 
+class _ResultadoViewerDialog(QDialog):
+    """Muestra el HTML persistido de una comparación previa."""
+
+    def __init__(self, entrada, on_email=None, parent=None):
+        super().__init__(parent)
+        hotel = entrada.get("hotel", "")
+        hab = entrada.get("habitacion", "")
+        ts = entrada.get("timestamp", "")[:16].replace("T", " ")
+        self.setWindowTitle(f"{hab[:45]} — {ts}")
+        self.resize(760, 520)
+        self.setModal(True)
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 16, 16, 16)
+        lay.setSpacing(10)
+
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(True)
+        browser.setHtml(entrada.get("html_resultado", "<i>Sin datos guardados.</i>"))
+        lay.addWidget(browser, stretch=1)
+
+        footer = QHBoxLayout()
+        if on_email and entrada.get("tiene_discrepancias"):
+            btn_mail = QPushButton("Enviar mail")
+            btn_mail.setObjectName("btnPrimary")
+            btn_mail.clicked.connect(lambda: on_email(entrada))
+            footer.addWidget(btn_mail)
+        footer.addStretch()
+        btn_close = QPushButton("Cerrar")
+        btn_close.setObjectName("btnSecondary")
+        btn_close.clicked.connect(self.accept)
+        footer.addWidget(btn_close)
+        lay.addLayout(footer)
+
+
 class QtHistorialModal(QDialog):
     """Modal con la lista de comparaciones previas."""
 
-    def __init__(self, parent, entradas, on_restaurar=None, on_limpiar=None):
+    def __init__(self, parent, entradas, on_restaurar=None, on_limpiar=None,
+                 on_ver=None, on_email=None):
         super().__init__(parent)
         self._on_restaurar = on_restaurar
         self._on_limpiar = on_limpiar
+        self._on_ver = on_ver
+        self._on_email = on_email
 
         self.setWindowTitle("Historial de comparaciones")
         self.resize(520, 480)
@@ -86,7 +139,7 @@ class QtHistorialModal(QDialog):
         scroll.setFrameShape(QFrame.NoFrame)
         body = QWidget()
         bl = QVBoxLayout(body)
-        bl.setContentsMargins(0, 0, 0, 0)
+        bl.setContentsMargins(0, 0, 12, 0)
         bl.setSpacing(8)
         bl.setAlignment(Qt.AlignTop)
 
@@ -97,7 +150,7 @@ class QtHistorialModal(QDialog):
             bl.addWidget(vacio)
         else:
             for entrada in entradas:
-                bl.addWidget(_FilaHistorial(entrada, self._click_fila))
+                bl.addWidget(_FilaHistorial(entrada, self._click_fila, on_ver=self._click_ver))
 
         scroll.setWidget(body)
         lay.addWidget(scroll, stretch=1)
@@ -115,6 +168,10 @@ class QtHistorialModal(QDialog):
         if self._on_restaurar:
             self._on_restaurar(entrada)
         self.accept()
+
+    def _click_ver(self, entrada):
+        if self._on_ver:
+            self._on_ver(entrada)
 
     def _click_limpiar(self):
         if self._on_limpiar:

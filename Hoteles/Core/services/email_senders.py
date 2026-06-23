@@ -41,3 +41,56 @@ class MailtoSender:
 
         url = f"mailto:{destinatario}?subject={asunto_encoded}&body={body_encoded}"
         webbrowser.open(url)
+
+
+class GmailWebSender:
+    """Abre Gmail en el navegador con el compose precargado."""
+
+    def enviar(self, destinatario: str, asunto: str, cuerpo: str) -> None:
+        su = urllib.parse.quote(asunto, safe="")
+        body = urllib.parse.quote(cuerpo, safe="")
+        to = urllib.parse.quote(destinatario, safe="")
+        url = f"https://mail.google.com/mail/?view=cm&to={to}&su={su}&body={body}"
+        webbrowser.open(url)
+
+
+class OutlookWebSender:
+    """Abre Outlook Web en el navegador con el compose precargado."""
+
+    def enviar(self, destinatario: str, asunto: str, cuerpo: str) -> None:
+        subject = urllib.parse.quote(asunto, safe="")
+        body = urllib.parse.quote(cuerpo, safe="")
+        to = urllib.parse.quote(destinatario, safe="")
+        url = (
+            f"https://outlook.live.com/mail/0/deeplink/compose"
+            f"?to={to}&subject={subject}&body={body}"
+        )
+        webbrowser.open(url)
+
+
+class ClipboardSender:
+    """Copia el cuerpo del email al portapapeles sin abrir ningún cliente."""
+
+    copied: bool = False
+
+    def enviar(self, destinatario: str, asunto: str, cuerpo: str) -> None:
+        self.copied = False
+        if _PYPERCLIP_OK:
+            try:
+                pyperclip.copy(cuerpo)
+                self.copied = True
+            except Exception:
+                pass
+
+
+_PROVIDER_KEYS = ["mailto", "gmail_web", "outlook_web", "clipboard"]
+
+
+def get_sender(provider: str) -> MailtoSender | GmailWebSender | OutlookWebSender | ClipboardSender:
+    if provider == "gmail_web":
+        return GmailWebSender()
+    if provider == "outlook_web":
+        return OutlookWebSender()
+    if provider == "clipboard":
+        return ClipboardSender()
+    return MailtoSender()

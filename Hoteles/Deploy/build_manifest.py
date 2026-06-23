@@ -58,8 +58,23 @@ EXTRA_DATAS = [
     ("UI_qt/styles/_generated", "UI_qt/styles/_generated"),
 ]
 
-# Binarios externos al venv: rutas absolutas en el sistema del developer.
-_MKL_BIN = r"C:\Users\German Lucero\anaconda3\envs\crawler\Library\bin"
+# Resolución dinámica de rutas: funciona en cualquier máquina con el env crawler activo.
+import sys
+import json
+from pathlib import Path
+
+_ENV_ROOT  = Path(sys.prefix)                   # raíz del conda env activo
+_LOCAL_APP = Path(os.environ["LOCALAPPDATA"])   # %LOCALAPPDATA% del usuario actual
+_MKL_BIN   = _ENV_ROOT / "Library" / "bin"
+
+# Revisión de Chromium que espera el Playwright instalado en este env
+_BROWSERS_JSON = (
+    _ENV_ROOT / "Lib" / "site-packages" / "playwright" / "driver" / "package" / "browsers.json"
+)
+_CHROMIUM_REV = next(
+    b["revision"] for b in json.loads(_BROWSERS_JSON.read_text())["browsers"]
+    if b["name"] == "chromium"
+)
 
 # DLLs de MKL que numpy 2.x (conda-forge) necesita en runtime.
 # Solo el subset mínimo — excluimos blacs/scalapack/cdft (HPC distribuido).
@@ -83,17 +98,22 @@ _MKL_DLLS = [
 
 EXTERNAL_BINARIES = [
     {
-        "name": "Chromium (Playwright)",
-        "source": r"C:\Users\German Lucero\AppData\Local\ms-playwright\chromium-1181",
-        "dest":   r"playwright/driver/package/.local-browsers/chromium-1181",
+        "name":   "Chromium (Playwright)",
+        "source": str(_LOCAL_APP / "ms-playwright" / f"chromium-{_CHROMIUM_REV}"),
+        "dest":   f"playwright/driver/package/.local-browsers/chromium-{_CHROMIUM_REV}",
     },
     {
-        "name": "Playwright driver (node.exe + package JS)",
-        "source": r"C:\Users\German Lucero\anaconda3\envs\crawler\Lib\site-packages\playwright\driver",
-        "dest":   r"playwright/driver",
+        "name":   "Playwright driver (node.exe + package JS)",
+        "source": str(_ENV_ROOT / "Lib" / "site-packages" / "playwright" / "driver"),
+        "dest":   "playwright/driver",
     },
-    # MKL: una entrada por DLL, todas van a la raíz de _internal (junto a python312.dll)
-    *[{"name": f"MKL {dll}", "source": f"{_MKL_BIN}\\{dll}", "dest": "."} for dll in _MKL_DLLS],
+    # MKL: solo si existen en este env (Anaconda+MKL). miniconda+OpenBLAS no las tiene
+    # y numpy las embebe en su propio paquete → collect_all("numpy") las levanta solo.
+    *[
+        {"name": f"MKL {dll}", "source": str(_MKL_BIN / dll), "dest": "."}
+        for dll in _MKL_DLLS
+        if (_MKL_BIN / dll).exists()
+    ],
 ]
 
 # Módulos a EXCLUIR del bundle.

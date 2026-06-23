@@ -35,7 +35,7 @@ class FechasValidator:
             ))
             return None
 
-        if datetime.now() > dt:
+        if datetime.now().date() > dt.date():
             result.errors.append(ValidationError(
                 campo=f"fecha_{nombre}",
                 mensaje=f"La fecha de {nombre} debe ser mayor o igual a la actual.",

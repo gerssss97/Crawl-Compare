@@ -1,4 +1,4 @@
-"""Modal de resultado de una comparacion (QDialog no-modal, uno por comparison_id).
+"""Ventana de resultado de una comparacion (QWidget top-level, uno por comparison_id).
 
 Porta ResultadosModal. Se conecta a los Signals del EventBridge (thread-safe) en vez
 del EventBus directo, asi los handlers corren en el hilo de UI aunque el scraping
@@ -10,7 +10,7 @@ boton email (si hay discrepancias).
 import datetime
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton, QMessageBox,
 )
 from PySide6.QtCore import Qt
 
@@ -18,12 +18,13 @@ from UI_qt.widgets.qt_progress_panel import QtProgressPanel
 from UI_qt.widgets.qt_vista_resultados import QtVistaResultados
 
 
-class QtResultadosModal(QDialog):
+class QtResultadosModal(QWidget):
     """Modal independiente de progreso + resultado de una comparacion."""
 
     def __init__(self, parent, comparison_id, snapshot, bridge, historial_service,
                  controlador_comparacion=None, offset=0, theme="light"):
-        super().__init__(parent)
+        super().__init__(None, Qt.Window)
+        self.setAttribute(Qt.WA_DeleteOnClose)
         self._cid = comparison_id
         self._snap = snapshot
         self._bridge = bridge
@@ -37,8 +38,6 @@ class QtResultadosModal(QDialog):
         self.setWindowTitle(f"Comparando: {hab[:50]}...")
         self.setMinimumSize(600, 400)
         self.resize(780, 560)
-        # No-modal: no bloquea la ventana principal ni otros modales
-        self.setModal(False)
 
         self._build_ui()
         self._connect_bridge()
@@ -93,10 +92,12 @@ class QtResultadosModal(QDialog):
         self._bridge.scrape_step.connect(self._on_scrape_step)
         self._bridge.completed.connect(self._on_completed)
         self._bridge.error.connect(self._on_error)
-        # Al cerrar, desconectar para no recibir eventos huerfanos
-        self.finished.connect(self._disconnect_bridge)
 
-    def _disconnect_bridge(self, *_):
+    def closeEvent(self, event):
+        self._disconnect_bridge()
+        event.accept()
+
+    def _disconnect_bridge(self):
         for sig, slot in (
             (self._bridge.started, self._on_started),
             (self._bridge.progress, self._on_progress),
@@ -138,9 +139,9 @@ class QtResultadosModal(QDialog):
             return
         exito = not resultado.tiene_discrepancias
         self.progress.finalizar(exito=exito)
-        self.vista.mostrar_resultado_multiperiodo(resultado)
+        html = self.vista.mostrar_resultado_multiperiodo(resultado)
         self._resultado = resultado
-        self._guardar_historial(resultado)
+        self._guardar_historial(resultado, html)
         hab = self._snap.get("habitacion", "")[:40]
         self.setWindowTitle(f"{hab} — {'OK' if exito else 'Discrepancias'}")
         if resultado.tiene_discrepancias:
@@ -155,8 +156,10 @@ class QtResultadosModal(QDialog):
         self.setWindowTitle(f"{hab} — Error")
 
     # ---- Historial + email (reutiliza Core) ----
-    def _guardar_historial(self, resultado):
+    def _guardar_historial(self, resultado, html: str):
         try:
+            hab_web = (resultado.habitacion_web_matcheada.nombre
+                       if resultado.habitacion_web_matcheada else "")
             self._historial_service.agregar({
                 "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
                 "hotel": self._snap.get("hotel", ""),
@@ -171,6 +174,9 @@ class QtResultadosModal(QDialog):
                      "precio_web": rp.precio_web, "coincide": rp.coincide}
                     for rp in resultado.periodos
                 ],
+                "html_resultado": html,
+                "tiene_discrepancias": resultado.tiene_discrepancias,
+                "habitacion_web": hab_web,
             })
         except Exception as e:
             print(f"[historial] Error al guardar: {e}")
@@ -186,7 +192,9 @@ class QtResultadosModal(QDialog):
     def _abrir_email(self):
         if not self._resultado or self._ctrl_comparacion is None:
             return
-        self._ctrl_comparacion.enviar_email(self._resultado, self._snap)
+        mensaje = self._ctrl_comparacion.enviar_email(self._resultado, self._snap)
+        if mensaje:
+            QMessageBox.information(self, "Email", mensaje)
 
     def actualizar_tema(self, theme: str) -> None:
         """Actualiza el tema del modal cuando el usuario lo cambia en la ventana principal."""

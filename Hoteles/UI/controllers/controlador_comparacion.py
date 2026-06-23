@@ -154,8 +154,9 @@ class ControladorComparacion:
                 on_scrape_step=_on_scrape_step,
             )
 
-            # Resetear flag de gap confirmado para próxima comparación
+            # Resetear estado de gap para la próxima comparación
             self.estado_app.gap_confirmado = False
+            self.estado_app.gap_analysis_actual = None
 
             # Emitir evento de éxito
             self.event_bus.emit('comparison_completed', {
@@ -187,11 +188,15 @@ class ControladorComparacion:
         """Resetea la confirmación de gap (al recalcular fechas o al completar)."""
         self.estado_app.gap_confirmado = False
 
-    def enviar_email(self, resultado, snapshot: dict) -> None:
-        """Genera el cuerpo del email y abre el cliente de correo vía mailto."""
+    def enviar_email(self, resultado, snapshot: dict) -> str | None:
+        """Genera el cuerpo del email y lo despacha con el sender configurado.
+
+        Retorna un mensaje para mostrar al usuario si el envío requiere acción
+        manual (ej. clipboard), o None si el sender abrió una app por su cuenta.
+        """
         from Core.controller import generar_texto_email_multiperiodo
         from Core.services.config_service import ConfigService
-        from Core.services.email_senders import MailtoSender
+        from Core.services.email_senders import ClipboardSender, get_sender
         config = ConfigService()
         hotel = snapshot.get("hotel", "")
         cuerpo = generar_texto_email_multiperiodo(
@@ -199,8 +204,14 @@ class ControladorComparacion:
             template=config.get_email_template(),
             firma=config.get_email_firma(),
         )
-        MailtoSender().enviar(
+        sender = get_sender(config.get_email_provider())
+        sender.enviar(
             destinatario="",
             asunto=f"Reporte de Discrepancias - {hotel}",
             cuerpo=cuerpo,
         )
+        if isinstance(sender, ClipboardSender):
+            if sender.copied:
+                return "Email copiado al portapapeles.\nAbrí tu cliente de email y pegá con Ctrl+V."
+            return "No se pudo copiar al portapapeles (pyperclip no disponible)."
+        return None

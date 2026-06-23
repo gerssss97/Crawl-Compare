@@ -14,7 +14,7 @@ from crawl4ai import (
 from datetime import date
 from Models.hotelExcel import *
 from Models.hotelWeb import *
-from debug_config import DEBUG_CRAWL4AI_VERBOSE, DEBUG_SCRAPING_PIPELINE, DEBUG_LLM_MARKDOWN, DEBUG_COMPARISON_PIPELINE
+from debug_config import DEBUG_CRAWL4AI_VERBOSE, DEBUG_SCRAPING_PIPELINE, DEBUG_LLM_MARKDOWN, DEBUG_COMPARISON_PIPELINE, SHOW_BROWSER
 
 
 def get_browser_config() -> BrowserConfig:
@@ -27,7 +27,7 @@ def get_browser_config() -> BrowserConfig:
     # https://docs.crawl4ai.com/core/browser-crawler-config/
     return BrowserConfig(
         browser_type="chromium",  # Type of browser to simulate
-        headless=False,  # Whether to run in headless mode (no GUI)
+        headless=not SHOW_BROWSER,  # SHOW_BROWSER=True en debug_config para abrir ventana Chrome
         verbose=DEBUG_CRAWL4AI_VERBOSE,
 
         # ===== OPTIMIZACIONES DE RENDIMIENTO =====

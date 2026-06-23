@@ -1,7 +1,5 @@
 """Utilidades generales para la interfaz de usuario."""
 
-from .scrollbar_utils import crear_scrollbar_autohide
-
 
 def normalizar_hotel_nombre(nombre: str) -> str:
     """Convierte el nombre de un hotel al formato interno del Excel: 'nombre (a)'."""

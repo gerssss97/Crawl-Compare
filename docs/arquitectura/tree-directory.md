@@ -163,4 +163,8 @@ Hoteles/
 │   ├── qt_periodos_panel.py  # Panel de periodos con filas expandibles (spec aprobada en Figma).
 │   ├── qt_vista_resultados.py  # Vista de resultados de comparacion: QTextEdit readonly que renderiza HTML.
 │   ├── qt_progress_panel.py  # Panel de progreso del scraping: label de estado + QProgressBar.
+│   ├── screenshot.py  # Screenshot
+│   ├── app-screenshot.md  # App screenshot
+│   ├── qt_spin_stepper.py  # Widget stepper [-] value [+] para cantidades pequeÃ±as (adultos, niÃ±os).
+│   ├── historial-viewer-persistido.md  # Historial viewer persistido
 ```

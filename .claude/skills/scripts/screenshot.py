@@ -1,44 +1,26 @@
-import sys, os
+import sys, os, time
+sys.path.insert(0, r"C:\Users\German\Gerssss\IA\Hoteles\Hoteles")
+sys.path.insert(0, r"C:\Users\German\Gerssss\IA\Hoteles")
+os.chdir(r"C:\Users\German\Gerssss\IA\Hoteles\Hoteles")
 
-base = r'C:\Users\German Lucero\ProyectosChino\Crawl-Compare'
-hoteles_dir = os.path.join(base, 'Hoteles')
-sys.path.insert(0, base)
-sys.path.insert(0, hoteles_dir)
-os.chdir(hoteles_dir)
+from PySide6.QtWidgets import QApplication
+app = QApplication.instance() or QApplication(sys.argv)
 
-import customtkinter as ctk
+from UI_qt.interfaz_qt import MainWindow
+win = MainWindow()
+win.show()
 
-try:
-    from UI.interfaz_ctk import CrawlCompareGUI
-    root = ctk.CTk()
-    app = CrawlCompareGUI(root)
+from PIL import ImageGrab
+import threading
 
-    def take_screenshot_and_quit():
-        root.update()
-        root.lift()
-        root.focus_force()
-        root.update()
-        import time; time.sleep(0.5)
-        try:
-            from PIL import ImageGrab
-            x = root.winfo_rootx()
-            y = root.winfo_rooty()
-            w = root.winfo_width()
-            h = root.winfo_height()
-            screenshot = ImageGrab.grab(bbox=(x, y, x+w, y+h))
-            out = os.path.join(base, '.claude', 'skills', 'scripts', 'app_screenshot.png')
-            screenshot.save(out)
-            print(f'Screenshot saved to {out}')
-        except Exception as e:
-            print(f'Screenshot failed: {e}')
-            import traceback; traceback.print_exc()
-        root.quit()
-        root.destroy()
+def capture():
+    time.sleep(4)
+    sx, sy = win.pos().x(), win.pos().y()
+    img = ImageGrab.grab(bbox=(sx, sy, sx + win.width(), sy + win.height()))
+    img.save(r"C:\Users\German\Gerssss\IA\Hoteles\.claude\skills\scripts\app_qt_screenshot.png")
+    print("SCREENSHOT_OK", flush=True)
+    app.quit()
 
-    root.after(3000, take_screenshot_and_quit)
-    root.mainloop()
-    print('Done')
-except Exception as e:
-    print(f'Error: {e}')
-    import traceback
-    traceback.print_exc()
+t = threading.Thread(target=capture, daemon=True)
+t.start()
+app.exec()

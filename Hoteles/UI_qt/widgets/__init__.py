@@ -6,8 +6,9 @@ from UI_qt.widgets.qt_form_reserva import QtFormReserva
 from UI_qt.widgets.qt_form_fechas import QtFormFechas
 from UI_qt.widgets.qt_precio_panel import QtPrecioPanel
 from UI_qt.widgets.qt_periodos_panel import QtPeriodosPanel
+from UI_qt.widgets.qt_spin_stepper import QtSpinStepper
 
 __all__ = [
     'QtLabeledCombo', 'QtDateField', 'QtFormReserva', 'QtFormFechas',
-    'QtPrecioPanel', 'QtPeriodosPanel',
+    'QtPrecioPanel', 'QtPeriodosPanel', 'QtSpinStepper',
 ]

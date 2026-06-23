@@ -10,12 +10,21 @@ import re
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTabWidget, QWidget,
-    QTextEdit, QPushButton, QMessageBox,
+    QTextEdit, QPushButton, QMessageBox, QTextBrowser, QComboBox, QLayout,
 )
-from PySide6.QtCore import Qt
+from UI_qt.widgets.qt_spin_stepper import QtSpinStepper
+from PySide6.QtCore import Qt, QRect, QPoint, QSize
 
 from Core.email_templates import DEFAULT_EMAIL_TEMPLATE
 from Core.services.config_service import ConfigService
+from Core.services.email_senders import _PROVIDER_KEYS
+
+_PROVIDER_LABELS = [
+    "Cliente predeterminado del sistema",
+    "Gmail (en el navegador)",
+    "Outlook Web (en el navegador)",
+    "Solo copiar al portapapeles",
+]
 
 _VARS_GLOBALES = {"hotel", "habitacion_excel", "habitacion_web", "firma"}
 _VARS_PERIODO = {
@@ -25,6 +34,51 @@ _VARS_PERIODO = {
 }
 _TAG_FOR = "{% for periodo %}"
 _TAG_END = "{% end %}"
+
+
+class _FlowLayout(QLayout):
+    """QLayout que distribuye widgets en filas que wrappean automáticamente."""
+
+    def __init__(self, parent=None, h_spacing=6, v_spacing=4):
+        super().__init__(parent)
+        self._h_spacing = h_spacing
+        self._v_spacing = v_spacing
+        self._items = []
+
+    def addItem(self, item): self._items.append(item)
+    def count(self): return len(self._items)
+    def itemAt(self, i): return self._items[i] if 0 <= i < len(self._items) else None
+    def takeAt(self, i): return self._items.pop(i) if 0 <= i < len(self._items) else None
+    def expandingDirections(self): return Qt.Orientation(0)
+    def hasHeightForWidth(self): return True
+    def heightForWidth(self, w): return self._layout(QRect(0, 0, w, 0), dry=True)
+    def setGeometry(self, rect): super().setGeometry(rect); self._layout(rect, dry=False)
+    def sizeHint(self): return self.minimumSize()
+
+    def minimumSize(self):
+        s = QSize()
+        for item in self._items:
+            s = s.expandedTo(item.minimumSize())
+        m = self.contentsMargins()
+        return s + QSize(m.left() + m.right(), m.top() + m.bottom())
+
+    def _layout(self, rect, dry):
+        m = self.contentsMargins()
+        r = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom())
+        x, y, line_h = r.x(), r.y(), 0
+        for item in self._items:
+            w, h = item.sizeHint().width(), item.sizeHint().height()
+            next_x = x + w + self._h_spacing
+            if next_x - self._h_spacing > r.right() and line_h > 0:
+                x = r.x()
+                y += line_h + self._v_spacing
+                next_x = x + w + self._h_spacing
+                line_h = 0
+            if not dry:
+                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
+            x = next_x
+            line_h = max(line_h, h)
+        return y + line_h - rect.y() + m.bottom()
 
 
 class QtConfigModal(QDialog):
@@ -46,6 +100,7 @@ class QtConfigModal(QDialog):
 
         self.tabs.addTab(self._tab_general(), "General")
         self.tabs.addTab(self._tab_email(), "Email")
+        self.tabs.addTab(self._tab_historial(), "Historial")
         self.tabs.addTab(self._tab_placeholder("Próximamente: GROQ_API_KEY"), "API Keys")
         self.tabs.addTab(self._tab_placeholder("Próximamente: delays, timeouts, modo headless."), "Scraping")
 
@@ -61,6 +116,37 @@ class QtConfigModal(QDialog):
         hint.setObjectName("mutedLabel"); hint.setWordWrap(True); v.addWidget(hint)
         return w
 
+    def _tab_historial(self):
+        w = QWidget()
+        v = QVBoxLayout(w)
+        v.setSpacing(8)
+        v.setAlignment(Qt.AlignTop)
+
+        v.addWidget(self._lbl("Días de retención del historial"))
+        hint_ttl = QLabel(
+            "Las comparaciones más antiguas que este valor se eliminan automáticamente."
+        )
+        hint_ttl.setObjectName("mutedLabel"); hint_ttl.setWordWrap(True); v.addWidget(hint_ttl)
+        self._ttl_spin = QtSpinStepper(
+            min_val=1, max_val=365,
+            default=self._config.get_historial_ttl_dias(),
+            step=1,
+        )
+        v.addWidget(self._ttl_spin)
+
+        btns = QHBoxLayout()
+        btns.addStretch()
+        btn_guardar = QPushButton("Guardar")
+        btn_guardar.setObjectName("btnPrimarySmall")
+        btn_guardar.clicked.connect(self._guardar_historial_cfg)
+        btns.addWidget(btn_guardar)
+        v.addLayout(btns)
+        return w
+
+    def _guardar_historial_cfg(self):
+        self._config.set_historial_ttl_dias(self._ttl_spin.value())
+        QMessageBox.information(self, "Guardado", "Configuración del historial guardada.")
+
     def _tab_placeholder(self, mensaje):
         w = QWidget()
         v = QVBoxLayout(w)
@@ -74,6 +160,14 @@ class QtConfigModal(QDialog):
         v = QVBoxLayout(w)
         v.setSpacing(8)
 
+        v.addWidget(self._lbl("Cliente de email"))
+        self._provider = QComboBox()
+        self._provider.addItems(_PROVIDER_LABELS)
+        current = self._config.get_email_provider()
+        idx = _PROVIDER_KEYS.index(current) if current in _PROVIDER_KEYS else 0
+        self._provider.setCurrentIndex(idx)
+        v.addWidget(self._provider)
+
         v.addWidget(self._lbl("Firma"))
         self._firma = QTextEdit()
         self._firma.setFixedHeight(70)
@@ -81,9 +175,7 @@ class QtConfigModal(QDialog):
         v.addWidget(self._firma)
 
         v.addWidget(self._lbl("Template del email"))
-        hint = QLabel("Variables: {hotel}, {habitacion_excel}, {habitacion_web}, {firma} (globales) · "
-                      "dentro de {% for periodo %}...{% end %}: {precio_excel}, {precio_web}, {diferencia}, {estado}, etc.")
-        hint.setObjectName("mutedLabel"); hint.setWordWrap(True); v.addWidget(hint)
+        v.addWidget(self._vars_chips())
 
         self._template = QTextEdit()
         self._template.setPlainText(self._config.get_email_template() or DEFAULT_EMAIL_TEMPLATE)
@@ -97,9 +189,13 @@ class QtConfigModal(QDialog):
         btn_rest.setObjectName("btnSecondary")
         btn_rest.clicked.connect(self._restaurar_template)
         btns.addWidget(btn_rest)
+        btn_preview = QPushButton("Vista previa")
+        btn_preview.setObjectName("btnSecondary")
+        btn_preview.clicked.connect(self._mostrar_preview)
+        btns.addWidget(btn_preview)
         btns.addStretch()
         btn_guardar = QPushButton("Guardar")
-        btn_guardar.setObjectName("btnPrimary")
+        btn_guardar.setObjectName("btnPrimarySmall")
         btn_guardar.clicked.connect(self._guardar_email)
         btns.addWidget(btn_guardar)
         v.addLayout(btns)
@@ -143,6 +239,7 @@ class QtConfigModal(QDialog):
                 return
         self._config.set_email_firma(firma or None)
         self._config.set_email_template(template or None)
+        self._config.set_email_provider(_PROVIDER_KEYS[self._provider.currentIndex()])
         QMessageBox.information(self, "Guardado", "Configuración de email guardada.")
 
     def _restaurar_template(self):
@@ -154,3 +251,144 @@ class QtConfigModal(QDialog):
         if resp == QMessageBox.Yes:
             self._template.setPlainText(DEFAULT_EMAIL_TEMPLATE)
             self._config.set_email_template(None)
+
+    def _vars_chips(self):
+        container = QWidget()
+        lay = QVBoxLayout(container)
+        lay.setContentsMargins(0, 0, 0, 4)
+        lay.setSpacing(4)
+
+        glob_w = QWidget()
+        glob_lay = _FlowLayout(glob_w, h_spacing=4, v_spacing=3)
+        glob_lay.addWidget(QLabel("Globales:"))
+        for var in ["hotel", "habitacion_excel", "habitacion_web", "firma"]:
+            glob_lay.addWidget(self._chip(var))
+        lay.addWidget(glob_w)
+
+        per_w = QWidget()
+        per_lay = _FlowLayout(per_w, h_spacing=4, v_spacing=3)
+        per_lay.addWidget(QLabel("En bloque for:"))
+        for var in ["periodo_id", "fecha_inicio_periodo", "fecha_fin_periodo",
+                    "fecha_inicio_busqueda", "fecha_fin_busqueda",
+                    "precio_excel", "precio_web", "diferencia", "estado"]:
+            per_lay.addWidget(self._chip(var))
+        lay.addWidget(per_w)
+
+        return container
+
+    def _chip(self, var_name):
+        btn = QPushButton(f"{{{var_name}}}")
+        btn.setObjectName("varChip")
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.clicked.connect(lambda checked=False, v=var_name: self._template.insertPlainText(f"{{{v}}}"))
+        return btn
+
+    # ---- vista previa ----
+
+    _MOCK_DATA = {
+        "hotel": "Hotel Las Leñas",
+        "habitacion_excel": "Suite Superior (2 adultos)",
+        "habitacion_web": "Superior Suite - 2 pax",
+        # "firma" se completa en runtime con el valor actual del campo self._firma
+        "periodos": [
+            {
+                "periodo_id": "1",
+                "fecha_inicio_periodo": "2026-07-01",
+                "fecha_fin_periodo": "2026-07-15",
+                "fecha_inicio_busqueda": "2026-07-03",
+                "fecha_fin_busqueda": "2026-07-10",
+                "precio_excel": "$45.000",
+                "precio_web": "$52.300",
+                "diferencia": "$7.300",
+                "estado": "⚠ Discrepancia",
+            },
+            {
+                "periodo_id": "2",
+                "fecha_inicio_periodo": "2026-07-16",
+                "fecha_fin_periodo": "2026-07-31",
+                "fecha_inicio_busqueda": "2026-07-18",
+                "fecha_fin_busqueda": "2026-07-28",
+                "precio_excel": "$48.000",
+                "precio_web": "$48.000",
+                "diferencia": "$0",
+                "estado": "✓ OK",
+            },
+        ],
+    }
+
+    def _render_preview(self, template: str, mock_data: dict) -> str:
+        """Renderiza el template con datos de muestra.
+
+        Lógica:
+        1. Encuentra el bloque {% for periodo %}...{% end %} con regex.
+        2. Por cada dict en mock_data["periodos"] sustituye las variables del bloque.
+        3. Une todas las iteraciones y reemplaza el bloque original.
+        4. Sustituye las variables globales en el texto restante.
+
+        Retorna el texto renderizado, o un mensaje de error si algo falla.
+        """
+        if not template.strip():
+            return "(el template está vacío)"
+
+        try:
+            bloque_re = re.compile(
+                r"\{%\s*for periodo\s*%\}(.*?)\{%\s*end\s*%\}",
+                re.DOTALL,
+            )
+            match = bloque_re.search(template)
+
+            if match:
+                cuerpo_bloque = match.group(1)
+                iteraciones = []
+                for periodo in mock_data.get("periodos", []):
+                    iteracion = cuerpo_bloque
+                    for key, val in periodo.items():
+                        iteracion = iteracion.replace(f"{{{key}}}", str(val))
+                    iteraciones.append(iteracion)
+                bloque_renderizado = "".join(iteraciones)
+                resultado = bloque_re.sub(bloque_renderizado, template)
+            else:
+                resultado = template
+
+            # sustituye variables globales (firma se toma del campo actual)
+            globales = {k: v for k, v in mock_data.items() if k != "periodos"}
+            for key, val in globales.items():
+                resultado = resultado.replace(f"{{{key}}}", str(val))
+
+            return resultado
+
+        except Exception as exc:
+            return f"[Error al renderizar el template: {exc}]"
+
+    def _mostrar_preview(self):
+        """Construye el QDialog de vista previa y lo muestra."""
+        template = self._template.toPlainText()
+
+        mock = dict(self._MOCK_DATA)
+        mock["firma"] = self._firma.toPlainText().strip() or "(sin firma)"
+
+        resultado = self._render_preview(template, mock)
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Vista previa del email")
+        dlg.resize(600, 500)
+        dlg.setModal(True)
+
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(16, 16, 16, 16)
+        lay.setSpacing(8)
+
+        browser = QTextBrowser()
+        browser.setPlainText(resultado)
+        lay.addWidget(browser, stretch=1)
+
+        btn_cerrar = QPushButton("Cerrar")
+        btn_cerrar.setObjectName("btnSecondary")
+        btn_cerrar.clicked.connect(dlg.accept)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_row.addWidget(btn_cerrar)
+        lay.addLayout(btn_row)
+
+        dlg.exec()

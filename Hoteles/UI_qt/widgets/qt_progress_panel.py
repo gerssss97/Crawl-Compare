@@ -46,7 +46,7 @@ class QtProgressPanel(QWidget):
             return 0.0
         idx = _STEPS.index(step) if step in _STEPS else 0
         step_fraction = idx / len(_STEPS)
-        completados = self._actual - 1
+        completados = max(self._actual, 1) - 1
         val = (completados + step_fraction) / self._total
         return max(0.0, min(1.0, val))
 
@@ -90,6 +90,6 @@ class QtProgressPanel(QWidget):
 
     def _set_bar_color(self, color):
         self._bar.setStyleSheet(
-            f"QProgressBar {{ background:#E2E8F0; border:none; border-radius:5px; }}"
+            f"QProgressBar {{ background:#94A3B8; border:none; border-radius:5px; }}"
             f"QProgressBar::chunk {{ background:{color}; border-radius:5px; }}"
         )

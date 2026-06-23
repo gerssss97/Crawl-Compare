@@ -43,6 +43,7 @@ from UI_qt.widgets import QtFormReserva, QtFormFechas, QtPrecioPanel, QtPeriodos
 from UI_qt.views import QtResultadosModal, QtHistorialModal, QtConfigModal
 
 from Core.services import ConfigService
+from Core.controller import GestorService
 from UI.controllers import (
     ControladorHotel, ControladorPrecios, ControladorValidacion, ControladorComparacion,
 )
@@ -170,7 +171,7 @@ class MainWindow(QMainWindow):
             offset=len(self._modales), theme=self._theme,
         )
         self._modales[comparison_id] = modal
-        modal.finished.connect(lambda *_: self._modales.pop(comparison_id, None))
+        modal.destroyed.connect(lambda *_: self._modales.pop(comparison_id, None))
         modal.show()
 
     def _on_validation_failed(self, data):
@@ -246,8 +247,62 @@ class MainWindow(QMainWindow):
             self, entradas,
             on_restaurar=self._on_historial_restaurar,
             on_limpiar=self.historial_service.limpiar_todo,
+            on_ver=self._on_historial_ver,
+            on_email=self._on_historial_email,
         )
         modal.exec()
+
+    def _on_historial_ver(self, entrada):
+        """Abre el viewer con el HTML persistido de la comparación."""
+        from UI_qt.views.qt_historial_modal import _ResultadoViewerDialog
+        dlg = _ResultadoViewerDialog(entrada, on_email=self._on_historial_email, parent=self)
+        dlg.exec()
+
+    def _on_historial_email(self, entrada):
+        """Construye y despacha un email desde los datos del historial."""
+        from Core.services.email_senders import ClipboardSender, get_sender
+        from PySide6.QtWidgets import QMessageBox
+
+        hotel = entrada.get("hotel", "")
+        habitacion = entrada.get("habitacion", "")
+        hab_web = entrada.get("habitacion_web", "")
+        periodos = entrada.get("periodos", [])
+        firma = self.config_service.get_email_firma()
+
+        lineas = [
+            "Estimado equipo de reservas,", "",
+            f"He detectado discrepancias de precios en el hotel {hotel}.", "",
+            f"Habitación Excel: {habitacion}",
+        ]
+        if hab_web:
+            lineas.append(f"Habitación Web: {hab_web}")
+        lineas += ["", "PERIODOS CON DISCREPANCIA:"]
+
+        for i, p in enumerate(periodos, 1):
+            if p.get("coincide", True):
+                continue
+            nombre = p.get("nombre") or f"Periodo {i}"
+            excel, web = p.get("precio_excel", ""), p.get("precio_web", "")
+            try:
+                excel_str = f"${float(excel):.2f}"
+                web_str = f"${float(web):.2f}"
+                diff_str = f"${abs(float(excel) - float(web)):.2f}"
+            except (TypeError, ValueError):
+                excel_str = web_str = diff_str = "N/A"
+            lineas += [
+                "", f"{nombre}:",
+                f"  Excel: {excel_str}   Web: {web_str}   Diferencia: {diff_str}",
+            ]
+
+        lineas += ["", "Saludos cordiales,", firma]
+        cuerpo = "\n".join(lineas)
+
+        sender = get_sender(self.config_service.get_email_provider())
+        sender.enviar("", f"Reporte de Discrepancias - {hotel}", cuerpo)
+        if isinstance(sender, ClipboardSender):
+            msg = ("Email copiado al portapapeles.\nAbrí tu cliente de email y pegá con Ctrl+V."
+                   if sender.copied else "No se pudo copiar al portapapeles (pyperclip no disponible).")
+            QMessageBox.information(self, "Email", msg)
 
     def _on_historial_restaurar(self, entrada):
         """Pre-rellena el formulario con una entrada del historial."""

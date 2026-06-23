@@ -14,6 +14,10 @@ from PySide6.QtWidgets import QTextBrowser
 def _esc(s):
     return _html.escape(str(s))
 
+def _url(s):
+    """Escapa < > ' " pero NO & — Qt no decodifica &amp; en href antes de abrir el browser."""
+    return _html.escape(str(s)).replace('&amp;', '&')
+
 
 def _money(v):
     return f"${v:.2f}" if isinstance(v, (int, float)) else _esc(v)
@@ -49,7 +53,7 @@ class QtVistaResultados(QTextBrowser):
             antes, url = error_msg.split("\nURL: ", 1)
             h = (f"<b>Error al acceder a la web:</b><br>{_esc(antes.strip())}<br><br>"
                  f"<b>URL intentada:</b><br>"
-                 f"<a href='{_esc(url.strip())}'>{_esc(url.strip())}</a>")
+                 f"<a href='{_url(url.strip())}'>{_url(url.strip())}</a>")
         else:
             h = f"<b>Error:</b> {_esc(error_msg)}"
         self.setHtml(self._wrap(h))
@@ -127,7 +131,7 @@ class QtVistaResultados(QTextBrowser):
                 p.append(f"&nbsp;&nbsp;<b>{fi} - {ff}:</b><br>")
                 if rp.error_url:
                     p.append(f"&nbsp;&nbsp;&nbsp;&nbsp;URL consultada: "
-                             f"<a href='{_esc(rp.error_url)}'>{_esc(rp.error_url)}</a><br>")
+                             f"<a href='{_url(rp.error_url)}'>{_url(rp.error_url)}</a><br>")
                 if rp.error_msg:
                     p.append(f"&nbsp;&nbsp;&nbsp;&nbsp;Error: {_esc(rp.error_msg)}<br>")
             p.append("<br>")
@@ -159,9 +163,11 @@ class QtVistaResultados(QTextBrowser):
                              f"diferencia: ${rp.diferencia:.2f})</span><br>")
                 if rp.url_visitada:
                     p.append(f"&nbsp;&nbsp;&nbsp;&nbsp;URL consultada: "
-                             f"<a href='{_esc(rp.url_visitada)}'>{_esc(rp.url_visitada)}</a><br>")
+                             f"<a href='{_url(rp.url_visitada)}'>{_url(rp.url_visitada)}</a><br>")
 
-        self.setHtml(self._wrap("".join(p)))
+        html = self._wrap("".join(p))
+        self.setHtml(html)
+        return html
 
     def _wrap(self, body):
         return (f"<style>a {{ color: {self._c_link}; }}</style>"

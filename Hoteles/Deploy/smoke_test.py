@@ -76,8 +76,17 @@ def _check_pyside6():
 
 
 def _check_env_loaded():
-    """El .env debe estar embebido en _MEIPASS y cargarse al arrancar."""
+    """El .env debe estar embebido en _MEIPASS y ser parseable por dotenv."""
     import os
+    from pathlib import Path
+    from dotenv import load_dotenv
+
+    if getattr(sys, "frozen", False):
+        env_path = Path(sys._MEIPASS) / ".env"
+        if not env_path.exists():
+            raise FileNotFoundError(f".env no encontrado en bundle: {env_path}")
+        load_dotenv(env_path)
+
     if not os.getenv("GROQ_API_KEY"):
         raise RuntimeError("GROQ_API_KEY no está en el entorno (¿se cargó el .env?)")
     return f"GROQ_API_KEY presente ({len(os.getenv('GROQ_API_KEY'))} chars)"

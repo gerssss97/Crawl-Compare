@@ -6,10 +6,11 @@ invalida. El ControladorValidacion (reutilizado) queda como red de seguridad fin
 """
 
 from PySide6.QtWidgets import (
-    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QWidget,
+    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QWidget,
 )
 from PySide6.QtCore import QDate, QSize
 from UI_qt.widgets.qt_date_edit import QtDateField
+from UI_qt.widgets.qt_spin_stepper import QtSpinStepper
 from UI_qt.styles import qt_icons
 
 
@@ -81,12 +82,9 @@ class QtFormFechas(QFrame):
         lbl = QLabel(label)
         lbl.setObjectName("fieldLabel")
         v.addWidget(lbl)
-        spin = QSpinBox()
-        spin.setRange(0, 20)
-        spin.setValue(default)
-        spin.setFixedWidth(80)
-        spin.valueChanged.connect(lambda val: variable.set(val))
-        v.addWidget(spin)
+        stepper = QtSpinStepper(min_val=0, max_val=20, default=default)
+        stepper.value_changed.connect(lambda val: variable.set(val))
+        v.addWidget(stepper)
         return wrap
 
     def _on_entrada_changed(self):

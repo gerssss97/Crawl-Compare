@@ -34,11 +34,22 @@ def _config_path() -> Path:
 
 
 class ConfigService:
-    """Lectura y escritura de config.json con cache en memoria."""
+    """Lectura y escritura de config.json con cache en memoria. Singleton."""
+
+    _instance: "ConfigService | None" = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
+        if self._initialized:
+            return
         self._path = _config_path()
         self._cache: dict[str, Any] = self._cargar()
+        self._initialized = True
 
     def _cargar(self) -> dict[str, Any]:
         if not self._path.is_file():
@@ -95,3 +106,15 @@ class ConfigService:
 
     def set_email_firma(self, firma: str | None) -> None:
         self.set("email_firma", firma)
+
+    def get_email_provider(self) -> str:
+        return self._cache.get("email_provider", "mailto")
+
+    def set_email_provider(self, provider: str) -> None:
+        self.set("email_provider", provider)
+
+    def get_historial_ttl_dias(self) -> int:
+        return int(self._cache.get("historial_ttl_dias", 7))
+
+    def set_historial_ttl_dias(self, dias: int) -> None:
+        self.set("historial_ttl_dias", int(dias))

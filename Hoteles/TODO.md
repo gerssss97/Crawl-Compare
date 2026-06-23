@@ -32,15 +32,6 @@ inline o label de advertencia bajo el formulario, sin bloquear el flujo.
 
 ---
 
-## UI — modal de comparación minimizable
-
-El `QtResultadosModal` no tiene botón de minimizar. Agregar
-`Qt.WindowType.WindowMinimizeButtonHint` a los window flags del dialog.
-
-**Archivo**: `UI_qt/views/qt_resultados_modal.py`
-
----
-
 ## Feature — ocultar periodos vencidos en config
 
 Las fechas de rangos de periodos que ya finalizaron (antes de hoy) deberían poder
@@ -72,14 +63,35 @@ QSS de modo claro.
 
 ---
 
-## Bug — spinboxes de adultos/niños y año del calendario con estilo Windows 98
+## pantalla negra de aplicacion buildeada persiste
 
-Los botones de subir/bajar de los spinboxes de adultos, niños y año del calendario tienen
-estilo nativo sin pulir. Además el botón de **subir no funciona** para adultos y niños
-(solo baja), mientras que el del año funciona en ambas direcciones.
+La pantalla negra de la aplicacion cuando la ejecuta el usuario se mantiene visible luego de 
+terminado el proceso de apertura de la app. Ademas, muestra todo el log completo de la app al
+usuario, no recomendado.
 
-**Fix**: revisar el widget de spinbox customizado o aplicar QSS a `QSpinBox`/`QDateEdit`
-para reemplazar los controles nativos. El bug del botón de subir puede ser un problema
-de `setMinimum`/`setMaximum` mal configurado o un handler de señal invertido.
+--- 
 
-**Archivos**: `UI_qt/widgets/qt_form_fechas.py`, `UI_qt/widgets/qt_form_reserva.py` (adultos/niños).
+## desactivar logs de resultados de hoteles obtenidos, solo persistir los errores de la aplicacion
+
+---
+
+## El estilo del dropdown al apretar el input no coincide con el dropdown al apretar la flecha del mismo
+
+---
+
+## Borrar las tabs de scraping y apikeys del modal de configuracion
+
+---
+
+## Tab general del modal de configuracion es poco legible
+
+Esta pestaña tiene poco contenido, por lo cual deja muy vacio el modal. Modificar color de letra del msg de la ubicacion del archivo.
+Borrar el msg de explicacion para cambiar la ubicacion del excel que se toma. Agregar dicho boton en este mismo modal, asi el usuario no tiene que salir hasta la interfaz principal.
+
+---
+
+## No tenemos icono de aplicacion!
+
+
+---
+## Historial no agrega boton para abril el modal de la comparacion, ver todos los datos y poder enviar el mail.

@@ -10,6 +10,11 @@
 
 # ===== SCRAPING =====
 
+# Muestra la ventana del browser durante el scraping.
+# En False (default), Chromium corre en headless (sin GUI), lo que
+# es más rápido y no interrumpe al usuario. Activar solo para debug visual.
+SHOW_BROWSER = False
+
 # Logging detallado del pipeline de scraping en cada intento:
 # - Nivel 1 (Crawl4AI): result.success / error_message / status_code / tamaños HTML+markdown
 # - Nivel 2 (Markdown→LLM): stats del markdown enviado a Groq (volcado a stdout, no archivo)

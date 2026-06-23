@@ -49,7 +49,7 @@ class QtDateField(QWidget):
         self.edit = QDateEdit()
         self.edit.setDisplayFormat("dd/MM/yyyy")
         self.edit.setCalendarPopup(True)            # boton de calendario desplegable
-        self.edit.setMinimumDate(QDate(2000, 1, 1))
+        self.edit.setMinimumDate(QDate.currentDate())
         self.edit.setMaximumDate(QDate(2100, 12, 31))
         self.edit.setDate(self._default_date())     # arranca con fecha real
         # Ensanchar el popup del calendario y preparar el resaltado del dia seleccionado
@@ -82,7 +82,7 @@ class QtDateField(QWidget):
     def clear(self):
         """Vuelve a la fecha por defecto (hoy/mañana)."""
         self._syncing = True
-        self.edit.setMinimumDate(QDate(2000, 1, 1))
+        self.edit.setMinimumDate(QDate.currentDate())
         self.edit.setDate(self._default_date())
         self._syncing = False
         self._write_vars(self.edit.date())
