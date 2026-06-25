@@ -19,7 +19,7 @@ os.chdir(hoteles_dir)
 from PySide6.QtCore import QCoreApplication
 from UI_qt.state import EventBus, AppState
 from UI_qt.state.observable import StringVar, IntVar
-from UI.controllers import ControladorPrecios, ControladorComparacion, ControladorValidacion
+from UI_qt.controllers import ControladorPrecios, ControladorComparacion, ControladorValidacion
 
 app = QCoreApplication(sys.argv)  # event loop minimo para que los Signals funcionen
 

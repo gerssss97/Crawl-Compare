@@ -29,11 +29,12 @@ _trace("error_logger setup completo")
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import QIcon, QPixmap, QPainter
 from PySide6.QtCore import Qt, QSize
+from UI_qt.styles.constants import APP_WIN_ICON_PX, APP_WIN_ICON_PAD_PX
 _qt_app = QApplication.instance() or QApplication(sys.argv)
 _app_icon_path = os.path.join(os.path.dirname(__file__), "UI_qt", "assets", "app_icon.ico")
 if os.path.exists(_app_icon_path):
-    _src = QIcon(_app_icon_path).pixmap(QSize(32, 32))
-    _padded = QPixmap(QSize(44, 32))   # 12px transparentes a la derecha
+    _src = QIcon(_app_icon_path).pixmap(QSize(APP_WIN_ICON_PX, APP_WIN_ICON_PX))
+    _padded = QPixmap(QSize(APP_WIN_ICON_PX + APP_WIN_ICON_PAD_PX, APP_WIN_ICON_PX))
     _padded.fill(Qt.transparent)
     _p = QPainter(_padded)
     _p.drawPixmap(0, 0, _src)

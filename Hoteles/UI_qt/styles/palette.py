@@ -45,8 +45,8 @@ DARK = Palette(
     chip="#334155", chip_text="#F8FAFC",
     header_bg="#0B1220", header_text="#F8FAFC",
     primary="#2563EB", primary_hover="#1D4ED8", accent="#60A5FA",
-    text_primary="#F1F5F9", text_secondary="#94A3B8", text_muted="#64748B",
-    input_bg="#0F172A",
+    text_primary="#F1F5F9", text_secondary="#94A3B8", text_muted="#7E93A7",
+    input_bg="#162336",
     shadow_rgba=(0, 0, 0, 64), shadow_blur=10,
 )
 

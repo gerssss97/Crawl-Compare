@@ -3,7 +3,7 @@
 from Core.controller import dar_hoteles_excel, GestorService
 from Core.excel_resolver import resolver_excel_inicial
 from Core.servicio_habitaciones import unificar_habitaciones
-from UI.utils import normalizar_hotel_nombre
+from UI_qt.utils import normalizar_hotel_nombre
 
 
 

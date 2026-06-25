@@ -10,7 +10,7 @@ from Core.controller import (
     normalizar_precio_str,
     imprimir_habitacion_web
 )
-from UI.utils import normalizar_hotel_nombre
+from UI_qt.utils import normalizar_hotel_nombre
 
 
 class ControladorComparacion:

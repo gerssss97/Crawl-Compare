@@ -1,112 +1,42 @@
 """Combo con label arriba, sincronizado con una ObservableVar del AppState.
 
 Soporta typeahead: el usuario puede escribir para filtrar opciones (MatchContains,
-case-insensitive) o usar la flechita para ver y elegir del listado completo.
-
-El popup container (QComboBoxPrivateContainer) se redondea via WA_TranslucentBackground +
-FramelessWindowHint aplicados en __init__ (antes del native handle), que es la unica
-forma confiable en Qt6/Windows. setMask falla porque el container tiene el QComboBox
-como parent Qt y el color :focus sangra en las areas recortadas.
-
-Click en el line edit abre el completer popup (no el native dropdown) para evitar
-el ciclo WM_ACTIVATE que Qt genera al crear ventanas Qt::Popup desde codigo externo.
+case-insensitive). Tanto el click en el input como la flechita abren el mismo
+popup del completer — un solo sistema visual consistente.
 """
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QComboBox, QCompleter, QFrame, QApplication
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QComboBox, QCompleter
 from PySide6.QtCore import Qt, QStringListModel, QObject, QEvent, QTimer
-from UI_qt.styles import LIGHT
-from UI.styles import Spacing
-
-_R = Spacing.RADIUS_MD
-_BORDER = LIGHT.border
-_SURFACE = LIGHT.surface
+from UI_qt.styles import Spacing
 
 
 class _RoundedCombo(QComboBox):
-    """QComboBox cuyo popup container tiene esquinas redondeadas.
-
-    Los flags (FramelessWindowHint, WA_TranslucentBackground) se aplican
-    en __init__ antes de que Qt cree el native handle del container. Aplicarlos
-    en showPopup() es tarde: el handle ya existe y los flags son ignorados.
-    """
+    """QComboBox que redirige showPopup() al completer en vez del popup nativo."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._open_completer = None  # inyectado por QtLabeledCombo tras construir el completer
-        self._configure_popup()
-
-    def _configure_popup(self):
-        container = self.view().parentWidget()
-        if container is None:
-            return
-        container.setWindowFlags(
-            Qt.WindowType.Popup |
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.NoDropShadowWindowHint
-        )
-        container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        container.setAutoFillBackground(False)
-        container.setFrameShape(QFrame.Shape.NoFrame)
-        QApplication.setEffectEnabled(Qt.UIEffect.UI_AnimateCombo, False)
+        self._open_popup_fn = None
 
     def showPopup(self):
-        if self._open_completer:
-            self._open_completer()
+        if self._open_popup_fn:
+            self._open_popup_fn()
 
 
 class _LineEditClickFilter(QObject):
-    """Abre el completer popup al hacer clic en el line edit.
+    """Abre el completer popup al hacer click en el line edit.
 
     Usa completer.complete() en lugar de showPopup() para evitar el ciclo
     WM_ACTIVATE: el completer popup no roba el foco del line edit, por lo que
     Windows no genera mensajes de activacion que Qt traduciria en hidePopup().
     """
 
-    def __init__(self, combo):
-        super().__init__(combo)
-        self._combo = combo
+    def __init__(self, open_fn):
+        super().__init__()
+        self._open = open_fn
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, _obj, event):
         if event.type() == QEvent.Type.MouseButtonPress:
-            if self._combo._open_completer and not self._combo.completer().popup().isVisible():
-                QTimer.singleShot(0, self._combo._open_completer)
-        return False
-
-
-class _DropdownKeyFilter(QObject):
-    """Event filter en combo.view(): redirige keypresses al line edit mientras
-    el dropdown nativo esta abierto, para que escribir filtre el listado."""
-
-    def __init__(self, combo):
-        super().__init__(combo)
-        self._combo = combo
-
-    def eventFilter(self, obj, event):
-        if event.type() != QEvent.Type.KeyPress:
-            return False
-        key = event.key()
-        text = event.text()
-        line = self._combo.lineEdit()
-        completer = self._combo.completer()
-
-        if text and text.isprintable():
-            self._combo.hidePopup()
-            new_text = line.text() + text
-            line.setText(new_text)
-            line.setCursorPosition(len(new_text))
-            completer.setCompletionPrefix(new_text)
-            completer.complete()
-            return True
-
-        if key == Qt.Key.Key_Backspace:
-            self._combo.hidePopup()
-            new_text = line.text()[:-1]
-            line.setText(new_text)
-            line.setCursorPosition(len(new_text))
-            completer.setCompletionPrefix(new_text)
-            completer.complete()
-            return True
-
+            QTimer.singleShot(0, self._open)
         return False
 
 
@@ -137,6 +67,7 @@ class QtLabeledCombo(QWidget):
         self.combo = _RoundedCombo()
         self.combo.setEditable(True)
         self.combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.combo.setMaxVisibleItems(Spacing.DROPDOWN_MAX_VISIBLE)
 
         self._model = QStringListModel([])
         self._completer = QCompleter(self._model)
@@ -145,16 +76,13 @@ class QtLabeledCombo(QWidget):
         self._completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
         self.combo.setCompleter(self._completer)
         self._configure_completer_popup()
-        self.combo._open_completer = self._open_completer_popup
-
-        # Click en el field abre el completer popup (no el native dropdown)
-        self.combo.lineEdit().installEventFilter(_LineEditClickFilter(self.combo))
-        # Redirige keypresses al line edit cuando el dropdown nativo esta abierto
-        self.combo.view().installEventFilter(_DropdownKeyFilter(self.combo))
+        self.combo._open_popup_fn = self._open_completer_popup
+        self._click_filter = _LineEditClickFilter(self._open_completer_popup)
+        self.combo.lineEdit().installEventFilter(self._click_filter)
 
         # Seleccion desde el dropdown nativo (flechita)
         self.combo.activated.connect(self._on_activated)
-        # Seleccion desde el popup del completer (click o escritura)
+        # Seleccion desde el popup del completer (typeahead)
         self._completer.activated[str].connect(self._on_completer_activated)
         # Validacion al perder foco o presionar Enter
         self.combo.lineEdit().editingFinished.connect(self._on_editing_finished)
@@ -168,10 +96,6 @@ class QtLabeledCombo(QWidget):
         if popup.isVisible():
             return
         self._completer.setCompletionPrefix("")
-        row_h = popup.sizeHintForRow(0)
-        if row_h <= 0:
-            row_h = 26
-        popup.setMaximumHeight(row_h * Spacing.DROPDOWN_MAX_VISIBLE + 4)
         self._completer.complete()
 
     def _configure_completer_popup(self):
@@ -181,14 +105,10 @@ class QtLabeledCombo(QWidget):
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.NoDropShadowWindowHint
         )
-        popup.setStyleSheet(f"""
-            QListView {{
-                background-color: {_SURFACE};
-                border: 1px solid {_BORDER};
-                border-radius: {_R}px;
-                outline: none;
-            }}
-        """)
+        popup.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        popup.viewport().setObjectName("completerPopupViewport")
+        popup.setObjectName("completerPopup")
+        self._completer.setMaxVisibleItems(Spacing.DROPDOWN_MAX_VISIBLE)
 
     def set_values(self, valores):
         """Puebla el combo y actualiza el completer."""

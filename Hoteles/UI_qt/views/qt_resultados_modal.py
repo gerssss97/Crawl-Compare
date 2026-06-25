@@ -139,9 +139,9 @@ class QtResultadosModal(QWidget):
             return
         exito = not resultado.tiene_discrepancias
         self.progress.finalizar(exito=exito)
-        html = self.vista.mostrar_resultado_multiperiodo(resultado)
+        self.vista.mostrar_resultado_multiperiodo(resultado)
         self._resultado = resultado
-        self._guardar_historial(resultado, html)
+        self._guardar_historial(resultado)
         hab = self._snap.get("habitacion", "")[:40]
         self.setWindowTitle(f"{hab} — {'OK' if exito else 'Discrepancias'}")
         if resultado.tiene_discrepancias:
@@ -156,10 +156,10 @@ class QtResultadosModal(QWidget):
         self.setWindowTitle(f"{hab} — Error")
 
     # ---- Historial + email (reutiliza Core) ----
-    def _guardar_historial(self, resultado, html: str):
+    def _guardar_historial(self, resultado):
+        def _iso(d): return d.isoformat() if d else None
         try:
-            hab_web = (resultado.habitacion_web_matcheada.nombre
-                       if resultado.habitacion_web_matcheada else "")
+            hab_web = resultado.habitacion_web_matcheada
             self._historial_service.agregar({
                 "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
                 "hotel": self._snap.get("hotel", ""),
@@ -169,14 +169,27 @@ class QtResultadosModal(QWidget):
                 "fecha_salida": self._snap.get("fecha_salida", ""),
                 "adultos": self._snap.get("adultos", 1),
                 "ninos": self._snap.get("ninos", 0),
+                "tiene_discrepancias": resultado.tiene_discrepancias,
+                "habitacion_web": hab_web.nombre if hab_web else "",
+                "habitacion_web_detalles": hab_web.detalles if hab_web else None,
+                "mensaje_match": resultado.mensaje_match,
                 "periodos": [
-                    {"nombre": rp.periodo.nombre, "precio_excel": rp.precio_excel,
-                     "precio_web": rp.precio_web, "coincide": rp.coincide}
+                    {
+                        "nombre":           rp.periodo.nombre,
+                        "fecha_inicio":     _iso(rp.periodo.fecha_inicio),
+                        "fecha_fin":        _iso(rp.periodo.fecha_fin),
+                        "precio_excel":     rp.precio_excel,
+                        "precio_web":       rp.precio_web,
+                        "coincide":         rp.coincide,
+                        "diferencia":       rp.diferencia,
+                        "fecha_inicio_real": _iso(rp.fecha_inicio_real),
+                        "fecha_fin_real":    _iso(rp.fecha_fin_real),
+                        "url_visitada":     rp.url_visitada,
+                        "error_msg":        rp.error_msg,
+                        "error_url":        rp.error_url,
+                    }
                     for rp in resultado.periodos
                 ],
-                "html_resultado": html,
-                "tiene_discrepancias": resultado.tiene_discrepancias,
-                "habitacion_web": hab_web,
             })
         except Exception as e:
             print(f"[historial] Error al guardar: {e}")

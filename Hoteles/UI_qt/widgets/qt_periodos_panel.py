@@ -70,18 +70,20 @@ class QtPeriodosPanel(QFrame):
         self._body_lay.setAlignment(Qt.AlignTop)
         self._scroll.setWidget(self._body)
 
-        self._mostrar_mensaje("(ninguna seleccionada)")
+        self._mostrar_mensaje("Seleccioná una habitación para ver los períodos disponibles")
 
     def _mostrar_mensaje(self, mensaje):
         self._clear()
+        self._body_lay.addStretch()
         lbl = QLabel(mensaje)
         lbl.setObjectName("mutedLabel")
         lbl.setAlignment(Qt.AlignCenter)
         lbl.setWordWrap(True)
         self._body_lay.addWidget(lbl)
+        self._body_lay.addStretch()
 
     def limpiar(self):
-        self._mostrar_mensaje("(ninguna seleccionada)")
+        self._mostrar_mensaje("Seleccioná una habitación para ver los períodos disponibles")
 
     def actualizar_periodos(self, habitacion, hotel_excel, ocultar_vencidos: bool = False):
         self._clear()

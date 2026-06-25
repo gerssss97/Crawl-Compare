@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+from UI_qt.widgets.qt_vista_resultados import QtVistaResultados
+
 
 def _fmt(v):
     try:
@@ -97,11 +99,10 @@ class _FilaHistorial(QFrame):
 
 
 class _ResultadoViewerDialog(QDialog):
-    """Muestra el HTML persistido de una comparación previa."""
+    """Muestra el resultado de una comparación previa, re-renderizado desde datos."""
 
-    def __init__(self, entrada, on_email=None, parent=None):
+    def __init__(self, entrada, on_email=None, parent=None, theme="light"):
         super().__init__(parent)
-        hotel = entrada.get("hotel", "")
         hab = entrada.get("habitacion", "")
         ts = entrada.get("timestamp", "")[:16].replace("T", " ")
         self.setWindowTitle(f"{hab[:45]} — {ts}")
@@ -112,10 +113,19 @@ class _ResultadoViewerDialog(QDialog):
         lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(10)
 
-        browser = QTextBrowser()
-        browser.setOpenExternalLinks(True)
-        browser.setHtml(entrada.get("html_resultado", "<i>Sin datos guardados.</i>"))
-        lay.addWidget(browser, stretch=1)
+        # Entradas viejas (sin fecha_inicio por periodo) caen al fallback de HTML guardado
+        tiene_datos_nuevos = bool(
+            entrada.get("periodos") and entrada["periodos"][0].get("fecha_inicio")
+        )
+        if tiene_datos_nuevos:
+            vista = QtVistaResultados(theme=theme)
+            vista.mostrar_resultado_desde_dict(entrada)
+            lay.addWidget(vista, stretch=1)
+        else:
+            browser = QTextBrowser()
+            browser.setOpenExternalLinks(True)
+            browser.setHtml(entrada.get("html_resultado", "<i>Sin datos guardados.</i>"))
+            lay.addWidget(browser, stretch=1)
 
         if on_email and entrada.get("tiene_discrepancias"):
             btn_mail = QPushButton("Enviar Email")
@@ -128,12 +138,12 @@ class QtHistorialModal(QDialog):
     """Modal con la lista de comparaciones previas."""
 
     def __init__(self, parent, entradas, on_restaurar=None, on_limpiar=None,
-                 on_ver=None, on_email=None):
+                 on_email=None, theme="light"):
         super().__init__(parent)
         self._on_restaurar = on_restaurar
         self._on_limpiar = on_limpiar
-        self._on_ver = on_ver
         self._on_email = on_email
+        self._theme = theme
 
         self.setWindowTitle("Historial de comparaciones")
         self.resize(520, 480)
@@ -179,8 +189,10 @@ class QtHistorialModal(QDialog):
         self.accept()
 
     def _click_ver(self, entrada):
-        if self._on_ver:
-            self._on_ver(entrada)
+        dlg = _ResultadoViewerDialog(
+            entrada, on_email=self._on_email, parent=self, theme=self._theme
+        )
+        dlg.exec()
 
     def _click_limpiar(self):
         if self._on_limpiar:

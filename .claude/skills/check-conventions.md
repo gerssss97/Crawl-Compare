@@ -19,7 +19,7 @@ Analiza archivos Python y verifica el cumplimiento de las convenciones estableci
 
 ## Parámetros
 
-- **path** (opcional): Directorio o archivo a analizar. Default: `UI/`
+- **path** (opcional): Directorio o archivo a analizar. Default: `UI_qt/`
 
 ## Output
 
@@ -32,7 +32,7 @@ Reporte con:
 ## Ejemplo
 
 ```bash
-/check-conventions UI/components/
+/check-conventions UI_qt/widgets/
 ```
 
 Output esperado:
@@ -40,46 +40,29 @@ Output esperado:
 🔍 Validando Convenciones del Proyecto
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Escaneando: UI/components/
+Escaneando: UI_qt/widgets/
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-✅ base_component.py
-   ✓ Nombre en español
+✅ qt_labeled_combo.py
    ✓ Docstrings presentes
 
-✅ date_input_widget.py
-   ✓ Nombre en español
-   ✓ BaseComponent pattern correcto
-   ✓ Métodos requeridos: _setup_ui, get_value, set_value, reset
-   ✓ Docstrings presentes
-
-⚠️  labeled_combobox.py
-   ✓ Nombre en español
-   ✓ BaseComponent pattern correcto
-   ✓ Métodos requeridos presentes
+⚠️  qt_precio_panel.py
    ⚠️  Falta docstring en método: set_value()
 
 ❌ bad_example.py
    ❌ Nombre contiene inglés: "bad_example"
       → Sugerencia: renombrar a "mal_ejemplo.py"
-   ❌ Clase no hereda de BaseComponent
-   ❌ Faltan métodos requeridos: get_value, set_value
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📊 Resumen
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Archivos analizados:  4
-✅ Sin problemas:     2 (50%)
-⚠️  Con warnings:     1 (25%)
-❌ Con errores:       1 (25%)
-
-Violaciones por tipo:
-  • Nombres en inglés:        1
-  • BaseComponent incompleto:  1
-  • Docstrings faltantes:      1
+Archivos analizados:  3
+✅ Sin problemas:     1 (33%)
+⚠️  Con warnings:     1 (33%)
+❌ Con errores:       1 (33%)
 
 💡 Tip: Consulta docs/desarrollo/convenciones.md para detalles de cada convención
 ```
@@ -125,7 +108,7 @@ Cuando el usuario te pida:
 - "valida este componente nuevo"
 - "hay algo mal con mi código?"
 
-Ejecuta este skill con el path relevante.
+Ejecuta este skill con el path relevante (default `UI_qt/`, o el path específico que corresponda).
 
 ## Implementación
 

@@ -7,6 +7,8 @@ nativamente preservando formato, colores, tabla con fuente mono y links clicable
 """
 
 import html as _html
+from datetime import date
+from types import SimpleNamespace
 
 from PySide6.QtWidgets import QTextBrowser
 
@@ -35,14 +37,16 @@ class QtVistaResultados(QTextBrowser):
         self.setOpenExternalLinks(True)   # links clicables abren el navegador
         # Colores adaptados al tema (los demas -verde/rojo saturado- valen en ambos)
         self._theme = theme
-        self._c_link = "#60A5FA" if theme == "dark" else "#0066CC"
-        self._c_err = "#F87171" if theme == "dark" else "#CC0000"
+        self._c_link    = "#60A5FA" if theme == "dark" else "#0066CC"
+        self._c_err     = "#F87171" if theme == "dark" else "#CC0000"
+        self._c_err_row = "#FCA5A5" if theme == "dark" else "#CC0000"
 
     def actualizar_tema(self, theme: str) -> None:
         """Actualiza los colores hardcodeados y re-renderiza el contenido actual."""
         self._theme = theme
-        self._c_link = "#60A5FA" if theme == "dark" else "#0066CC"
-        self._c_err = "#F87171" if theme == "dark" else "#CC0000"
+        self._c_link    = "#60A5FA" if theme == "dark" else "#0066CC"
+        self._c_err     = "#F87171" if theme == "dark" else "#CC0000"
+        self._c_err_row = "#FCA5A5" if theme == "dark" else "#CC0000"
         # Re-renderizar con los nuevos colores si hay contenido
         html = self.toHtml()
         if html.strip():
@@ -103,19 +107,19 @@ class QtVistaResultados(QTextBrowser):
             nombre = fechas if tiene_error else (periodo.nombre or fechas)
             precio_excel = _money(rp.precio_excel)
             if tiene_error:
-                estado, precio_web, color = "⚠ ERROR", "---", self._c_err
+                estado, precio_web, color_fila, color_estado = "⚠ ERROR", "---", self._c_err_row, self._c_err
             elif rp.coincide:
-                estado, precio_web, color = "✅ OK", _money(rp.precio_web), None
+                estado, precio_web, color_fila, color_estado = "✅ OK", _money(rp.precio_web), None, None
             else:
-                estado, precio_web, color = "❌ DIFF", _money(rp.precio_web), self._c_err
-            fila_color = f"color:{color}; font-weight:bold; " if color else ""
-            td = f"{fila_color}{_td}"
+                estado, precio_web, color_fila, color_estado = "❌ DIFF", _money(rp.precio_web), self._c_err_row, self._c_err
+            td_row    = f"color:{color_fila}; {_td}" if color_fila else _td
+            td_estado = f"color:{color_estado}; font-weight:bold; {_td}" if color_estado else _td
             p.append(f"<tr>"
-                     f"<td style='{td}'>{_esc(nombre)}</td>"
-                     f"<td style='{td}'>{_esc(fechas)}</td>"
-                     f"<td align='right' style='{td}'>{_esc(precio_excel)}</td>"
-                     f"<td align='right' style='{td}'>{_esc(precio_web)}</td>"
-                     f"<td style='{td}'>{_esc(estado)}</td></tr>")
+                     f"<td style='{td_row}'>{_esc(nombre)}</td>"
+                     f"<td style='{td_row}'>{_esc(fechas)}</td>"
+                     f"<td align='right' style='{td_row}'>{_esc(precio_excel)}</td>"
+                     f"<td align='right' style='{td_row}'>{_esc(precio_web)}</td>"
+                     f"<td style='{td_estado}'>{_esc(estado)}</td></tr>")
         p.append("</table><br>")
 
         # Errores de acceso web
@@ -158,8 +162,8 @@ class QtVistaResultados(QTextBrowser):
                 if rp.coincide:
                     p.append(f"&nbsp;&nbsp;&nbsp;&nbsp;<b>${rp.precio_web:.2f}</b><br>")
                 else:
-                    p.append(f"&nbsp;&nbsp;&nbsp;&nbsp;<b style='color:{self._c_err}'>${rp.precio_web:.2f}</b>"
-                             f"<span style='color:{self._c_err}'> (Excel: ${rp.precio_excel:.2f} — "
+                    p.append(f"&nbsp;&nbsp;&nbsp;&nbsp;<b style='color:{self._c_err_row}'>${rp.precio_web:.2f}</b>"
+                             f"<span style='color:{self._c_err_row}'> (Excel: ${rp.precio_excel:.2f} — "
                              f"diferencia: ${rp.diferencia:.2f})</span><br>")
                 if rp.url_visitada:
                     p.append(f"&nbsp;&nbsp;&nbsp;&nbsp;URL consultada: "
@@ -168,6 +172,46 @@ class QtVistaResultados(QTextBrowser):
         html = self._wrap("".join(p))
         self.setHtml(html)
         return html
+
+    def mostrar_resultado_desde_dict(self, data: dict):
+        """Reconstruye un resultado desde el dict del historial y lo renderiza."""
+        def _pd(s): return date.fromisoformat(s) if s else None
+
+        periodos = [
+            SimpleNamespace(
+                periodo=SimpleNamespace(
+                    nombre=p.get("nombre"),
+                    fecha_inicio=_pd(p.get("fecha_inicio")),
+                    fecha_fin=_pd(p.get("fecha_fin")),
+                ),
+                precio_excel=p.get("precio_excel"),
+                precio_web=p.get("precio_web"),
+                coincide=p.get("coincide", True),
+                diferencia=p.get("diferencia", 0),
+                fecha_inicio_real=_pd(p.get("fecha_inicio_real")),
+                fecha_fin_real=_pd(p.get("fecha_fin_real")),
+                url_visitada=p.get("url_visitada"),
+                error_msg=p.get("error_msg"),
+                error_url=p.get("error_url"),
+            )
+            for p in data.get("periodos", [])
+        ]
+
+        hab_web = None
+        if data.get("habitacion_web"):
+            hab_web = SimpleNamespace(
+                nombre=data["habitacion_web"],
+                detalles=data.get("habitacion_web_detalles"),
+            )
+
+        resultado = SimpleNamespace(
+            habitacion_excel_nombre=data.get("habitacion", ""),
+            habitacion_web_matcheada=hab_web,
+            periodos=periodos,
+            tiene_discrepancias=data.get("tiene_discrepancias", False),
+            mensaje_match=data.get("mensaje_match"),
+        )
+        self.mostrar_resultado_multiperiodo(resultado)
 
     def _wrap(self, body):
         return (f"<style>a {{ color: {self._c_link}; }}</style>"

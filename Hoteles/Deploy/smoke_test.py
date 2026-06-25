@@ -109,11 +109,11 @@ _MIN_ICONS_POR_VARIANTE = 9
 
 
 def _icons_base_dir():
-    """Devuelve la ruta base de UI/assets/icons (dev o bundle)."""
+    """Devuelve la ruta base de UI_qt/assets/icons (dev o bundle)."""
     from pathlib import Path
     if getattr(sys, "frozen", False):
-        return Path(sys._MEIPASS) / "UI" / "assets" / "icons"
-    return Path(__file__).parent.parent / "UI" / "assets" / "icons"
+        return Path(sys._MEIPASS) / "UI_qt" / "assets" / "icons"
+    return Path(__file__).parent.parent / "UI_qt" / "assets" / "icons"
 
 
 def _check_icons_bundled():
@@ -129,7 +129,7 @@ def _check_icons_bundled():
         raise FileNotFoundError(
             f"Solo {len(light)} íconos en light/ (mínimo esperado: "
             f"{_MIN_ICONS_POR_VARIANTE}). ¿EXTRA_DATAS incluye "
-            "UI/assets/icons/ en build_manifest.py?"
+            "UI_qt/assets/icons/ en build_manifest.py?"
         )
     if len(dark) < _MIN_ICONS_POR_VARIANTE:
         raise FileNotFoundError(

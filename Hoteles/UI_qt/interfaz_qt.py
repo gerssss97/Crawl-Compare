@@ -33,23 +33,28 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QGraphicsDropShadowEffect, QSizePolicy,
 )
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QColor, QIcon, QPixmap, QPainter
+from PySide6.QtGui import QColor, QIcon, QPixmap, QPainter, QShortcut, QKeySequence
 
 from UI_qt.styles import qt_icons
 
 from UI_qt.state import EventBus, AppState
 from UI_qt.state.event_bridge import EventBridge
-from UI_qt.styles import PALETTES, build_qss
+from UI_qt.styles import (
+    PALETTES, build_qss,
+    WINDOW_DEFAULT_W, WINDOW_DEFAULT_H, WINDOW_MIN_W, WINDOW_MIN_H,
+    HEADER_HEIGHT, HEADER_BTN_SIZE,
+    APP_ICON_GRAPHIC_PX, APP_ICON_CANVAS_PX, APP_ICON_CANVAS_OFFSET, APP_ICON_TINT,
+)
 from UI_qt.widgets import QtFormReserva, QtFormFechas, QtPrecioPanel, QtPeriodosPanel
 from UI_qt.views import QtResultadosModal, QtHistorialModal, QtConfigModal
 
 from Core.services import ConfigService
 from Core.controller import GestorService
-from UI.controllers import (
+from UI_qt.controllers import (
     ControladorHotel, ControladorPrecios, ControladorValidacion, ControladorComparacion,
 )
-from UI.services.historial_service import HistorialService
-from UI.utils import normalizar_hotel_nombre
+from UI_qt.services.historial_service import HistorialService
+from UI_qt.utils import normalizar_hotel_nombre
 
 
 def card_shadow(palette):
@@ -92,8 +97,8 @@ class MainWindow(QMainWindow):
             self.config_service.set_last_excel_path(self._excel_path)
 
         self.setWindowTitle("Comparador de Precios de Hoteles")
-        self.resize(1280, 800)
-        self.setMinimumSize(900, 600)
+        self.resize(WINDOW_DEFAULT_W, WINDOW_DEFAULT_H)
+        self.setMinimumSize(WINDOW_MIN_W, WINDOW_MIN_H)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -112,6 +117,10 @@ class MainWindow(QMainWindow):
         self.bridge.started.connect(self._on_comparison_started)
         self.bridge.validation_failed.connect(self._on_validation_failed)
         self.bridge.mostrar_modal_gaps.connect(self._on_mostrar_modal_gaps)
+
+        # Shortcut Ctrl+Enter -> ejecutar comparacion
+        sc = QShortcut(QKeySequence("Ctrl+Return"), self)
+        sc.activated.connect(self._ejecutar_comparacion)
 
         # Poblar hoteles una vez armada la UI
         if self.controlador_hotel.esta_cargado():
@@ -257,16 +266,10 @@ class MainWindow(QMainWindow):
             self, entradas,
             on_restaurar=self._on_historial_restaurar,
             on_limpiar=self.historial_service.limpiar_todo,
-            on_ver=self._on_historial_ver,
             on_email=self._on_historial_email,
+            theme=self._theme,
         )
         modal.exec()
-
-    def _on_historial_ver(self, entrada):
-        """Abre el viewer con el HTML persistido de la comparación."""
-        from UI_qt.views.qt_historial_modal import _ResultadoViewerDialog
-        dlg = _ResultadoViewerDialog(entrada, on_email=self._on_historial_email, parent=self)
-        dlg.exec()
 
     def _on_historial_email(self, entrada):
         """Construye y despacha un email desde los datos del historial."""
@@ -376,28 +379,26 @@ class MainWindow(QMainWindow):
     def _build_header(self) -> QFrame:
         header = QFrame()
         header.setObjectName("header")
-        header.setFixedHeight(60)
+        header.setFixedHeight(HEADER_HEIGHT)
         lay = QHBoxLayout(header)
         lay.setContentsMargins(24, 0, 24, 0)
         lay.setSpacing(16)
 
         _ico_path = Path(__file__).parent / "assets" / "app_icon.ico"
         if _ico_path.exists():
-            # Ícono más chico (22px) centrado en canvas de 28px → 3px de aire en cada lado
-            raw = QIcon(str(_ico_path)).pixmap(QSize(22, 22))
-            padded = QPixmap(QSize(28, 28))
+            raw = QIcon(str(_ico_path)).pixmap(QSize(APP_ICON_GRAPHIC_PX, APP_ICON_GRAPHIC_PX))
+            padded = QPixmap(QSize(APP_ICON_CANVAS_PX, APP_ICON_CANVAS_PX))
             padded.fill(Qt.transparent)
             p = QPainter(padded)
-            p.drawPixmap(3, 3, raw)
+            p.drawPixmap(APP_ICON_CANVAS_OFFSET, APP_ICON_CANVAS_OFFSET, raw)
             p.end()
-            # Tint cremita sobre el alpha del ícono (SourceIn preserva la forma)
-            tinted = QPixmap(QSize(28, 28))
+            tinted = QPixmap(QSize(APP_ICON_CANVAS_PX, APP_ICON_CANVAS_PX))
             tinted.fill(Qt.transparent)
             p = QPainter(tinted)
             p.setCompositionMode(QPainter.CompositionMode_Source)
             p.drawPixmap(0, 0, padded)
             p.setCompositionMode(QPainter.CompositionMode_SourceIn)
-            p.fillRect(tinted.rect(), QColor("#DDD5C8"))
+            p.fillRect(tinted.rect(), QColor(APP_ICON_TINT))
             p.end()
             lbl_icon = QLabel()
             lbl_icon.setPixmap(tinted)
@@ -428,7 +429,7 @@ class MainWindow(QMainWindow):
         # Toggle de tema (para probar dual mode en vivo)
         self.btn_theme = QPushButton("🌙" if self._theme == "light" else "☀")
         self.btn_theme.setObjectName("headerGear")
-        self.btn_theme.setFixedSize(34, 34)
+        self.btn_theme.setFixedSize(HEADER_BTN_SIZE, HEADER_BTN_SIZE)
         self.btn_theme.clicked.connect(self._toggle_theme)
         lay.addWidget(self.btn_theme)
 
@@ -436,7 +437,7 @@ class MainWindow(QMainWindow):
         btn_gear.setObjectName("headerGear")
         btn_gear.setIcon(qt_icons.icon("settings", on_dark=True))
         btn_gear.setIconSize(QSize(18, 18))
-        btn_gear.setFixedSize(34, 34)
+        btn_gear.setFixedSize(HEADER_BTN_SIZE, HEADER_BTN_SIZE)
         btn_gear.clicked.connect(self._abrir_config)
         lay.addWidget(btn_gear)
 
@@ -478,11 +479,17 @@ class MainWindow(QMainWindow):
         self.form_fechas.setGraphicsEffect(card_shadow(PALETTES[self._theme]))
         v.addWidget(self.form_fechas)
 
+        v.addStretch()
+
+        hint = QLabel("Shortcut: Ctrl + Enter")
+        hint.setObjectName("shortcutHint")
+        hint.setAlignment(Qt.AlignCenter)
+        v.addWidget(hint)
+
         self.btn_ejecutar = QPushButton("Ejecutar Comparación")
         self.btn_ejecutar.setObjectName("btnPrimary")
         self.btn_ejecutar.clicked.connect(self._ejecutar_comparacion)
         v.addWidget(self.btn_ejecutar)
-        v.addStretch()
         return wrap
 
     def _limpiar_campos(self):

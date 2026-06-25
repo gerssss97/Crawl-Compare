@@ -51,9 +51,9 @@ EXTRA_HIDDEN_IMPORTS = [
 EXTRA_DATAS = [
     ("Data/Extracto_prueba2.xlsx", "Data"),
     (".env", "."),
-    # Íconos Feather PNG (compartidos entre CTk y Qt)
-    ("UI/assets/icons/light", "UI/assets/icons/light"),
-    ("UI/assets/icons/dark",  "UI/assets/icons/dark"),
+    # Íconos Feather PNG
+    ("UI_qt/assets/icons/light", "UI_qt/assets/icons/light"),
+    ("UI_qt/assets/icons/dark",  "UI_qt/assets/icons/dark"),
     # Chevrons pre-generados: en _MEIPASS son read-only, icons_gen.py los lee sin regenerar
     ("UI_qt/styles/_generated", "UI_qt/styles/_generated"),
     # Ícono de la aplicación (titlebar + taskbar en runtime)

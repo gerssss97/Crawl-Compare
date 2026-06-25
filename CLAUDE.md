@@ -33,7 +33,7 @@ Guía principal de Claude Code para el proyecto **Crawl-Compare** (Comparador de
 - **Mostrar origen de codigo:** Si vas a tomar una decision de codigo, mostrame las lineas y bloques relacionadas al cambio, original-modificado. Junto con link de los archivos que se modificarian.
 - **explicar bugs, antes de corregirlos:** Si encontras un bug, no propongas directamente la correccion del mismo, explica porque ocurre el bug, y luego mostra el codigo que lo corrije, o en su defecto tu sugerencia de correccion.
 - **tracking de bugs con reintentos:** Si al intentar corregir un bug el primer fix no funcionó, automáticamente:
-    1. Buscar en [docs/ui/troubleshooting-ctk.md](docs/ui/troubleshooting-ctk.md) si el problema ya está registrado.
+    1. Buscar en [docs/ui/troubleshooting-qt.md](docs/ui/troubleshooting-qt.md) si el problema ya está registrado.
     2. Si no está, crear un nuevo ítem de seguimiento en ese doc (o en el troubleshooting correspondiente al módulo) con: síntoma, causa encontrada, intentos fallidos y solución final una vez hallada.
 - **planificar y esperar:** Al crear un plan, esperar a que el usuario pueda leerlo todo para que luego este confirme o apruebe uno a uno los cambios. Pero NO abrir el cartel de aprobacion directamente.
 - **aclarar origen de datos:** Siempre que estes utilizando algun dato proveniente de tus archivos disponibles, aclaralo en las explicaciones.
@@ -82,13 +82,17 @@ Esto me permite leer, hacer preguntas y ajustar el plan antes de decidir cómo e
 
 ### Otras Directrices
 
+- **Antes de escribir código**, lanzar un subagente con la documentación relevante al fix/feature. El subagente **siempre** debe recibir [docs/desarrollo/convenciones.md](docs/desarrollo/convenciones.md) + el/los docs específicos del módulo involucrado. Nunca escribir código sin ese contexto previo.
 - **Antes de leer código**, consultá `docs/` según el módulo. Solo si aún necesitás más detalle, leé el archivo.
 - **Antes de buscar un archivo**, consultá [docs/arquitectura/tree-directory.md](docs/arquitectura/tree-directory.md). Actualizarlo si se agregan/mueven archivos.
 - Para código legacy, preferir migrar a la arquitectura event-driven.
 - Siempre considerar el BaseComponent pattern y el EventBus.
 - Si consultás un doc o usás un skill, **informarlo en el chat**.
-- **Para listas de opciones UI**: usar SIEMPRE `CTkCustomDropdown` (o `CTkLabeledComboBox`). NUNCA `ctk.CTkOptionMenu` ni `ctk.CTkComboBox`. Ver [docs/desarrollo/convenciones.md — Componentes UI](docs/desarrollo/convenciones.md#componentes-ui--reglas-de-uso).
-- **Ante cualquier problema visual de CTk** (scroll raro, sizing incorrecto, esquinas borrosas, overflow): consultar primero [docs/ui/troubleshooting-ctk.md](docs/ui/troubleshooting-ctk.md).
+- **Para listas de opciones UI**: usar SIEMPRE `QComboBox` con el stylesheet de `UI_qt/styles/`. NUNCA crear dropdowns custom ad-hoc. Ver [docs/desarrollo/convenciones.md — Componentes UI](docs/desarrollo/convenciones.md#componentes-ui--reglas-de-uso).
+- **Ante cualquier problema visual de Qt** (sizing incorrecto, overflow, estilos no aplicados): consultar primero [docs/ui/troubleshooting-qt.md](docs/ui/troubleshooting-qt.md).
+- **Sin magic numbers:** Ningún widget, componente ni stylesheet hardcodea px, colores ni tamaños directamente. Todo valor visual va en el archivo de constantes del layer correspondiente:
+  - Layer Qt → `UI_qt/styles/palette.py` (colores), `UI_qt/styles/constants.py` (tamaños)
+  - Si el valor se usa en un solo archivo, igual va centralizado. Ver [docs/desarrollo/convenciones.md — Design Tokens](docs/desarrollo/convenciones.md#design-tokens--constantes-visuales).
 
 ---
 
@@ -100,7 +104,7 @@ Esto me permite leer, hacer preguntas y ajustar el plan antes de decidir cómo e
 
 **Flujo**: selección hotel/habitación → ControladorPrecios calcula precio → "Ejecutar Comparación" → scraping por periodo → fuzzy matching → VistaResultados
 
-**Interfaz activa**: `interfaz_ctk.py` (CustomTkinter). Legacy: `interfaz.py` (Tkinter). Toggle en `main.py`.
+**Interfaz activa**: `interfaz_qt.py` (PySide6). Legacy: `interfaz_ctk.py` (CustomTkinter), `interfaz.py` (Tkinter). Toggle en `main.py`.
 
 **Entorno Python**: Conda, entorno `crawler` (Python 3.12). Siempre activar antes de correr cualquier comando con `python` o `pip`. Nunca ejecutar sobre el entorno base.
 ```powershell
@@ -134,14 +138,28 @@ SCRAPING_DELAY_SECONDS=2
 | Scraper (Crawl4AI) | [docs/scraper/](docs/scraper/) |
 | Troubleshooting scraper | [docs/scraper/troubleshooting.md](docs/scraper/troubleshooting.md) |
 | Componentes UI | [docs/ui/componentes.md](docs/ui/componentes.md) |
-| Troubleshooting CTk (UI) | [docs/ui/troubleshooting-ctk.md](docs/ui/troubleshooting-ctk.md) |
+| Troubleshooting Qt (UI) | [docs/ui/troubleshooting-qt.md](docs/ui/troubleshooting-qt.md) |
 | Controladores UI | [docs/ui/controladores.md](docs/ui/controladores.md) |
 | Multi-periodo | [docs/negocio/multiperiodo.md](docs/negocio/multiperiodo.md) |
 | Email | [docs/negocio/email.md](docs/negocio/email.md) |
-| Skills custom | [.claude/skills/](.claude/skills/) |
-| Debugging visual (skill) | [.claude/skills/visual-bug-fix.md](.claude/skills/visual-bug-fix.md) |
-| Handoff de sesión (skill) | [.claude/skills/handoff.md](.claude/skills/handoff.md) |
 | Índice completo docs | [docs/README.md](docs/README.md) |
 
+---
 
-al planificar, siempre que propongas el plan y yo lo apruebe, crea un .md en features con un nombre descriptivo para el plan, cosa de leerlo y entender de que va. Luego pasamos a la implementacion
+## Skills disponibles
+
+> Invocar con el `Skill` tool. Informar en el chat cada vez que se usa uno.
+
+| Skill | Cuándo invocarlo |
+|-------|-----------------|
+| `visual-bug-fix` | Cualquier reporte visual: "se ve mal", "quedó raro", "está cortado", "no aparece". **Auto-activar** sin esperar que el usuario lo pida |
+| `handoff` | Al cerrar la sesión o cuando el usuario dice "hacé el handoff" / "cerrá la sesión" / "dejá el resumen" |
+| `check-conventions` | Antes de dar por terminado código nuevo o refactorizado — valida BaseComponent pattern, nombres en español, docstrings. Default path: `UI_qt/` |
+| `commit-custom` | Cuando el usuario pide "hacer commit", "commitear estos cambios" o "generar el commit message" |
+| `compare-debug` | El fuzzy matching elige un match inesperado y se quieren ver los 4 scores individuales (ratio, partial, token_sort, token_set) |
+| `multiperiodo-test` | Se trabaja en el sistema multi-periodo y se quiere testear el flujo completo con datos fake (UI Qt, sin scraping real) |
+| `test-scraper` | Se modifica el scraper y se quiere probar rápido sin ejecutar toda la app |
+
+---
+
+- Al planificar, siempre que propongas el plan y yo lo apruebe, crea un .md en docs/features con un nombre descriptivo para el plan, cosa de leerlo y entender de que va. Luego pasamos a la implementacion

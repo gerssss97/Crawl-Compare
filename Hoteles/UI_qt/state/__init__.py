@@ -1,6 +1,6 @@
 """Capa de estado PySide6. EventBus se reutiliza de UI/ (sin cambios); AppState es la version sin Tkinter."""
 
-from UI.state.event_bus import EventBus   # reutilizado tal cual de la UI legacy
+from UI_qt.state.event_bus import EventBus
 from UI_qt.state.app_state import AppState
 from UI_qt.state.observable import ObservableVar, StringVar, IntVar
 

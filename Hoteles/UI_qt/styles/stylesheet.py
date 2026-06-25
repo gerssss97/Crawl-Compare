@@ -3,7 +3,8 @@
 Importa tokens de palette.py y constants.py — no hardcodea ningún valor.
 """
 
-from UI.styles import Spacing, Typography
+from UI_qt.styles.spacing import Spacing
+from UI_qt.styles.typography import Typography
 from UI_qt.styles.palette import Palette, PALETTES
 from UI_qt.styles.constants import (
     INPUT_HEIGHT,
@@ -67,9 +68,9 @@ def build_qss(theme: str = "light") -> str:
         border-radius: {r_lg}px;
     }}
     QLabel#cardTitle {{ color: {p.text_primary}; font-size: {Typography.SMALL + 1}px; font-weight: bold; }}
-    QLabel#sectionLabel {{ color: {p.text_secondary}; font-size: {Typography.SMALL}px; font-weight: 600; }}
-    QLabel#mutedLabel {{ color: {p.text_muted}; font-size: {Typography.SMALL - 1}px; }}
-    QLabel#fieldLabel {{ color: {p.text_secondary}; font-size: {Typography.SMALL}px; font-weight: 600; }}
+    QLabel#sectionLabel {{ color: {p.text_secondary}; font-size: {Typography.SMALL + 1}px; font-weight: 600; }}
+    QLabel#mutedLabel {{ color: {p.text_muted}; font-size: {Typography.SMALL}px; }}
+    QLabel#fieldLabel {{ color: {p.text_secondary}; font-size: {Typography.SMALL + 1}px; font-weight: 600; }}
 
     /* ===== Inputs ===== */
     QLineEdit, QComboBox, QDateEdit {{
@@ -90,11 +91,78 @@ def build_qss(theme: str = "light") -> str:
     QComboBox QAbstractItemView {{
         background-color: {p.surface};
         color: {p.text_primary};
-        selection-background-color: {p.primary};
-        selection-color: #FFFFFF;
-        border: none;
+        border: 1px solid {p.border};
+        border-radius: {r_md}px;
         outline: none;
+        padding: 4px 0;
     }}
+    QComboBox QAbstractItemView::item {{
+        background-color: {p.surface};
+        color: {p.text_primary};
+        padding: 6px 12px;
+        border-radius: {r_sm}px;
+        min-height: 26px;
+    }}
+    QComboBox QAbstractItemView::item:hover,
+    QComboBox QAbstractItemView::item:focus {{
+        background-color: {p.chip};
+        color: {p.chip_text};
+    }}
+    QComboBox QAbstractItemView::item:selected {{
+        background-color: {p.primary};
+        color: #FFFFFF;
+    }}
+    QComboBox QAbstractItemView::indicator {{
+        width: 0;
+        image: none;
+    }}
+
+    /* ===== Completer popup (QtLabeledCombo) ===== */
+    QWidget#completerPopupViewport {{
+        background-color: {p.surface};
+    }}
+    QListView#completerPopup {{
+        background-color: {p.surface};
+        color: {p.text_primary};
+        border: 1px solid {p.border};
+        border-radius: {r_md}px;
+        outline: none;
+        padding: 0 3px;
+    }}
+    QListView#completerPopup::item {{
+        background-color: {p.surface};
+        color: {p.text_primary};
+        padding: 4px 10px;
+        min-height: 20px;
+    }}
+    QListView#completerPopup::item:hover,
+    QListView#completerPopup::item:focus {{
+        background-color: {p.chip};
+        color: {p.chip_text};
+    }}
+    QListView#completerPopup::item:selected {{
+        background-color: {p.primary};
+        color: #FFFFFF;
+    }}
+    QListView#completerPopup::indicator {{
+        width: 0;
+        image: none;
+    }}
+    QListView#completerPopup QScrollBar:vertical {{
+        background: {p.border};
+        width: 6px;
+        margin: 4px 2px 4px 0;
+        border-radius: 3px;
+    }}
+    QListView#completerPopup QScrollBar::handle:vertical {{
+        background: {p.text_muted};
+        border-radius: 3px;
+        min-height: 20px;
+    }}
+    QListView#completerPopup QScrollBar::add-line:vertical,
+    QListView#completerPopup QScrollBar::sub-line:vertical {{ height: 0; }}
+    QListView#completerPopup QScrollBar::add-page:vertical,
+    QListView#completerPopup QScrollBar::sub-page:vertical {{ background: transparent; }}
 
     /* ===== Calendario (popup de QDateEdit) ===== */
     QCalendarWidget QWidget {{ alternate-background-color: {p.surface}; }}
@@ -239,4 +307,9 @@ def build_qss(theme: str = "light") -> str:
         padding: 5px 16px; min-width: {MESSAGEBOX_BTN_MIN_W}px;
     }}
     QMessageBox QPushButton:hover {{ border: 1px solid {p.primary}; }}
+
+    /* ===== Hints / shortcuts ===== */
+    QLabel#shortcutHint {{
+        color: {p.text_muted}; font-size: {Typography.SMALL - 1}px;
+    }}
     """

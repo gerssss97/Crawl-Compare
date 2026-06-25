@@ -64,19 +64,22 @@ class QtPrecioPanel(QFrame):
         self._body_lay.setAlignment(Qt.AlignTop)
         self._scroll.setWidget(self._body)
 
-        self.mostrar_mensaje("(ninguna seleccionada)")
+        self.mostrar_mensaje("Seleccioná un hotel y habitación para ver el precio estimado")
 
     # ---- API publica ----
     def mostrar_mensaje(self, mensaje):
         self._title.setText("PRECIO ESTIMADO")
         self._clear_body()
+        self._body_lay.addStretch()
         lbl = QLabel(mensaje)
         lbl.setObjectName("mutedLabel")
         lbl.setAlignment(Qt.AlignCenter)
+        lbl.setWordWrap(True)
         self._body_lay.addWidget(lbl)
+        self._body_lay.addStretch()
 
     def limpiar(self):
-        self.mostrar_mensaje("(ninguna seleccionada)")
+        self.mostrar_mensaje("Seleccioná un hotel y habitación para ver el precio estimado")
 
     def mostrar_precios_multiples(self, precios_data, gap_analysis=None):
         self._clear_body()

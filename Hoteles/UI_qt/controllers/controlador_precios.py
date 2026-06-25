@@ -3,7 +3,7 @@
 from datetime import datetime
 from Models.habitacion_unificada import HabitacionUnificada
 from Core.servicio_habitaciones import analizar_cobertura
-from UI.utils import normalizar_hotel_nombre
+from UI_qt.utils import normalizar_hotel_nombre
 
 
 class ControladorPrecios:

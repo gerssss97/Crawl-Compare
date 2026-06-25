@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushBut
 from PySide6.QtCore import QSize
 from UI_qt.widgets.qt_labeled_combo import QtLabeledCombo
 from UI_qt.styles import qt_icons
-from UI.utils import normalizar_hotel_nombre
+from UI_qt.utils import normalizar_hotel_nombre
 
 
 class QtFormReserva(QFrame):

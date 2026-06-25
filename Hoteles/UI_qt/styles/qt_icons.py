@@ -12,7 +12,7 @@ para el header oscuro). icon(name, on_dark=...) elige la variante segun el fondo
 from pathlib import Path
 from PySide6.QtGui import QIcon
 
-_BASE = Path(__file__).parent.parent.parent / "UI" / "assets" / "icons"
+_BASE = Path(__file__).parent.parent / "assets" / "icons"
 
 # Mapa nombre logico -> archivo
 _NAMES = {

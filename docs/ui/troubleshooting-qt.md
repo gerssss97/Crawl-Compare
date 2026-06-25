@@ -170,6 +170,32 @@ bridge, NO al EventBus directo. No se tocó el controlador (sigue con threading.
 
 ---
 
+## Completer popup: opciones invisibles + cuadrado en dark mode
+
+**Síntoma**: Al abrir un `QtLabeledCombo` en dark mode, el popup del completer muestra
+fondo blanco con texto casi invisible. Las esquinas son cuadradas aunque en light mode parecen redondeadas.
+
+**Causa raíz**: `_configure_completer_popup` en `qt_labeled_combo.py` llama a
+`popup.setStyleSheet(...)` con colores hardcodeados a `LIGHT` (`_SURFACE`, `_BORDER`).
+Este stylesheet de widget tiene mayor especificidad que el global de la app, lo que hace
+que el popup siempre use colores de light mode. Además no se seteaba `color`, por lo que
+heredaba `#F1F5F9` del `QWidget` global → texto blanco sobre fondo blanco → invisible.
+Las esquinas cuadradas en dark mode eran visibles porque sin `WA_TranslucentBackground`
+los corners del `border-radius` muestran el fondo blanco del OS sobre la UI oscura.
+
+**Intentos fallidos**:
+1. Agregar `QComboBox QAbstractItemView::item` al stylesheet global → no afecta el
+   completer popup porque es un `QListView` top-level, NO un hijo de `QComboBox`.
+
+**Solución**: Eliminar el `setStyleSheet` hardcodeado del widget. En `_configure_completer_popup`:
+- Agregar `popup.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)` (esquinas verdaderamente redondeadas)
+- Agregar `popup.setObjectName("completerPopup")` (permite selector específico en QSS global)
+- Eliminar `popup.setStyleSheet(...)` y las constantes `_R`, `_BORDER`, `_SURFACE`
+
+En `stylesheet.py` agregar reglas `QListView#completerPopup` con los colores del tema activo.
+
+---
+
 ## Resultado de Fase 5+6 (modales + threading) — 2026-06-11
 
 Flujo central de comparación funcionando en PySide6: botón Ejecutar → scraping en hilo

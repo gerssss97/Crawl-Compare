@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer
 
-from UI.styles import Colors, Spacing  # reutilizamos las MISMAS constantes
+from UI_qt.styles import Colors, Spacing
 
 
 def build_qss() -> str:

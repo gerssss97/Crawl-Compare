@@ -5,7 +5,7 @@ en formato DD-MM-AAAA, tanto a nivel de componentes individuales (día, mes, añ
 como de fecha completa.
 
 Ejemplo de uso:
-    >>> from UI.utils.validadores_fecha import validar_dia, parsear_fecha_dd_mm_aaaa
+    >>> from UI_qt.utils.validadores_fecha import validar_dia, parsear_fecha_dd_mm_aaaa
     >>> validar_dia("15")
     True
     >>> validar_dia("32")

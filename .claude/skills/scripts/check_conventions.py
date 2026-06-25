@@ -354,8 +354,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos:
-  python check_conventions.py UI/components/
-  python check_conventions.py UI/controllers/controlador_hotel.py
+  python check_conventions.py UI_qt/widgets/
+  python check_conventions.py UI_qt/views/
   python check_conventions.py .
         """
     )
@@ -364,8 +364,8 @@ Ejemplos:
         'path',
         type=str,
         nargs='?',
-        default='UI/',
-        help='Directorio o archivo a analizar (default: UI/)'
+        default='UI_qt/',
+        help='Directorio o archivo a analizar (default: UI_qt/)'
     )
 
     args = parser.parse_args()

@@ -452,39 +452,58 @@ python .claude/skills/scripts/check_conventions.py Core/
 
 ---
 
-## 7. Pytest (Futuro)
+## 7. Pytest + pytest-qt (activo)
 
-El proyecto está preparado para usar pytest en el futuro:
+Infraestructura activa para tests unitarios y de widgets Qt.
+
+**Dependencia**: `pytest-qt 4.5.0` instalado en el env `crawler`.
 
 ```bash
-# Crear directorio de tests pytest
-mkdir -p Tests/pytest
+conda activate crawler
+# Correr todos los tests
+python -m pytest Hoteles/Tests/pytest/ -v
 
-# Ejemplo de test pytest
-cat > Tests/pytest/test_comparador.py << 'EOF'
-import pytest
-from Core.comparador import limpiar_nombre_excel
-
-def test_limpiar_nombre_excel():
-    assert limpiar_nombre_excel("dbl superior w/breakfast") == "dbl superior breakfast"
-    assert limpiar_nombre_excel("jr suite (w/balcony)") == "jr suite balcony"
-
-def test_limpiar_nombre_excel_vacio():
-    assert limpiar_nombre_excel("") == ""
-EOF
-
-# Ejecutar pytest
-python -m pytest Tests/pytest/ -v
+# Correr un archivo específico
+python -m pytest Hoteles/Tests/pytest/test_labeled_combo.py -v
 ```
 
 **Output esperado:**
 ```
-======================== test session starts ========================
-Tests/pytest/test_comparador.py::test_limpiar_nombre_excel PASSED
-Tests/pytest/test_comparador.py::test_limpiar_nombre_excel_vacio PASSED
+============================= test session starts =============================
+PySide6 6.9.3 -- Qt runtime 6.9.3 -- Qt compiled 6.9.3
+collected 9 items
 
-======================== 2 passed in 0.05s ========================
+test_labeled_combo.py::test_completer_popup_tiene_objectname_correcto PASSED
+test_labeled_combo.py::test_completer_popup_tiene_translucent_background PASSED
+...
+============================== 9 passed in 0.19s ==============================
 ```
+
+### Tests existentes
+
+| Archivo | Qué cubre |
+|---------|-----------|
+| `Tests/pytest/test_labeled_combo.py` | `QtLabeledCombo`: estructura del completer popup (objectName, WA_TranslucentBackground, frameless, sin stylesheet hardcodeado) + reglas QSS dual-mode |
+
+### Fixture base para widgets Qt
+
+```python
+from UI_qt.state.observable import StringVar
+
+@pytest.fixture
+def combo(qtbot):
+    w = QtLabeledCombo("Label", StringVar())
+    qtbot.addWidget(w)
+    return w
+```
+
+`qtbot` es el fixture de pytest-qt que gestiona el `QApplication` y el cleanup de widgets. `StringVar()` es suficiente para instanciar cualquier `QtLabeledCombo` en tests — no se necesita un `AppState` completo.
+
+### Convención de nombres
+
+- Un archivo por widget/módulo: `test_<nombre_widget>.py`
+- Nombres de test descriptivos del comportamiento: `test_completer_popup_tiene_objectname_correcto`
+- Tests de estructura del widget (objectName, flags, atributos) separados de tests de QSS (build_qss)
 
 ---
 
