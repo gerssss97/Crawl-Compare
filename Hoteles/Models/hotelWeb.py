@@ -11,6 +11,12 @@ class HabitacionWeb(BaseModel):
     nombre: str
     detalles: Optional[str]
     combos: List[ComboPrecio]
+    impuestos: Optional[float] = None
+
+    def precio_total(self, combo_idx: int = 0) -> float:
+        """Retorna el precio total (base + impuestos) para un combo."""
+        base = self.combos[combo_idx].precio if self.combos else 0.0
+        return base + (self.impuestos or 0.0)
 
 class HotelWeb(BaseModel):
     habitacion: List[HabitacionWeb]
@@ -69,16 +75,20 @@ def imprimir_habitacion_web(habitacion):
         espacio_blanco = generar_blanco("📋 Detalles:")
         for linea in habitacion.detalles.splitlines():
             lineas.append(f"{espacio_blanco} {linea}")
-    
+
     if habitacion.combos:
         lineas.append("  💼 Combos:")
         espacio_blanco = generar_blanco("  💼 Combos:")
-        for combo in habitacion.combos:
+        for idx, combo in enumerate(habitacion.combos):
             lineas.append(f"{espacio_blanco} 🟦 {combo.titulo.upper()} 🟦")
             lineas.append(f"{espacio_blanco} 📃 {combo.descripcion}")
             lineas.append(f"{espacio_blanco} 💵 ${combo.precio:.2f}")
+            if habitacion.impuestos is not None:
+                lineas.append(f"{espacio_blanco} 🏛️ Impuestos: ${habitacion.impuestos:.2f}")
+                total = habitacion.precio_total(idx)
+                lineas.append(f"{espacio_blanco} 💰 TOTAL: ${total:.2f}")
     else:
         lineas.append("  ❌ Sin promociones registradas.")
-    
+
     return "\n".join(lineas)
 
