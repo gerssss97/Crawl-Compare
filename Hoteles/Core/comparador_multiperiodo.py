@@ -7,7 +7,7 @@ from datetime import date
 from Models.hotelExcel import Periodo, HotelExcel
 from Models.hotelWeb import HabitacionWeb
 from Core.servicio_habitaciones import inferir_periodos_desde_fechas
-from Core.comparador import contiene_breakfast, obtener_mejor_match
+from Core.comparador import obtener_mejor_match
 from Core.controller import dar_hotel_web
 
 
@@ -77,6 +77,7 @@ async def comparar_multiperiodo(
         adultos: Número de adultos
         ninos: Número de niños
         hotel: Hotel actual (para buscar periodos)
+        site_config: FaenaConfig | AlvearConfig — requerido para extraer precios web
 
     Returns:
         ResultadoComparacionMultiperiodo con breakdown por periodo
@@ -84,6 +85,10 @@ async def comparar_multiperiodo(
     Raises:
         ValueError: Si no hay periodos aplicables o si falla el matching
     """
+    # Guard: verificar que site_config sea proporcionado
+    if site_config is None:
+        raise ValueError("site_config es requerido para comparar_multiperiodo")
+
     # Paso 1: Inferir periodos aplicables
     periodos_aplicables = inferir_periodos_desde_fechas(fecha_entrada, fecha_salida, hotel)
 
