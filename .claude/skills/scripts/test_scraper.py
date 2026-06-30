@@ -132,7 +132,7 @@ def main():
                 if hab.impuestos is not None:
                     print(f"     Base: ${precio_min:.2f} USD")
                     print(f"     Taxes: ${hab.impuestos:.2f} USD")
-                    total = precio_min + hab.impuestos
+                    total = hab.precio_total()
                     print(f"     Total: ${total:.2f} USD")
                 else:
                     print(f"     Precio: ${precio_min:.2f} USD")
