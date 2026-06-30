@@ -7,7 +7,7 @@ from datetime import date
 from Models.hotelExcel import Periodo, HotelExcel
 from Models.hotelWeb import HabitacionWeb
 from Core.servicio_habitaciones import inferir_periodos_desde_fechas
-from Core.comparador import contiene_breakfast, aplicar_filtro_breakfast
+from Core.comparador import contiene_breakfast, obtener_mejor_match
 from Core.controller import dar_hotel_web
 
 
@@ -53,6 +53,7 @@ async def comparar_multiperiodo(
     adultos: int,
     ninos: int,
     hotel: HotelExcel,
+    site_config=None,  # FaenaConfig | AlvearConfig — extraer_precio_web(hab_web, nombre_excel) -> float
     on_progress=None,  # callable(periodo_actual: int, total: int, estado: str) | None
     on_scrape_step=None,  # callable(step: str) | None - pasos dentro del scraping
 ) -> ResultadoComparacionMultiperiodo:
@@ -141,7 +142,7 @@ async def comparar_multiperiodo(
                 print("→ Realizando fuzzy matching...")
                 if on_progress:
                     on_progress(idx, total_periodos, f"Periodo {idx}: buscando habitacion...")
-                habitacion_web_matcheada, mensaje_match = obtener_mejor_match_con_breakfast(
+                habitacion_web_matcheada, mensaje_match = obtener_mejor_match(
                     habitacion_unificada.nombre,
                     hotel_web.habitacion
                 )
@@ -165,18 +166,10 @@ async def comparar_multiperiodo(
                         f"Habitación '{habitacion_web_matcheada.nombre}' no encontrada en periodo {idx}"
                     )
 
-                # IMPORTANTE: Aplicar filtro de breakfast si corresponde
-                # (en periodos subsiguientes, los combos pueden cambiar)
-                habitacion_web_matcheada = aplicar_filtro_breakfast(
-                    habitacion_actual,
-                    habitacion_unificada.nombre
-                )
+                habitacion_web_matcheada = habitacion_actual
 
-            # Extraer precio web del primer combo
-            if not habitacion_web_matcheada.combos:
-                raise ValueError(f"Habitación '{habitacion_web_matcheada.nombre}' no tiene combos")
-
-            precio_web = habitacion_web_matcheada.combos[0].precio
+            # Extraer precio web delegando al site_config
+            precio_web = site_config.extraer_precio_web(habitacion_web_matcheada, habitacion_unificada.nombre)
             print(f"→ Precio web: ${precio_web:.2f}")
 
             # Obtener precio Excel para este periodo
