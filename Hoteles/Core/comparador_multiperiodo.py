@@ -7,44 +7,8 @@ from datetime import date
 from Models.hotelExcel import Periodo, HotelExcel
 from Models.hotelWeb import HabitacionWeb
 from Core.servicio_habitaciones import inferir_periodos_desde_fechas
-from Core.comparador import obtener_mejor_match_con_breakfast, contiene_breakfast
+from Core.comparador import contiene_breakfast, aplicar_filtro_breakfast
 from Core.controller import dar_hotel_web
-
-
-def aplicar_filtro_breakfast(habitacion: HabitacionWeb, nombre_excel: str) -> HabitacionWeb:
-    """Aplica filtro de breakfast a una habitación web si es necesario.
-
-    Args:
-        habitacion: HabitacionWeb a filtrar
-        nombre_excel: Nombre de la habitación Excel (para detectar si incluye breakfast)
-
-    Returns:
-        HabitacionWeb filtrada (solo combos con breakfast) o habitación original
-    """
-    tiene_breakfast = contiene_breakfast(nombre_excel)
-
-    if not tiene_breakfast:
-        # No necesita filtro, devolver habitación original
-        return habitacion
-
-    # Filtrar combos que contengan breakfast
-    combos_filtrados = [
-        combo for combo in habitacion.combos
-        if contiene_breakfast(combo.titulo)
-    ]
-
-    if not combos_filtrados:
-        # Si no hay combos con breakfast, devolver habitación original
-        print(f"⚠️ Advertencia: No se encontraron combos con breakfast para '{habitacion.nombre}'")
-        return habitacion
-
-    # Crear nueva habitación con combos filtrados
-    print(f"→ Filtrado de breakfast aplicado: {len(habitacion.combos)} → {len(combos_filtrados)} combos")
-    return HabitacionWeb(
-        nombre=habitacion.nombre,
-        detalles=habitacion.detalles,
-        combos=combos_filtrados
-    )
 
 
 class ResultadoPeriodo:

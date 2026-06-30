@@ -70,46 +70,55 @@ def contiene_breakfast(texto, umbral=75):
 
     return False
 
-def obtener_mejor_match_con_breakfast(combo_elegido, hab_web: HabitacionWeb):
-    # Normalizar combo_elegido
-    tiene_breakfast = contiene_breakfast(combo_elegido)
-    # Extraer nombres de habitaciones web
-    nombres_web = [habitacion.nombre for habitacion in hab_web]
+def obtener_mejor_match(nombre_excel: str, habitaciones_web: list) -> tuple:
+    """Realiza fuzzy matching entre nombre_excel y la lista de HabitacionWeb.
 
-    # Buscar mejor match de nombre
-    mejor_nombre, _ = encontrar_mejor_match(combo_elegido, nombres_web)
-    if DEBUG_FUZZY_MATCHING:
-        print("MEJOR NOMBRE WEB ", mejor_nombre)
-        print("COMBO ELEGIDO", combo_elegido)
-    for habitacion in hab_web:
-        if habitacion.nombre == mejor_nombre:
-            if DEBUG_FUZZY_MATCHING:
-                print("HABITACION ENCONTRADA", habitacion.nombre)
-            if tiene_breakfast:
-                if DEBUG_FUZZY_MATCHING:
-                    print("FILTRANDO POR BREAKFAST")
-                    print_habitacion_web(habitacion)
-                # Filtrar combos que tengan algún indicio de breakfast en el título
-                combos_filtrados = [
-                    combo for combo in habitacion.combos
-                    if contiene_breakfast(combo.titulo)
-                ]
-                if combos_filtrados:
-                    habitacion = HabitacionWeb(
-                        nombre=habitacion.nombre,
-                        detalles=habitacion.detalles,
-                        combos=combos_filtrados
-                    )
-                    if DEBUG_FUZZY_MATCHING:
-                        print("devolvi habitacion con breakfast")
-                    # Retorna la misma habitación, pero con los combos filtrados
-                    return habitacion, "Se encontró un combo con 'breakfast'. Se muestran solo ese combo."
-                else:
-                    return habitacion, "Se buscó un combo con 'breakfast', pero no se encontró ninguno con dicho detalle en la web."
-            else:
-                if DEBUG_FUZZY_MATCHING:
-                    print("devolvi habitacion")
-                return habitacion, "Habitacion completa"  # No requiere filtrado
-    if DEBUG_FUZZY_MATCHING:
-        print("NO COINCIDENTES CON", mejor_nombre)
-    return None, "No se encontró ninguna habitación que coincida con el nombre proporcionado."
+    Args:
+        nombre_excel: Nombre de la habitación en el Excel
+        habitaciones_web: Lista de HabitacionWeb scrapeadas
+
+    Returns:
+        Tuple (HabitacionWeb, mensaje) con el mejor match, o (None, mensaje) si no se encontró
+    """
+    nombres_web = [h.nombre for h in habitaciones_web]
+    mejor_nombre, _ = encontrar_mejor_match(nombre_excel, nombres_web)
+    for hab in habitaciones_web:
+        if hab.nombre == mejor_nombre:
+            return hab, "Match encontrado"
+    return None, "No se encontró match"
+
+
+def aplicar_filtro_breakfast(habitacion: HabitacionWeb, nombre_excel: str) -> HabitacionWeb:
+    """Aplica filtro de breakfast a una habitación web si es necesario.
+
+    Args:
+        habitacion: HabitacionWeb a filtrar
+        nombre_excel: Nombre de la habitación Excel (para detectar si incluye breakfast)
+
+    Returns:
+        HabitacionWeb filtrada (solo combos con breakfast) o habitación original
+    """
+    tiene_breakfast = contiene_breakfast(nombre_excel)
+
+    if not tiene_breakfast:
+        # No necesita filtro, devolver habitación original
+        return habitacion
+
+    # Filtrar combos que contengan breakfast
+    combos_filtrados = [
+        combo for combo in habitacion.combos
+        if contiene_breakfast(combo.titulo)
+    ]
+
+    if not combos_filtrados:
+        # Si no hay combos con breakfast, devolver habitación original
+        print(f"⚠️ Advertencia: No se encontraron combos con breakfast para '{habitacion.nombre}'")
+        return habitacion
+
+    # Crear nueva habitación con combos filtrados
+    print(f"→ Filtrado de breakfast aplicado: {len(habitacion.combos)} → {len(combos_filtrados)} combos")
+    return HabitacionWeb(
+        nombre=habitacion.nombre,
+        detalles=habitacion.detalles,
+        combos=combos_filtrados
+    )
