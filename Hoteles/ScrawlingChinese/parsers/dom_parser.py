@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 
 from Models.hotelWeb import HotelWeb, HabitacionWeb, ComboPrecio
@@ -72,6 +73,5 @@ class DOMParser:
 
 def _parsear_precio(texto: str) -> float:
     """Extrae el primer número flotante de un string de precio."""
-    import re
-    match = re.search(r"[\d,]+\.?\d*", texto.replace(",", ""))
+    match = re.search(r"\d+\.?\d*", texto.replace(",", ""))
     return float(match.group()) if match else 0.0
