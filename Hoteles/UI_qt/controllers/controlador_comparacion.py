@@ -2,14 +2,7 @@
 
 import asyncio
 import threading
-from Core.controller import (
-    dar_hotel_web,
-    comparar_habitaciones,
-    dar_habitacion_web,
-    dar_mensaje,
-    normalizar_precio_str,
-    imprimir_habitacion_web
-)
+from ScrawlingChinese.crawler import _SITE_CONFIGS
 from UI_qt.utils import normalizar_hotel_nombre
 
 
@@ -126,6 +119,13 @@ class ControladorComparacion:
                 })
                 return
 
+            # Resolver site_config por nombre de hotel
+            hotel_nombre_raw = self.estado_app.hotel.get().lower()
+            site_config = next(
+                (cfg() for clave, cfg in _SITE_CONFIGS.items() if clave in hotel_nombre_raw),
+                None
+            )
+
             # Ejecutar comparación multi-periodo
             from Core.comparador_multiperiodo import comparar_multiperiodo
 
@@ -150,6 +150,7 @@ class ControladorComparacion:
                 adultos=adultos,
                 ninos=ninos,
                 hotel=hotel_actual,
+                site_config=site_config,
                 on_progress=_on_progress,
                 on_scrape_step=_on_scrape_step,
             )
