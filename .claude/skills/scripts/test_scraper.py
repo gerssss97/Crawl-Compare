@@ -3,11 +3,16 @@
 test_scraper.py - Testing rápido del scraper con tiempos
 
 Uso:
-    python test_scraper.py [hotel] [fecha_entrada] [fecha_salida] [adultos] [ninos]
+    python test_scraper.py [hotel] [fecha_entrada] [fecha_salida] [adultos] [args...]
 
-Ejemplos:
-    python test_scraper.py
+Alvear:
     python test_scraper.py alvear 01-02-2026 05-02-2026 2 1
+    python test_scraper.py alvear 01-02-2026 05-02-2026 2 0 --parser=dom
+
+Faena (los args extras son las EDADES de los niños, no la cantidad):
+    python test_scraper.py faena 28-06-2026 29-06-2026 2
+    python test_scraper.py faena 28-06-2026 29-06-2026 2 16 2
+    python test_scraper.py faena 28-06-2026 29-06-2026 2 16 2 --parser=dom
 """
 
 import sys
@@ -18,133 +23,132 @@ import json
 from datetime import date, timedelta, datetime
 from pathlib import Path
 
-# Agregar Hoteles/ al path para imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "Hoteles"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "Hoteles"))
 
-from ScrawlingChinese.crawler import crawl_alvear
-
-# Dict para multi-sitio (futuro)
-CRAWLERS = {
-    "alvear": crawl_alvear,
-    # "marriott": crawl_marriott,  # Futuro
-}
+from ScrawlingChinese.crawler import crawl_alvear, crawl_faena, CRAWLERS
 
 
 def parsear_fecha(fecha_str):
-    """
-    Parsea fecha DD-MM-YYYY → date object.
-
-    Args:
-        fecha_str: String en formato DD-MM-YYYY
-
-    Returns:
-        date object
-
-    Raises:
-        ValueError si el formato es incorrecto
-    """
     try:
         return datetime.strptime(fecha_str, "%d-%m-%Y").date()
     except ValueError:
         raise ValueError(f"Formato de fecha inválido: '{fecha_str}'. Usar DD-MM-YYYY (ej: 01-02-2026)")
 
 
-def main():
-    # Parsear argumentos con defaults
-    hotel = sys.argv[1] if len(sys.argv) > 1 else "alvear"
-    fecha_entrada_str = sys.argv[2] if len(sys.argv) > 2 else None
-    fecha_salida_str = sys.argv[3] if len(sys.argv) > 3 else None
-    adultos = int(sys.argv[4]) if len(sys.argv) > 4 else 2
-    ninos = int(sys.argv[5]) if len(sys.argv) > 5 else 0
+def extraer_parser_type(args: list) -> tuple[list, str]:
+    """Extrae --parser=llm|dom de la lista de args y devuelve (args_restantes, parser_type)."""
+    parser_type = "llm"
+    restantes = []
+    for arg in args:
+        if arg.startswith("--parser="):
+            parser_type = arg.split("=", 1)[1]
+        else:
+            restantes.append(arg)
+    return restantes, parser_type
 
-    # Defaults inteligentes para fechas
+
+def main():
+    args_raw = sys.argv[1:]
+    args, parser_type = extraer_parser_type(args_raw)
+
+    hotel            = args[0] if len(args) > 0 else "alvear"
+    fecha_entrada_str = args[1] if len(args) > 1 else None
+    fecha_salida_str  = args[2] if len(args) > 2 else None
+    adultos          = int(args[3]) if len(args) > 3 else 2
+    args_extra       = args[4:]  # ninos (alvear) o edades_ninos (faena)
+
     if not fecha_entrada_str:
-        fecha_entrada = date.today() + timedelta(days=1)  # Mañana
+        fecha_entrada = date.today() + timedelta(days=1)
     else:
         fecha_entrada = parsear_fecha(fecha_entrada_str)
 
     if not fecha_salida_str:
-        fecha_salida = fecha_entrada + timedelta(days=1)  # Día después de entrada
+        fecha_salida = fecha_entrada + timedelta(days=1)
     else:
         fecha_salida = parsear_fecha(fecha_salida_str)
 
-    # Validar fechas
     if fecha_salida <= fecha_entrada:
-        print("❌ Error: Fecha de salida debe ser posterior a fecha de entrada")
+        print("Error: Fecha de salida debe ser posterior a fecha de entrada")
         sys.exit(1)
 
-    # Verificar que el crawler existe
     if hotel not in CRAWLERS:
-        print(f"❌ Error: Hotel '{hotel}' no configurado.")
+        print(f"Error: Hotel '{hotel}' no configurado.")
         print(f"Hoteles disponibles: {', '.join(CRAWLERS.keys())}")
         sys.exit(1)
 
-    crawler_func = CRAWLERS[hotel]
+    fecha_in_str = fecha_entrada.strftime("%Y-%m-%d")
+    fecha_out_str = fecha_salida.strftime("%Y-%m-%d")
 
-    # Mostrar configuración
-    print(f"\n🔍 Test Scraper - Hotel: {hotel}")
-    print(f"📅 Fechas: {fecha_entrada.strftime('%d-%m-%Y')} → {fecha_salida.strftime('%d-%m-%Y')}")
-    print(f"👥 Huéspedes: {adultos} adultos, {ninos} niños\n")
+    print(f"\nTest Scraper — Hotel: {hotel} | Parser: {parser_type}")
+    print(f"Fechas: {fecha_entrada.strftime('%d-%m-%Y')} -> {fecha_salida.strftime('%d-%m-%Y')}")
+    print(f"Adultos: {adultos}")
 
-    # Ejecutar scraping con timer
-    print("⏱️  Ejecutando scraping...")
+    if hotel == "faena":
+        edades_ninos = [int(e) for e in args_extra]
+        if edades_ninos:
+            print(f"Edades niños: {edades_ninos}")
+        print()
+        coro = crawl_faena(
+            fecha_in_str, fecha_out_str,
+            adultos=adultos,
+            edades_ninos=edades_ninos,
+            parser_type=parser_type,
+        )
+    else:
+        ninos = int(args_extra[0]) if args_extra else 0
+        print(f"Niños: {ninos}")
+        print()
+        coro = crawl_alvear(
+            fecha_in_str, fecha_out_str,
+            adultos=adultos,
+            niños=ninos,
+            parser_type=parser_type,
+        )
+
+    print("Ejecutando scraping...")
     start_time = time.time()
 
     try:
-        resultado = asyncio.run(crawler_func(
-            fecha_entrada=fecha_entrada.strftime("%Y-%m-%d"),
-            fecha_salida=fecha_salida.strftime("%Y-%m-%d"),
-            adultos=adultos,
-            ninos=ninos
-        ))
+        resultado = asyncio.run(coro)
     except Exception as e:
-        end_time = time.time()
-        print(f"❌ Error durante scraping (después de {end_time - start_time:.2f}s):")
-        print(f"   {str(e)}")
+        elapsed = time.time() - start_time
+        print(f"Error durante scraping (despues de {elapsed:.2f}s): {e}")
         sys.exit(1)
 
-    end_time = time.time()
-    elapsed = end_time - start_time
-
-    # Mostrar resultados
-    print(f"✅ Completado en {elapsed:.2f}s\n")
+    elapsed = time.time() - start_time
+    print(f"Completado en {elapsed:.2f}s\n")
 
     num_habitaciones = len(resultado.habitacion)
-    print(f"📊 Resultados:")
-    print(f"   - {num_habitaciones} habitaciones extraídas\n")
+    print(f"Resultados: {num_habitaciones} habitaciones extraidas\n")
 
     if num_habitaciones == 0:
-        print("⚠️  No se extrajo ninguna habitación.")
-        print("   Ver docs/scraper/troubleshooting.md para debugging")
+        print("No se extrajo ninguna habitacion.")
+        print("Ver docs/scraper/troubleshooting.md para debugging")
     else:
-        # Mostrar primeras 3 habitaciones
         for i, hab in enumerate(resultado.habitacion[:3], 1):
-            print(f"   {i}. {hab.nombre}")
-
+            print(f"  {i}. {hab.nombre}")
             if hab.combos:
-                precio_min = min([combo.precio for combo in hab.combos])
-                print(f"      💵 Precio más barato: ${precio_min:.2f} USD")
+                precio_min = min(c.precio for c in hab.combos)
+                if hab.impuestos is not None:
+                    print(f"     Base: ${precio_min:.2f} USD")
+                    print(f"     Taxes: ${hab.impuestos:.2f} USD")
+                    total = precio_min + hab.impuestos
+                    print(f"     Total: ${total:.2f} USD")
+                else:
+                    print(f"     Precio: ${precio_min:.2f} USD")
             else:
-                print(f"      ⚠️  Sin precios disponibles")
-
+                print(f"     Sin precios disponibles")
             print()
 
-    # Guardar resultado en JSON
-    # Crear directorio tmp/ si no existe
     tmp_dir = Path(__file__).parent.parent.parent / "tmp"
     tmp_dir.mkdir(exist_ok=True)
-
-    # Generar nombre de archivo con timestamp
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    json_file = tmp_dir / f"test-scraper-{timestamp}.json"
+    json_file = tmp_dir / f"test-scraper-{hotel}-{parser_type}-{timestamp}.json"
 
     with open(json_file, "w", encoding="utf-8") as f:
         json.dump(resultado.model_dump(), f, indent=2, ensure_ascii=False)
 
-    print(f"💾 Resultado guardado en: {json_file}")
-    print("\n---")
-    print("🌐 Multi-sitio: Para testear otros hoteles, agregar configuración en ScrawlingChinese/config.py")
-    print()
+    print(f"Resultado guardado en: {json_file}")
 
 
 if __name__ == "__main__":
