@@ -73,10 +73,9 @@ _MKL_BIN   = _ENV_ROOT / "Library" / "bin"
 _BROWSERS_JSON = (
     _ENV_ROOT / "Lib" / "site-packages" / "playwright" / "driver" / "package" / "browsers.json"
 )
-_CHROMIUM_REV = next(
-    b["revision"] for b in json.loads(_BROWSERS_JSON.read_text())["browsers"]
-    if b["name"] == "chromium"
-)
+_browsers_data = json.loads(_BROWSERS_JSON.read_text())["browsers"]
+_CHROMIUM_REV = next(b["revision"] for b in _browsers_data if b["name"] == "chromium")
+_FIREFOX_REV  = next(b["revision"] for b in _browsers_data if b["name"] == "firefox")
 
 # DLLs de MKL que numpy 2.x (conda-forge) necesita en runtime.
 # Solo el subset mínimo — excluimos blacs/scalapack/cdft (HPC distribuido).
@@ -103,6 +102,11 @@ EXTERNAL_BINARIES = [
         "name":   "Chromium (Playwright)",
         "source": str(_LOCAL_APP / "ms-playwright" / f"chromium-{_CHROMIUM_REV}"),
         "dest":   f"playwright/driver/package/.local-browsers/chromium-{_CHROMIUM_REV}",
+    },
+    {
+        "name":   "Firefox (Playwright)",
+        "source": str(_LOCAL_APP / "ms-playwright" / f"firefox-{_FIREFOX_REV}"),
+        "dest":   f"playwright/driver/package/.local-browsers/firefox-{_FIREFOX_REV}",
     },
     {
         "name":   "Playwright driver (node.exe + package JS)",

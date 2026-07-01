@@ -6,7 +6,7 @@ Sistema de empaquetado de la app en una carpeta standalone para Windows (PyInsta
 
 ## 1. Resumen
 
-- El sistema de deploy compila la app + dependencias + Chromium + `.env` + Excel + íconos en una carpeta `--onedir` con PyInstaller, y valida el bundle con un smoke test automático.
+- El sistema de deploy compila la app + dependencias + Chromium + Firefox + `.env` + Excel + íconos en una carpeta `--onedir` con PyInstaller, y valida el bundle con un smoke test automático.
 - **Output**: carpeta `CrawlCompare/` (~258MB) con `CrawlCompare.exe` + `_internal/`, standalone — no requiere Python, ni `pip install`, ni `playwright install`.
 - **Lo que necesita el usuario final**: la **carpeta entera** `CrawlCompare/`. El `.exe` solo no arranca: necesita `_internal/` al lado. Todo está embebido (incluso las API keys del `.env`).
 - **Por qué `--onedir` y no `--onefile`**: el `.exe` no se descomprime a `%TEMP%\_MEI<random>\` en cada arranque → más rápido, y los paths internos (`_internal/`) son **estables** entre ejecuciones. Ver [docs/features/plan-instalador-diferenciado.md](../features/plan-instalador-diferenciado.md).
@@ -37,7 +37,7 @@ Hoteles/Deploy/
 | `build_manifest.py` | Manifest declarativo de paquetes, datas, binarios externos. **Tocar este, no el .spec.** |
 | `crawl_compare.spec` | Config PyInstaller. Lee de `build_manifest.py`, no tiene listas hardcodeadas. |
 | `smoke_test.py` | Lista declarativa de checks que validan el bundle. Corre via `--self-test`. |
-| `build.bat` | Script 4 pasos: verifica PyInstaller → limpia → compila → corre smoke test. |
+| `build.bat` | Script 5 pasos: verifica PyInstaller → instala browsers → limpia → compila → corre smoke test. |
 | `startup_check.py` | Lógica de arranque del `.exe`: carga `.env`, setea Playwright. Acepta callback `on_progress` para notificar al splash. |
 | `error_logger.py` | Instala `sys.excepthook` (traceback al log + messagebox) y `_TeeStream` que duplica `stdout`/`stderr` al archivo `crawl_compare_YYYYMMDD.log`. Solo activo en `.exe`. |
 | `splash.py` | `SplashScreen` en `tkinter` puro (no CTk) — ventana sin barra de título con label de estado y barra de progreso indeterminada. Se muestra durante todo el arranque. |
@@ -56,7 +56,7 @@ cd Hoteles
 Deploy\build.bat
 ```
 
-Output esperado: `[1/4] PyInstaller OK → [2/4] limpio → [3/4] compila → [4/4] smoke test 9/9 ✅`.
+Output esperado: `[1/5] PyInstaller OK → [2/5] browsers (chromium + firefox) → [3/5] limpio → [4/5] compila → [5/5] smoke test ✅`.
 
 ### Opción B — Manual (dos pasos)
 
@@ -96,7 +96,7 @@ Es el "package.json" del deploy. Separa **qué entra al bundle** (declarativo) d
 | `PACKAGES_SUBMODULES` | `openpyxl`, `rapidfuzz`, `pydantic` | Lib Python pura con discovery dinámico de submódulos (sin datas/binarios). |
 | `EXTRA_HIDDEN_IMPORTS` | `dotenv`, `tkinter`, `tkinter.ttk` | Módulos cargados por nombre con `importlib` o que PyInstaller no detecta por análisis estático. |
 | `EXTRA_DATAS` | `(Data/Extracto_prueba2.xlsx, Data)`, `(.env, .)`, `(UI/assets/icons/light, UI/assets/icons/light)`, `(UI/assets/icons/dark, UI/assets/icons/dark)` | Archivos y/o carpetas sueltas del proyecto. Tuplas `(src_relativo_a_Hoteles, dest_en_MEIPASS)`. PyInstaller acepta directorios — los expande recursivamente. |
-| `EXTERNAL_BINARIES` | Chromium 1181 (`ms-playwright/chromium-1181`) + Playwright driver (`node.exe` + package JS) | Binarios fuera del venv. Si Playwright actualiza la revisión de Chromium (ej: a 1182), hay que actualizar el path acá. |
+| `EXTERNAL_BINARIES` | Chromium + Firefox (revisiones leídas dinámicamente desde `playwright/driver/package/browsers.json`) + Playwright driver (`node.exe` + package JS) | Binarios fuera del venv. Las revisiones de Chromium y Firefox se resuelven automáticamente desde `browsers.json` — no hay números hardcodeados. Si se agrega soporte para un nuevo browser (ej: WebKit), agregar su entrada acá igual que Chromium/Firefox, **y** agregar ese browser al `playwright install` en `build.bat`. |
 | `EXCLUDES` | `Tests` | Carpetas/módulos a excluir del análisis para bajar tamaño. |
 
 ### Ejemplo: agregar una dependencia nueva
@@ -262,8 +262,8 @@ Lógica frozen vs dev:
 
 #### `check_playwright()`
 
-- En `.exe`: setea `PLAYWRIGHT_BROWSERS_PATH` apuntando a `_MEIPASS/playwright/driver/package/.local-browsers/` y retorna — **no instala nada**.
-- En dev: verifica si `AppData/Local/ms-playwright/chromium-*/chrome.exe` existe; si no, lo instala con una ventanita de progreso.
+- En `.exe`: setea `PLAYWRIGHT_BROWSERS_PATH` apuntando a `_MEIPASS/playwright/driver/package/.local-browsers/` y retorna — **no instala nada** (Chromium y Firefox están embebidos en el bundle).
+- En dev: verifica por separado si Chromium (`chromium-*/chrome-win/chrome.exe`) y Firefox (`firefox-*/firefox/firefox.exe`) existen en `AppData/Local/ms-playwright/`. Instala solo los que falten — puede instalar ambos, solo uno, o ninguno según el estado del entorno.
 
 #### `run_checks(on_progress=None)`
 
@@ -279,9 +279,11 @@ Wrapper que invoca los dos checks anteriores notificando progreso vía callback 
 
 `collect_all(pkg)` trae `datas + binaries + hiddenimports` en un solo llamado, cubriendo el árbol completo.
 
-### Chromium embebido
+### Chromium y Firefox embebidos
 
-Chromium completo (~338MB sin comprimir, ~150MB extra en el binario final) se embebe en el `.exe` desde `AppData/Local/ms-playwright/chromium-1181/`. El usuario no necesita `playwright install`.
+Chromium y Firefox completos se embeben en el `.exe` desde `AppData/Local/ms-playwright/`. El usuario no necesita `playwright install`. Las revisiones de ambos browsers se resuelven dinámicamente en `build_manifest.py` leyendo `playwright/driver/package/browsers.json` — no hay revisiones hardcodeadas.
+
+**Invariante crítica**: `build.bat` corre `playwright install chromium firefox` (paso 2/5) **antes** de invocar PyInstaller. Si ese paso se omite o falla, los browsers no estarán en `ms-playwright/` y el manifest no encontrará el directorio fuente → el bundle queda incompleto y el `.exe` explota en la primera comparación de Faena. Agregar un nuevo hotel que use un browser distinto (ej: WebKit) requiere: 1) agregar `webkit` al paso 2/5 del bat, y 2) agregar su entrada a `EXTERNAL_BINARIES` en `build_manifest.py`.
 
 ### `.env` y Excel embebidos en `_MEIPASS` (= `_internal/` en onedir)
 
@@ -365,6 +367,25 @@ PyInstaller acepta directorios como fuente — los expande recursivamente.
 **Causa**: al crear el `SplashScreen` se instancia `tk.Tk()` que arranca un intérprete Tcl propio. Luego `ctk.CTk()` se instancia (hereda de `tk.Tk`), pero el primer Tk sigue vivo en paralelo. Cuando `Icons.load()` crea las `CTkImage`, PIL las registra como `pyimage1`, `pyimage2`, etc. en el intérprete activo, que en algunos casos era el del splash. Al cerrar el splash después de instanciar CTk, ese intérprete muere y las imágenes registradas allí también — pero los `CTkButton` del header ya guardaron referencia a `pyimage1`. Al primer redibujo en el `mainloop`, explotan.
 **Fix**: **cerrar el splash ANTES de instanciar `ctk.CTk()`**. Así nunca hay dos roots Tk vivos en simultáneo y todas las `CTkImage` se registran en un único intérprete (el de CTk) que vive durante todo el `mainloop`. Trade-off de UX: el splash pierde la cobertura visual de los ~80ms que tarda `CrawlCompareGUI.__init__`. Aceptable comparado con los ~600ms de imports que sí cubre.
 **Prevención**: comentario extenso en `main.py:run_app()` explicando POR QUÉ se cierra el splash antes — es contraintuitivo y un futuro refactor podría romper la garantía sin saber.
+
+---
+
+### Fix 11 — Firefox no bundleado (Faena falla en el .exe)
+
+**Síntoma**: al ejecutar una comparación de Faena desde el `.exe`, error en el modal: `BrowserType.launch: Executable doesn't exist at ..._internal\playwright\driver\package\.local-browsers\firefox-1490\firefox\firefox.exe`. En dev funcionaba.
+
+**Causa (doble):**
+1. `build.bat` solo instalaba/verificaba Chromium — `playwright install firefox` nunca se corría, así que Firefox no estaba en `AppData/Local/ms-playwright/`.
+2. `build_manifest.py` solo tenía Chromium en `EXTERNAL_BINARIES` — aunque Firefox hubiera estado en `ms-playwright/`, el manifest nunca lo incluía en el bundle.
+3. `startup_check.py` en dev solo verificaba Chromium con `_chromium_installed()` — Firefox podía faltar en el entorno sin que nadie lo detectara.
+
+**Fix:**
+- `build.bat` paso 2/5: `playwright install chromium firefox` (antes de PyInstaller).
+- `build_manifest.py`: nueva función `_firefox_installed()` + resolución de `_FIREFOX_REV` desde `browsers.json` + entrada en `EXTERNAL_BINARIES` análoga a Chromium.
+- `startup_check.py`: nueva `_firefox_installed()` + `check_playwright()` instala los browsers que falten individualmente.
+- `controlador_comparacion.py`: errores `BrowserType.launch` / `Executable doesn't exist` → mensaje amigable en modal, traceback completo al log.
+
+**Lección**: cada nuevo hotel que use un browser diferente al Chromium predeterminado **necesita** que ese browser esté en las tres capas: `build.bat` (install), `build_manifest.py` (bundle) y `startup_check.py` (dev check). Omitir cualquiera de las tres capas resulta en un bundle incompleto que solo falla en runtime.
 
 ---
 

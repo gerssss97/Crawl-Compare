@@ -49,6 +49,14 @@ class ControladorPrecios:
         """Handler cuando cambia la habitación seleccionada (objeto rico)."""
         self.estado_app.habitacion_unificada_actual = habitacion_unificada
 
+        if habitacion_unificada is None:
+            self.estado_app.precio.set("(ninguna seleccionada)")
+            self.event_bus.emit('precios_actualizados', {
+                'tipo': 'sin_fechas',
+                'mensaje': '(Seleccioná una habitación)',
+            })
+            return
+
         # Si ya hay fechas válidas, calcular precios inmediatamente
         if self._fechas_son_validas():
             self._calcular_y_mostrar_precios()

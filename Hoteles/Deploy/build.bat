@@ -29,7 +29,7 @@ if errorlevel 1 (
 )
 
 :: Instalar PyInstaller en el env si no está
-echo [1/4] Verificando PyInstaller...
+echo [1/5] Verificando PyInstaller...
 call conda run -n %CONDA_ENV% python -c "import PyInstaller" >nul 2>&1
 if errorlevel 1 (
     echo      No encontrado, instalando...
@@ -42,16 +42,26 @@ if errorlevel 1 (
 )
 echo      OK
 
+:: Instalar browsers de Playwright (chromium + firefox)
+echo [2/5] Instalando browsers de Playwright...
+call conda run -n %CONDA_ENV% python -m playwright install chromium firefox
+if errorlevel 1 (
+    echo [ERROR] No se pudieron instalar los browsers de Playwright.
+    pause
+    exit /b 1
+)
+echo      OK
+
 :: Limpiar builds anteriores
-echo [2/4] Limpiando builds anteriores...
+echo [3/5] Limpiando builds anteriores...
 if exist "%DIST_DIR%" rmdir /s /q "%DIST_DIR%"
 if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
 echo      OK
 
 :: Ejecutar PyInstaller
-echo [3/4] Compilando .exe...
+echo [4/5] Compilando .exe...
 echo.
-call conda run -n %CONDA_ENV% pyinstaller "%SPEC_FILE%" --distpath "%DIST_DIR%" --workpath "%BUILD_DIR%"
+call conda run -n %CONDA_ENV% pyinstaller "%SPEC_FILE%" --distpath "%DIST_DIR%" --workpath "%BUILD_DIR%" --noconfirm
 
 if errorlevel 1 (
     echo.
@@ -64,7 +74,7 @@ if errorlevel 1 (
 :: módulos críticos cargan bien. Si algo falta en el bundle, falla acá
 :: en vez de aparecer como bug en producción.
 echo.
-echo [4/4] Corriendo smoke test del .exe...
+echo [5/5] Corriendo smoke test del .exe...
 echo.
 "%EXE_PATH%" --self-test
 if errorlevel 1 (

@@ -17,10 +17,11 @@ O doble click en `Hoteles/Deploy/build.bat` desde Anaconda Prompt.
 
 Output esperado:
 ```
-[1/4] Verificando PyInstaller... OK
-[2/4] Limpiando builds anteriores... OK
-[3/4] Compilando .exe...
-[4/4] Corriendo smoke test del .exe...
+[1/5] Verificando PyInstaller... OK
+[2/5] Instalando browsers de Playwright... OK
+[3/5] Limpiando builds anteriores... OK
+[4/5] Compilando .exe...
+[5/5] Corriendo smoke test del .exe...
 [SMOKE] OK   tiktoken encoding — cl100k_base loaded (100277 tokens)
 [SMOKE] OK   playwright — import OK
 ...
@@ -113,12 +114,12 @@ conda run -n crawler pyinstaller "Deploy/crawl_compare.spec" --distpath "Deploy/
 ### `Hoteles/Deploy/startup_check.py`
 Corre antes de que levante la UI. Hace dos checks:
 - **`check_env()`** — busca el `.env` en `sys._MEIPASS` (`.exe`) o `Hoteles/` (dev). Si no existe, muestra error y cierra.
-- **`check_playwright()`** — en `.exe` setea `PLAYWRIGHT_BROWSERS_PATH` apuntando a Chromium embebido. En dev verifica si Chromium está instalado en `AppData/ms-playwright/`, si no lo instala con una ventanita de progreso.
+- **`check_playwright()`** — en `.exe` setea `PLAYWRIGHT_BROWSERS_PATH` apuntando a Chromium y Firefox embebidos. En dev verifica si Chromium y Firefox están instalados en `AppData/ms-playwright/`, instala solo los que falten con una ventanita de progreso.
 
 ### `Hoteles/Deploy/crawl_compare.spec`
 Configuración de PyInstaller. Define qué entra en el `.exe`:
 - `collect_all()` para `customtkinter`, `crawl4ai`, `playwright`, `playwright_stealth`, `fake_http_header`
-- Chromium binario completo desde `AppData/Local/ms-playwright/chromium-1181/`
+- Chromium y Firefox binarios completos (revisiones desde `browsers.json`, sin hardcodear)
 - Driver de Playwright (`node.exe` + package JS)
 - `Extracto_prueba2.xlsx` embebido en `_MEIPASS/Data/`
 - `.env` embebido en raíz de `_MEIPASS`

@@ -57,6 +57,16 @@ def _chromium_installed() -> bool:
     return any(ms_playwright.glob("chromium-*/chrome-win/chrome.exe"))
 
 
+def _firefox_installed() -> bool:
+    """Verifica si el ejecutable de Firefox de Playwright existe en el sistema."""
+    from pathlib import Path
+    appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA", "")
+    ms_playwright = Path(appdata) / "ms-playwright"
+    if not ms_playwright.exists():
+        return False
+    return any(ms_playwright.glob("firefox-*/firefox/firefox.exe"))
+
+
 def check_playwright() -> None:
     """Apunta PLAYWRIGHT_BROWSERS_PATH a los browsers embebidos en el .exe, o instala si estamos en dev."""
     if getattr(sys, "frozen", False):
@@ -65,15 +75,23 @@ def check_playwright() -> None:
         )
         return
 
-    if _chromium_installed():
+    chromium_ok = _chromium_installed()
+    firefox_ok = _firefox_installed()
+    if chromium_ok and firefox_ok:
         return
+
+    browsers = []
+    if not chromium_ok:
+        browsers.append("chromium")
+    if not firefox_ok:
+        browsers.append("firefox")
 
     from PySide6.QtWidgets import QProgressDialog, QMessageBox
     from PySide6.QtCore import Qt
 
     app = _qapp()
     dlg = QProgressDialog(
-        "Instalando dependencias del navegador...\nEsto solo ocurre la primera vez (puede tardar ~2 min).",
+        f"Instalando dependencias del navegador ({', '.join(browsers)})...\nEsto solo ocurre la primera vez (puede tardar ~2 min).",
         None,  # sin botón cancelar
         0, 0,  # min=max=0 → indeterminado
     )
@@ -85,7 +103,7 @@ def check_playwright() -> None:
     app.processEvents()
 
     result = subprocess.run(
-        [sys.executable, "-m", "playwright", "install", "chromium"],
+        [sys.executable, "-m", "playwright", "install"] + browsers,
         capture_output=True,
         text=True,
     )
@@ -96,7 +114,7 @@ def check_playwright() -> None:
         QMessageBox.critical(
             None,
             "Error instalando Playwright",
-            f"No se pudo instalar Chromium:\n\n{result.stderr[-500:]}",
+            f"No se pudieron instalar los browsers ({', '.join(browsers)}):\n\n{result.stderr[-500:]}",
         )
         sys.exit(1)
 

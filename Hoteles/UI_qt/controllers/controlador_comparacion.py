@@ -189,9 +189,19 @@ class ControladorComparacion:
             })
 
         except Exception as e:
-            error_msg = f"Error inesperado: {str(e)}\n"
+            raw_msg = str(e)
             import traceback
-            traceback.print_exc()
+            traceback.print_exc()  # detalle completo va al log, no al modal
+
+            if "Executable doesn't exist" in raw_msg or "BrowserType.launch" in raw_msg:
+                error_msg = (
+                    "No se pudo iniciar el navegador.\n"
+                    "Reiniciá la aplicación para reinstalarlo automáticamente.\n"
+                    "El detalle del error está en el archivo de log."
+                )
+            else:
+                error_msg = f"Error inesperado: {raw_msg}"
+
             self.event_bus.emit('comparison_error', {
                 'comparison_id': comparison_id,
                 'error': error_msg,
