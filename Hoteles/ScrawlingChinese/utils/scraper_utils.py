@@ -17,40 +17,46 @@ from Models.hotelWeb import *
 from debug_config import DEBUG_CRAWL4AI_VERBOSE, DEBUG_SCRAPING_PIPELINE, DEBUG_LLM_MARKDOWN, DEBUG_COMPARISON_PIPELINE, SHOW_BROWSER
 
 
-def get_browser_config() -> BrowserConfig:
+def get_browser_config(
+    extra_args: list = None,
+    user_agent: str = None,
+    headless: bool = None,
+    browser_type: str = "chromium",
+) -> BrowserConfig:
     """
     Returns the browser configuration for the crawler.
 
-    Returns:
-        BrowserConfig: The configuration settings for the browser.
+    Args:
+        extra_args: flags adicionales de Chromium que el SiteConfig puede inyectar.
+                    Se ignoran si browser_type != "chromium".
+        user_agent: user-agent string a usar. Si es None usa el default del browser.
+        headless: override explícito de headless. Si es None usa SHOW_BROWSER global.
+        browser_type: "chromium" (default), "firefox", o "webkit".
     """
-    # https://docs.crawl4ai.com/core/browser-crawler-config/
-    return BrowserConfig(
-        browser_type="chromium",  # Type of browser to simulate
-        headless=not SHOW_BROWSER,  # SHOW_BROWSER=True en debug_config para abrir ventana Chrome
+    effective_headless = (not SHOW_BROWSER) if headless is None else headless
+    kwargs = dict(
+        browser_type=browser_type,
+        headless=effective_headless,
         verbose=DEBUG_CRAWL4AI_VERBOSE,
-
-        # ===== OPTIMIZACIONES DE RENDIMIENTO =====
-        # Flags para acelerar carga de página sin perder datos
-        extra_args=[
-            # FLAG 1: Evita detección de bot (0-500ms ganancia)
-            # Elimina navigator.webdriver=true para que el sitio no active defensas anti-bot
-            # "--disable-blink-features=AutomationControlled",
-
-            # FLAG 2: Deshabilita red en background (500-1500ms ganancia) - ACTIVADO
-            # Evita telemetría, actualizaciones, crash reports
-            # Reduce "ruido" de red → wait_until="networkidle" termina más rápido
-            "--disable-background-networking",
-
-            # FLAG 3: Deshabilita extensiones del navegador (200-500ms ganancia)
-            # Las extensiones consumen CPU/memoria y hacen requests adicionales
-            "--disable-extensions",
-
-            # FLAG 4: Deshabilita barra de traducción (50-100ms ganancia)
-            # Evita que Chrome analice el idioma y cargue recursos de traducción
-            "--disable-features=TranslateUI",
-        ],
     )
+    # Los flags de Chromium solo aplican en Chromium
+    if browser_type == "chromium":
+        base_args = [
+            "--disable-background-networking",
+            "--disable-extensions",
+            "--disable-features=TranslateUI",
+        ]
+        kwargs["extra_args"] = base_args + (extra_args or [])
+    if user_agent:
+        kwargs["user_agent"] = user_agent
+    config = BrowserConfig(**kwargs)
+    if browser_type != "chromium":
+        # Workaround bug Crawl4AI 0.4.x: chrome_channel siempre se pasa como
+        # `channel` al launcher, incluso para Firefox/WebKit. Firefox no acepta
+        # channel="chromium". Vaciamos el atributo para que el if-check lo saltee.
+        config.chrome_channel = ""
+        config.channel = ""
+    return config
 
 
 def get_llm_strategy() -> LLMExtractionStrategy:

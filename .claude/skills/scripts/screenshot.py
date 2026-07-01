@@ -19,7 +19,7 @@ def capture():
     img = ImageGrab.grab(bbox=(sx, sy, sx + win.width(), sy + win.height()))
     img.save(r"C:\Users\German\Gerssss\IA\Hoteles\.claude\skills\scripts\app_qt_screenshot.png")
     print("SCREENSHOT_OK", flush=True)
-    app.quit()
+    os._exit(0)
 
 t = threading.Thread(target=capture, daemon=True)
 t.start()

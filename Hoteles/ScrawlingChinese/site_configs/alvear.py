@@ -15,9 +15,11 @@ class AlvearConfig:
     )
 
     USE_MAGIC = False  # be.synxis.com no tiene anti-bot agresivo
+    DEFAULT_PARSER = "llm"
 
-    def build_params(self, fecha_ingreso: str, fecha_egreso: str,
-                     adultos: int, ninos: int) -> dict:
+    def build_params(self, fecha_ingreso: str, fecha_egreso: str, **kwargs) -> dict:
+        adultos = kwargs.get("adultos", 2)
+        ninos = kwargs.get("ninos", 0)
         return {
             "adult": adultos,
             "child": ninos,

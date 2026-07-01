@@ -53,6 +53,8 @@ async def comparar_multiperiodo(
     adultos: int,
     ninos: int,
     hotel: HotelExcel,
+    hotel_nombre: str = None,  # "alvear", "faena", ... — usado para despachar el scraper correcto
+    edades_ninos: list = None,  # edades individuales de los niños (Faena/Accor); None o [] para hoteles que no lo usan
     site_config=None,  # FaenaConfig | AlvearConfig — extraer_precio_web(hab_web, nombre_excel) -> float
     on_progress=None,  # callable(periodo_actual: int, total: int, estado: str) | None
     on_scrape_step=None,  # callable(step: str) | None - pasos dentro del scraping
@@ -85,9 +87,13 @@ async def comparar_multiperiodo(
     Raises:
         ValueError: Si no hay periodos aplicables o si falla el matching
     """
-    # Guard: verificar que site_config sea proporcionado
+    print(f"[MULTIPERIODO] hotel_nombre='{hotel_nombre}' edades_ninos={edades_ninos} site_config={type(site_config).__name__ if site_config else None}")
+
+    # Guard: verificar que site_config y hotel_nombre sean proporcionados
     if site_config is None:
         raise ValueError("site_config es requerido para comparar_multiperiodo")
+    if hotel_nombre is None:
+        raise ValueError("hotel_nombre es requerido para comparar_multiperiodo")
 
     # Paso 1: Inferir periodos aplicables
     periodos_aplicables = inferir_periodos_desde_fechas(fecha_entrada, fecha_salida, hotel)
@@ -129,10 +135,12 @@ async def comparar_multiperiodo(
 
             # Scrape web (TESTING: usar force_pickle para tests rápidos)
             hotel_web = await dar_hotel_web(
+                hotel_nombre,
                 fecha_inicio_str,
                 fecha_fin_str,
                 adultos,
                 ninos,
+                edades_ninos=edades_ninos or [],
                 force_fresh=False,     # Cambia a True para scraping fresco
                 use_pickle=False,      # False para multi-periodo
                 force_pickle=False,    # MODO TESTING: Carga pickle directo

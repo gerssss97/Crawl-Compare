@@ -43,6 +43,7 @@ class AppState:
         # ===== Variables de huespedes =====
         self.adultos = IntVar(value=1)
         self.ninos = IntVar(value=0)
+        self.edades_ninos: list[int] = []
 
         # ===== Variables de resultado =====
         self.precio = StringVar(value="(ninguna seleccionada)")
@@ -97,10 +98,17 @@ class AppState:
         self.fecha_ano_salida.set("")
         self.fecha_salida_completa.set("")
 
+    def actualizar_edades_ninos(self, n: int):
+        """Redimensiona edades_ninos al nuevo count. Completa con 12 por defecto."""
+        while len(self.edades_ninos) < n:
+            self.edades_ninos.append(12)
+        self.edades_ninos = self.edades_ninos[:n]
+
     def reset_huespedes(self):
         """Resetea las variables de huespedes a valores por defecto."""
         self.adultos.set(1)
         self.ninos.set(0)
+        self.edades_ninos = []
 
     def reset_all(self):
         """Resetea todo el estado de la aplicacion."""

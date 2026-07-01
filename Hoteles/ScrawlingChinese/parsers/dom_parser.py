@@ -2,6 +2,7 @@ import re
 from typing import Optional
 
 from Models.hotelWeb import HotelWeb, HabitacionWeb, ComboPrecio
+from debug_config import DEBUG_SCRAPING_PIPELINE
 
 
 class DOMParser:
@@ -32,6 +33,21 @@ class DOMParser:
 
         nombres = [el.get_text(strip=True) for el in soup.select(nombre_sel)]
         precios_raw = [el.get_text(strip=True) for el in soup.select(precio_sel)]
+
+        if DEBUG_SCRAPING_PIPELINE:
+            print(f"\n[DOM] Selector nombres  : '{nombre_sel}' → {len(nombres)} elemento(s)")
+            for i, n in enumerate(nombres):
+                print(f"  [{i}] {n}")
+            print(f"[DOM] Selector precios  : '{precio_sel}' → {len(precios_raw)} elemento(s)")
+            for i, p in enumerate(precios_raw):
+                print(f"  [{i}] {p}")
+            if len(precios_raw) != len(nombres):
+                print(f"[DOM] ⚠️  MISMATCH nombres({len(nombres)}) vs precios({len(precios_raw)}) — algunos quedarán en $0")
+                # Snippet del HTML alrededor del contenedor de habitaciones
+                container = soup.select_one(".hotel-accommodations")
+                if container:
+                    snippet = str(container)[:3000]
+                    print(f"[DOM] HTML snippet (.hotel-accommodations):\n{snippet}")
 
         if not nombres:
             return None

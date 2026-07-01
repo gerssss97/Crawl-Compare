@@ -45,10 +45,20 @@ Hoteles/
 │   └── __init__.py
 │
 ├── ScrawlingChinese/
-│   ├── crawler.py                   # Scraper async (Crawl4AI + DeepSeek-R1) ⭐
-│   ├── config.py                    # Configuración scraper
+│   ├── crawler.py                   # crawl_alvear(), crawl_faena(), make_scraper(), CRAWLERS ⭐
+│   ├── config.py                    # Configuración legacy (backward compat)
+│   ├── site_configs/                # Strategy 1: config específica por hotel
+│   │   ├── __init__.py
+│   │   ├── alvear.py                # AlvearConfig (DOM selectors pendientes)
+│   │   └── faena.py                 # FaenaConfig (DOM selectors del handoff) ⭐
+│   ├── parsers/                     # Strategy 2: método de extracción
+│   │   ├── __init__.py
+│   │   ├── base.py                  # Protocol RoomParser
+│   │   ├── llm_parser.py            # LLMParser: Groq/LLM vía Crawl4AI
+│   │   └── dom_parser.py            # DOMParser: BeautifulSoup sin LLM
 │   └── utils/
-│       └── scraper_utils.py
+│       ├── hotel_scraper.py         # HotelScraper: Template Method (flujo fijo) ⭐
+│       └── scraper_utils.py         # get_browser_config(), fechas_validas(), helpers
 │
 ├── UI_qt/                           # Interfaz principal PySide6 ⭐
 │   ├── interfaz_qt.py               # MainWindow — ventana principal ⭐
@@ -129,7 +139,62 @@ Hoteles/
     ├── testExtractor2.py
     ├── test_error_ui_visual.py
     ├── test_extractor.py
+│   │   ├── hotel_scraper.py  # Hotel scraper
+│   ├── requirements.txt  # Requirements
     └── test_periodos_ui.py
 │   ├── tree-directory.md  # Tree directory
 │   ├── qt_interact_combo_popup.py  # Qt interact combo popup
+│   ├── feedback_run_skill_gui_blocking.md  # Feedback run skill gui blocking
+│   ├── HANDOFF-combo-popup.md  # Handoff combo popup
+│   ├── diagnostico_faena.py  # Diagnostico faena
+│   ├── analizar_faena.py  # Analizar faena
+│   ├── diagnostico_faena_v2.py  # Diagnostico faena v2
+│   ├── faena_browser.html  # Faena browser
+│   ├── extraer_rooms.py  # Extraer rooms
+│   ├── extraer_cards.py  # Extraer cards
+│   ├── HANDOFF-scraper-faena.md  # Handoff scraper faena
+│   ├── multi-hotel-strategy-pattern.md  # Multi hotel strategy pattern
+│   ├── alvear.py  # Alvear
+│   ├── llm_parser.py  # Extrae habitaciones mandando el HTML al LLM (Groq). Flujo actual del Alvear.
+│   ├── dom_parser.py  # Extrae habitaciones con BeautifulSoup sobre HTML crudo. Sin LLM.
+│   ├── test_scraper.py  # Extrae --parser=llm|dom de la lista de args y devuelve (args_restantes, parser_type).
+│   ├── test_firefox_accor.py  # Test firefox accor
+```
+
+---
+
+## docs/problemas/
+
+Bitácoras de investigación por problema concreto. Ver [README](../problemas/README.md).
+
+```
+docs/problemas/
+├── README.md                        # Índice con tabla de todos los issues
+└── scraper/
+    ├── antibot-tls.md               # TLS fingerprinting de api.accor.com ✅
+    ├── firefox-crawl4ai.md          # Bug Crawl4AI 0.4.x con Firefox ✅
+│   ├── crawl-dispatch-hardcoded.md  # Crawl dispatch hardcoded
+    └── currency-market.md           # EUR/USD/ARS, pos geolocation, taxes 🔧
+│   ├── diag_accor_currency.py  # Diag accor currency
+│   ├── diag_accor_pos.py  # Hace un fetch directo usando Playwright Firefox (bypass TLS fingerprinting).
+│   ├── diag_accor_markets.py  # Diag accor markets
+│   ├── taxes-y-desacople-precio-web.md  # Taxes y desacople precio web
+│   ├── progress.md  # Progress
+│   ├── task-1-brief.md  # Task 1 brief
+│   ├── task-1-report.md  # Retorna el precio total (base + impuestos) para un combo.
+│   ├── task-2-brief.md  # Task 2 brief
+│   ├── task-2-report.md  # Retorna el precio total (base + impuestos) para una habitaciÃ³n.
+│   ├── task-3-brief.md  # Task 3 brief
+│   ├── task-3-report.md  # Retorna el precio total despuÃ©s de aplicar filtro de breakfast.
+│   ├── task-4-brief.md  # Task 4 brief
+│   ├── task-4-report.md  # Task 4 report
+│   ├── task-5-brief.md  # Task 5 brief
+│   ├── task-5-report.md  # Task 5 report
+│   ├── task-6-brief.md  # Task 6 brief
+│   ├── task-6-report.md  # Task 6 report
+│   ├── task-7-brief.md  # Task 7 brief
+│   ├── task-7-report.md  # Task 7 report
+│   ├── task-8-brief.md  # Task 8 brief
+│   ├── task-8-report.md  # Task 8 report
+│   ├── HANDOFF-dispatch-faena-wiring.md  # Handoff dispatch faena wiring
 ```

@@ -69,10 +69,29 @@ class QtFormFechas(QFrame):
         self._actualizar_entrada_completa()
         self._actualizar_salida_completa()
 
+        self._stepper_ninos = QtSpinStepper(min_val=0, max_val=20, default=0)
+        self._stepper_ninos.value_changed.connect(self._on_ninos_changed)
         row.addWidget(self._huesped("Adultos", state.adultos, 1))
-        row.addWidget(self._huesped("Niños", state.ninos, 0))
+        row.addWidget(self._wrap_stepper("Niños", self._stepper_ninos))
 
         lay.addLayout(row)
+
+        # Sección dinámica de edades — visible solo si hotel=Faena y ninos > 0
+        self._container_edades = QWidget()
+        self._container_edades.setVisible(False)
+        edades_lay = QVBoxLayout(self._container_edades)
+        edades_lay.setContentsMargins(0, 4, 0, 0)
+        edades_lay.setSpacing(6)
+        lbl_edades = QLabel("Edades de los niños")
+        lbl_edades.setObjectName("fieldLabel")
+        edades_lay.addWidget(lbl_edades)
+        self._row_edades = QHBoxLayout()
+        self._row_edades.setSpacing(12)
+        edades_lay.addLayout(self._row_edades)
+        lay.addWidget(self._container_edades)
+
+        # Watch hotel para mostrar/ocultar sección de edades
+        state.hotel.trace_add('write', self._actualizar_seccion_edades)
 
     def _huesped(self, label, variable, default):
         wrap = QWidget()
@@ -86,6 +105,60 @@ class QtFormFechas(QFrame):
         stepper.value_changed.connect(lambda val: variable.set(val))
         v.addWidget(stepper)
         return wrap
+
+    def _wrap_stepper(self, label, stepper):
+        """Envuelve un stepper ya creado en un widget con label."""
+        wrap = QWidget()
+        v = QVBoxLayout(wrap)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(6)
+        lbl = QLabel(label)
+        lbl.setObjectName("fieldLabel")
+        v.addWidget(lbl)
+        v.addWidget(stepper)
+        return wrap
+
+    def _on_ninos_changed(self, val):
+        self.state.ninos.set(val)
+        self._actualizar_seccion_edades()
+
+    def _es_faena(self):
+        return "faena" in self.state.hotel.get().lower()
+
+    def _actualizar_seccion_edades(self, *_):
+        ninos = self.state.ninos.get()
+        if self._es_faena() and ninos > 0:
+            self.state.actualizar_edades_ninos(ninos)
+            self._reconstruir_spinners_edad(ninos)
+            self._container_edades.setVisible(True)
+        else:
+            self._container_edades.setVisible(False)
+            self.state.edades_ninos = []
+
+    def _reconstruir_spinners_edad(self, ninos):
+        while self._row_edades.count():
+            item = self._row_edades.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        for i in range(ninos):
+            edad_actual = self.state.edades_ninos[i] if i < len(self.state.edades_ninos) else 12
+            wrap = QWidget()
+            v = QVBoxLayout(wrap)
+            v.setContentsMargins(0, 0, 0, 0)
+            v.setSpacing(6)
+            lbl = QLabel(f"Niño {i + 1}")
+            lbl.setObjectName("fieldLabel")
+            v.addWidget(lbl)
+            stepper = QtSpinStepper(min_val=0, max_val=17, default=edad_actual)
+            stepper.value_changed.connect(lambda val, idx=i: self._on_edad_changed(idx, val))
+            v.addWidget(stepper)
+            self._row_edades.addWidget(wrap)
+        self._row_edades.addStretch()
+
+    def _on_edad_changed(self, idx, val):
+        if idx < len(self.state.edades_ninos):
+            self.state.edades_ninos[idx] = val
 
     def _on_entrada_changed(self):
         """Validacion preventiva: la salida no puede ser <= entrada."""

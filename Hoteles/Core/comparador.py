@@ -6,14 +6,19 @@ from debug_config import DEBUG_FUZZY_MATCHING
 
 def encontrar_mejor_match(nombre_excel, nombres_web):
     nombre_excel_limpio = limpiar_nombre_excel(nombre_excel)
+    if DEBUG_FUZZY_MATCHING:
+        print(f"\n[FUZZY] Excel original : '{nombre_excel}'")
+        print(f"[FUZZY] Excel limpio   : '{nombre_excel_limpio}'")
+        print(f"[FUZZY] Candidatos web ({len(nombres_web)}):")
     mejores_scores = []
 
     for nombre_web in nombres_web:
+        nombre_web_cmp = nombre_web.lower()
         # Usamos varias métricas de RapidFuzz
-        score_ratio = fuzz.ratio(nombre_excel_limpio, nombre_web) / 100
-        score_partial = fuzz.partial_ratio(nombre_excel_limpio, nombre_web) / 100
-        score_token_sort = fuzz.token_sort_ratio(nombre_excel_limpio, nombre_web) / 100
-        score_token_set = fuzz.token_set_ratio(nombre_excel_limpio, nombre_web) / 100
+        score_ratio = fuzz.ratio(nombre_excel_limpio, nombre_web_cmp) / 100
+        score_partial = fuzz.partial_ratio(nombre_excel_limpio, nombre_web_cmp) / 100
+        score_token_sort = fuzz.token_sort_ratio(nombre_excel_limpio, nombre_web_cmp) / 100
+        score_token_set = fuzz.token_set_ratio(nombre_excel_limpio, nombre_web_cmp) / 100
 
         # Score combinado (ajustá pesos según tu caso)
         score_total = (
@@ -23,11 +28,9 @@ def encontrar_mejor_match(nombre_excel, nombres_web):
             0.25 * score_token_set
         )
         mejores_scores.append((nombre_web, score_total))
-        # print(f"{nombre_web}': Score ratio {score_ratio:.4f}")
-        # print(f"{nombre_web}': Score partial {score_partial:.4f}")
-        # print(f"{nombre_web}': Score toke sort {score_token_sort:.4f}")
-        # print(f"{nombre_web}': Score token set {score_token_set:.4f}")
-        # print(f"{nombre_web}': Score total {score_total:.4f}")
+        if DEBUG_FUZZY_MATCHING:
+            print(f"  [{nombre_web[:60]}]")
+            print(f"    ratio={score_ratio:.3f}  partial={score_partial:.3f}  token_sort={score_token_sort:.3f}  token_set={score_token_set:.3f}  → TOTAL={score_total:.3f}")
         
 
     mejor_nombre_web, mejor_score = max(mejores_scores, key=lambda x: x[1])

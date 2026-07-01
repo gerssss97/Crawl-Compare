@@ -17,21 +17,24 @@ class FaenaConfig:
 
     # Firefox bypasea el TLS fingerprinting de api.accor.com.
     # Crawl4AI 0.4.x tiene Firefox roto; se usa Playwright directo en HotelScraper.
+    # LLMParser no es compatible con el path Firefox — siempre usar DOM.
     BROWSER_TYPE = "firefox"
+    DEFAULT_PARSER = "dom"
     HEADLESS = True
     USER_AGENT = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) "
         "Gecko/20100101 Firefox/138.0"
     )
 
-    def build_params(self, fecha_ingreso: str, fecha_egreso: str,
-                     adultos: int, edades_ninos: list = None) -> dict:
+    def build_params(self, fecha_ingreso: str, fecha_egreso: str, **kwargs) -> dict:
         """
         Accor usa el parámetro 'compositions' para la ocupación.
         Formato: "{adultos}" o "{adultos}-{edad1}-{edad2}-..."
         Ej: "2" = 2 adultos solos, "2-16-2" = 2 adultos + niño 16 + niño 2.
+        Si se pasan 'edades_ninos' (lista), se usan las edades reales.
         """
-        edades_ninos = edades_ninos or []
+        adultos = kwargs.get("adultos", 2)
+        edades_ninos = kwargs.get("edades_ninos") or []
         compositions = str(adultos)
         for edad in edades_ninos:
             compositions += f"-{edad}"

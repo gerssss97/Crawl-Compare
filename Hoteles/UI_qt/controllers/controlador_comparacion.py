@@ -119,12 +119,22 @@ class ControladorComparacion:
                 })
                 return
 
-            # Resolver site_config por nombre de hotel
+            # Resolver site_config y scraper_key por nombre de hotel
+            # scraper_key es la clave corta ("alvear", "faena") que entiende make_scraper()
+            # hotel_nombre (de normalizar_hotel_nombre) solo sirve para lookup en Excel
             hotel_nombre_raw = self.estado_app.hotel.get().lower()
             site_config = next(
                 (cfg() for clave, cfg in _SITE_CONFIGS.items() if clave in hotel_nombre_raw),
                 None
             )
+            scraper_key = next(
+                (clave for clave in _SITE_CONFIGS if clave in hotel_nombre_raw),
+                None
+            )
+            print(f"[COMPARACION] hotel_raw='{hotel_nombre_raw}' scraper_key='{scraper_key}' site_config={type(site_config).__name__ if site_config else None}")
+
+            if scraper_key is None:
+                raise ValueError(f"No se encontró scraper para el hotel '{self.estado_app.hotel.get()}'")
 
             # Ejecutar comparación multi-periodo
             from Core.comparador_multiperiodo import comparar_multiperiodo
@@ -143,6 +153,10 @@ class ControladorComparacion:
                     'step': step,
                 })
 
+            edades_ninos = list(self.estado_app.edades_ninos)
+
+            print(f"[COMPARACION] adultos={adultos} ninos={ninos} edades_ninos={edades_ninos}")
+
             resultado = await comparar_multiperiodo(
                 habitacion_unificada=habitacion_unificada,
                 fecha_entrada=fecha_entrada,
@@ -150,6 +164,8 @@ class ControladorComparacion:
                 adultos=adultos,
                 ninos=ninos,
                 hotel=hotel_actual,
+                hotel_nombre=scraper_key,
+                edades_ninos=edades_ninos,
                 site_config=site_config,
                 on_progress=_on_progress,
                 on_scrape_step=_on_scrape_step,

@@ -20,7 +20,7 @@ SHOW_BROWSER = False
 # - Nivel 2 (Markdown→LLM): stats del markdown enviado a Groq (volcado a stdout, no archivo)
 # - Nivel 3 (Respuesta Groq): respuesta cruda del LLM, parseo JSON, razón de "incompleto"
 # Útil para diagnosticar por qué falla un intento (especialmente en .exe).
-DEBUG_SCRAPING_PIPELINE = False
+DEBUG_SCRAPING_PIPELINE = True
 
 # Guarda el markdown enviado al LLM como archivo debug_llm_input_*.txt tras cada scrape.
 # OJO: crea un archivo por cada intento. Para debug puntual en .exe usar DEBUG_SCRAPING_PIPELINE
@@ -34,7 +34,7 @@ DEBUG_CRAWL4AI_VERBOSE = False
 # ===== COMPARACIÓN =====
 
 # Prints del proceso de fuzzy matching entre habitaciones Excel y Web.
-DEBUG_FUZZY_MATCHING = False
+DEBUG_FUZZY_MATCHING = True
 
 # ===== EXTRACCIÓN EXCEL =====
 

@@ -1,0 +1,288 @@
+URL scrapeada: https://all.accor.com/booking/en/accor/hotel/B8G3?checkin=2026-07-20&currency=USD&partya=1&viewtype=roomrate&resultViewType=mda&dateIn=2026-07-20&dateOut=2026-07-21&compositions=2
+Timestamp:     20260629-165916
+
+============================================================
+  HAB: PARK VIEW ROOM 1 queen-size bed, 35m2/375sft.
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 Queen size bed(s)2 pers. max35m²Park viewBathMember rateFrom$427.64Public rate from$475.151 night2 adultsTaxes not included : $92.80.See the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$427.64Public rate from$475.151 night2 adultsTaxes not included : $92.80.
+  <div class='offer-info'>
+    texto: From$427.64Public rate from$475.15
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$427.64
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $427.64
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$475.15
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $475.15
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $92.80.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $92.80.
+
+============================================================
+  HAB: ACCESIBLE PARK VIEW ROOM 1 queen-size bed, 35m2/375sft.
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 Queen size bed(s)2 pers. max35m²Accessible roomPark viewBathMember rateFrom$427.64Public rate from$475.151 night2 adultsTaxes not included : $92.80.Only 2 rooms leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$427.64Public rate from$475.151 night2 adultsTaxes not included : $92.80.Only 2 rooms left
+  <div class='offer-info'>
+    texto: From$427.64Public rate from$475.15
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$427.64
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $427.64
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$475.15
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $475.15
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $92.80.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $92.80.
+
+============================================================
+  HAB: SKYLINE VIEW ROOM 1 king-size bed, 45m2/484sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 King size bed(s)3 pers. max45m²City ViewBathMember rateFrom$488.84Public rate from$543.151 night2 adultsTaxes not included : $105.66.See the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$488.84Public rate from$543.151 night2 adultsTaxes not included : $105.66.
+  <div class='offer-info'>
+    texto: From$488.84Public rate from$543.15
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$488.84
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $488.84
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$543.15
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $543.15
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $105.66.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $105.66.
+
+============================================================
+  HAB: SKYLINE VIEW ROOM 2 single beds, 45m2/484sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 2 Single bed(s)3 pers. max45m²City ViewBathMember rateFrom$488.84Public rate from$543.151 night2 adultsTaxes not included : $105.66.Only 2 rooms leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$488.84Public rate from$543.151 night2 adultsTaxes not included : $105.66.Only 2 rooms left
+  <div class='offer-info'>
+    texto: From$488.84Public rate from$543.15
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$488.84
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $488.84
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$543.15
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $543.15
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $105.66.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $105.66.
+
+============================================================
+  HAB: DUPLEX SUITE 1 king-size bed 75m2/810sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 King size bed(s)3 pers. max75m²City ViewBathMember rateFrom$550.04Public rate from$611.151 night2 adultsTaxes not included : $118.51.Only 4 rooms leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$550.04Public rate from$611.151 night2 adultsTaxes not included : $118.51.Only 4 rooms left
+  <div class='offer-info'>
+    texto: From$550.04Public rate from$611.15
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$550.04
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $550.04
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$611.15
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $611.15
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $118.51.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $118.51.
+
+============================================================
+  HAB: LOFT STUDIO 1 queen-size bed, 55m2/592sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 King size bed(s)3 pers. max55m²BathMember rateFrom$550.04Public rate from$611.151 night2 adultsTaxes not included : $118.51.Only 1 room leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$550.04Public rate from$611.151 night2 adultsTaxes not included : $118.51.Only 1 room left
+  <div class='offer-info'>
+    texto: From$550.04Public rate from$611.15
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$550.04
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $550.04
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$611.15
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $611.15
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $118.51.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $118.51.
+
+============================================================
+  HAB: CORNER STUDIO 1 king-size bed, 55m2/592sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 King size bed(s)3 pers. max55m²Pool sideBathMember rateFrom$630.36Public rate from$700.401 night2 adultsTaxes not included : $135.38.Only 2 rooms leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$630.36Public rate from$700.401 night2 adultsTaxes not included : $135.38.Only 2 rooms left
+  <div class='offer-info'>
+    texto: From$630.36Public rate from$700.40
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$630.36
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $630.36
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$700.40
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $700.40
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $135.38.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $135.38.
+
+============================================================
+  HAB: PORTEÑO SUITE 1 king-size bed, 85m2/915sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 King size bed(s)3 pers. max85m²BathMember rateFrom$699.21Public rate from$776.901 night2 adultsTaxes not included : $149.83.Only 4 rooms leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$699.21Public rate from$776.901 night2 adultsTaxes not included : $149.83.Only 4 rooms left
+  <div class='offer-info'>
+    texto: From$699.21Public rate from$776.90
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$699.21
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $699.21
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$776.90
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $776.90
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $149.83.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $149.83.
+
+============================================================
+  HAB: GRAND DUPLEX SUITE 1 kin-gsize bed, 132m2/1421sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 King size bed(s)3 pers. max110m²City ViewBathMember rateFrom$1,048.05Public rate from$1,164.501 night2 adultsTaxes not included : $223.09.Only 1 room leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$1,048.05Public rate from$1,164.501 night2 adultsTaxes not included : $223.09.Only 1 room left
+  <div class='offer-info'>
+    texto: From$1,048.05Public rate from$1,164.50
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$1,048.05
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $1,048.05
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$1,164.50
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $1,164.50
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $223.09.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $223.09.
+
+============================================================
+  HAB: TOWER SUITE 1 king-size bed, 150m2/1614sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 King size bed(s)3 pers. max150m²River sideBathMember rateFrom$2,119.05Public rate from$2,354.501 night2 adultsTaxes not included : $448.00.Only 1 room leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$2,119.05Public rate from$2,354.501 night2 adultsTaxes not included : $448.00.Only 1 room left
+  <div class='offer-info'>
+    texto: From$2,119.05Public rate from$2,354.50
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$2,119.05
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $2,119.05
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$2,354.50
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $2,354.50
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $448.00.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $448.00.
+
+============================================================
+  HAB: PRESIDENTIAL SUITE 1 king-size bed, 160m2/1722sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 King size bed(s)3 pers. max160m²BathMember rateFrom$2,578.05Public rate from$2,864.501 night2 adultsTaxes not included : $544.39.Only 1 room leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$2,578.05Public rate from$2,864.501 night2 adultsTaxes not included : $544.39.Only 1 room left
+  <div class='offer-info'>
+    texto: From$2,578.05Public rate from$2,864.50
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$2,578.05
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $2,578.05
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$2,864.50
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $2,864.50
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $544.39.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $544.39.
+
+============================================================
+  HAB: IMPERIAL SUITE 2- Bedroom 1 king-size bed, 2 single-beds 360m2/3875sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 King size bed(s) and 2 Single bed(s)5 pers. max360m²BathMember rateFrom$5,026.05Public rate from$5,584.501 night2 adultsTaxes not included : $1,058.47.Only 1 room leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$5,026.05Public rate from$5,584.501 night2 adultsTaxes not included : $1,058.47.Only 1 room left
+  <div class='offer-info'>
+    texto: From$5,026.05Public rate from$5,584.50
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$5,026.05
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $5,026.05
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$5,584.50
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $5,584.50
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $1,058.47.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $1,058.47.
+
+============================================================
+  HAB: FAENA SUITE 2-bedroom 1 king-size bed and 2 single-beds, 360m2/3875sft
+============================================================
+  <div class='hotel-accommodations-offers__item-second-block'>
+    texto: 1 King size bed(s) and 2 Single bed(s)4 pers. max250m²City ViewBathMember rateFrom$5,026.05Public rate from$5,584.501 night2 adultsTaxes not included : $1,058.47.Only 1 room leftSee the room detailsChoose this room
+  <section class='hotel-accommodations-offers__item-pricing-infos'>
+    texto: Member rateFrom$5,026.05Public rate from$5,584.501 night2 adultsTaxes not included : $1,058.47.Only 1 room left
+  <div class='offer-info'>
+    texto: From$5,026.05Public rate from$5,584.50
+  <p class='offer-price price-display offer-price--default body-strong-01'>
+    texto: From$5,026.05
+  <span class='price-display--member-rate title-01 offer-price__amount price-display-amount'>
+    texto: $5,026.05
+  <p class='offer-price price-display offer-price--alternative caption-strong'>
+    texto: Public rate from$5,584.50
+  <span class='body-strong-01 offer-price__amount price-display-amount'>
+    texto: $5,584.50
+  <div class='stay-details caption-default'>
+    texto: 1 night2 adultsTaxes not included : $1,058.47.
+  <span class='stay-details__formatted-tax-type'>
+    texto: Taxes not included : $1,058.47.

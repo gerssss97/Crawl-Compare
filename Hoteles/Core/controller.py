@@ -89,7 +89,7 @@ def dar_mensaje():
         return None
     return g.mensaje_get
 
-async def dar_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fresh=False, use_pickle=True, force_pickle=False, on_scrape_step=None):
+async def dar_hotel_web(hotel_nombre: str, fecha_ingreso, fecha_egreso, adultos, niños, edades_ninos: list = None, force_fresh=False, use_pickle=True, force_pickle=False, on_scrape_step=None):
     """Obtiene datos del hotel web.
 
     Args:
@@ -112,7 +112,7 @@ async def dar_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fres
     g = GestorService.get()
     if g is None:
         raise RuntimeError("No hay archivo Excel cargado.")
-    hotel = await g.obtener_hotel_web(fecha_ingreso, fecha_egreso, adultos, niños, force_fresh, use_pickle, force_pickle, on_scrape_step=on_scrape_step)
+    hotel = await g.obtener_hotel_web(hotel_nombre, fecha_ingreso, fecha_egreso, adultos, niños, edades_ninos=edades_ninos or [], force_fresh=force_fresh, use_pickle=use_pickle, force_pickle=force_pickle, on_scrape_step=on_scrape_step)
 
     if hotel is None or not hotel.habitacion:
         raise ValueError("No se pudieron obtener datos válidos del hotel web")

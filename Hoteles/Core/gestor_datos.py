@@ -36,7 +36,7 @@ class GestorDatos:
             raise ValueError(f"[ERROR] No se encontró una coincidencia para el combo", habitacion_excel)
         return 
 
-    async def obtener_hotel_web(self, fecha_ingreso, fecha_egreso, adultos, niños, force_fresh=False, use_pickle=True, force_pickle=False, on_scrape_step=None):
+    async def obtener_hotel_web(self, hotel_nombre: str, fecha_ingreso, fecha_egreso, adultos, niños, edades_ninos: list = None, force_fresh=False, use_pickle=True, force_pickle=False, on_scrape_step=None):
         """Obtiene datos del hotel web, con control granular de caché.
 
         Args:
@@ -98,7 +98,17 @@ class GestorDatos:
         fecha_ingreso_iso = datetime.strptime(fecha_ingreso, "%d-%m-%Y").strftime("%Y-%m-%d")
         fecha_egreso_iso = datetime.strptime(fecha_egreso, "%d-%m-%Y").strftime("%Y-%m-%d")
 
-        self.__hotel_web = await crawl_alvear(fecha_ingreso_iso, fecha_egreso_iso, adultos, niños, on_scrape_step=on_scrape_step)
+        from ScrawlingChinese.crawler import make_scraper
+        print(f"[GESTOR] make_scraper('{hotel_nombre}') adultos={adultos} ninos={niños} edades_ninos={edades_ninos}")
+        scraper = make_scraper(hotel_nombre)
+        self.__hotel_web = await scraper.crawl(
+            fecha_ingreso_iso,
+            fecha_egreso_iso,
+            adultos=adultos,
+            ninos=niños,
+            edades_ninos=edades_ninos or [],
+            on_scrape_step=on_scrape_step,
+        )
         self.__habitaciones_web = self.__hotel_web.habitacion
 
         # Guardar en archivo pickle (solo si use_pickle=True)

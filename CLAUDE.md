@@ -137,6 +137,7 @@ SCRAPING_DELAY_SECONDS=2
 | Testing | [docs/desarrollo/testing.md](docs/desarrollo/testing.md) |
 | Scraper (Crawl4AI) | [docs/scraper/](docs/scraper/) |
 | Troubleshooting scraper | [docs/scraper/troubleshooting.md](docs/scraper/troubleshooting.md) |
+| Problemas investigados (anti-bot, moneda, etc.) | [docs/problemas/README.md](docs/problemas/README.md) |
 | Componentes UI | [docs/ui/componentes.md](docs/ui/componentes.md) |
 | Troubleshooting Qt (UI) | [docs/ui/troubleshooting-qt.md](docs/ui/troubleshooting-qt.md) |
 | Controladores UI | [docs/ui/controladores.md](docs/ui/controladores.md) |
@@ -148,7 +149,7 @@ SCRAPING_DELAY_SECONDS=2
 
 ## Skills disponibles
 
-> Invocar con el `Skill` tool. Informar en el chat cada vez que se usa uno.
+> **Cómo invocar skills de proyecto:** Los skills en `.claude/skills/*.md` NO están en el registry del `Skill` tool — si se usa `Skill("nombre")` falla con "Unknown skill". La forma correcta es: `Read(".claude/skills/{nombre}.md")` y seguir las instrucciones del archivo. Informar en el chat cada vez que se usa uno.
 
 | Skill | Cuándo invocarlo |
 |-------|-----------------|

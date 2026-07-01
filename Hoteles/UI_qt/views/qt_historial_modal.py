@@ -57,7 +57,10 @@ class _FilaHistorial(QFrame):
         t3 = QLabel("   •   ".join(partes)); t3.setObjectName("mutedLabel"); v.addWidget(t3)
 
         periodos = entrada.get("periodos", [])
-        has_result = on_ver and entrada.get("html_resultado")
+        has_result = on_ver and (
+            entrada.get("html_resultado")
+            or (entrada.get("periodos") and entrada.get("tiene_discrepancias"))
+        )
 
         if has_result:
             row = QHBoxLayout()

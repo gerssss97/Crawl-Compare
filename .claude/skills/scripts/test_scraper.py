@@ -35,9 +35,10 @@ def parsear_fecha(fecha_str):
         raise ValueError(f"Formato de fecha inválido: '{fecha_str}'. Usar DD-MM-YYYY (ej: 01-02-2026)")
 
 
-def extraer_parser_type(args: list) -> tuple[list, str]:
-    """Extrae --parser=llm|dom de la lista de args y devuelve (args_restantes, parser_type)."""
-    parser_type = "llm"
+def extraer_parser_type(args: list) -> tuple[list, str | None]:
+    """Extrae --parser=llm|dom de la lista de args y devuelve (args_restantes, parser_type).
+    Si no se especifica --parser, devuelve None para que make_scraper use DEFAULT_PARSER del SiteConfig."""
+    parser_type = None
     restantes = []
     for arg in args:
         if arg.startswith("--parser="):
